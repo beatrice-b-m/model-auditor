@@ -114,6 +114,13 @@ class Auditor:
         for input_name in list(inputs_set):
             self._inputs.append(inputs_dict[input_name])
 
+    def apply_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
+        for input_type in self._inputs:
+            metric_input = input_type()
+            data: pd.DataFrame = metric_input.data_transform(data)
+
+        return data
+
     def evaluate_score(
         self, score_name: str, threshold: Optional[float] = None
     ) -> None:
@@ -132,25 +139,32 @@ class Auditor:
 
         # copy a slice of the dataframe with the score col and the outcome column
         data_slice: pd.DataFrame = self.data.loc[:, ["_truth", score.name]]
-        for input_type in self._inputs:
-            metric_input = input_type()
-            data_slice: pd.DataFrame = metric_input.data_transform(data_slice)
+        data_slice = self.apply_inputs(data=data_slice)
 
         for feature in self.features.values():
-            # cast feature levels to string
-            data_slice[feature.name] = data_slice[feature.name].astype(str)
-
-            # then group the df by the feature and get all metrics for each
-            feature_groups = data_slice.groupby(feature.name)
-
-            # e.g.
-            feature_metrics: dict[str, dict[str, Union[float, int]]] = dict()
-            for metric in self.metrics:
-                # e.g. {'levelA': 0.2, 'levelB': 0.4}
-                feature_level_metrics: dict[str, Union[float, int]] = (
-                    feature_groups.apply(metric.data_call).to_dict()
-                )
-
-                feature_metrics[metric.name] = feature_level_metrics
+            feature_metrics: dict[str, dict[str, Union[float, int]]] = (
+                self.evaluate_score_feature(data=data_slice, feature=feature)
+            )
 
             # RESUME HERE !
+
+    def evaluate_score_feature(
+        self, data: pd.DataFrame, feature: AuditorFeature
+    ) -> dict[str, dict[str, Union[float, int]]]:
+        # cast feature levels to string
+        data[feature.name] = data[feature.name].astype(str)
+
+        # then group the df by the feature and get all metrics for each
+        feature_groups = data.groupby(feature.name)
+
+        # e.g.
+        feature_metrics: dict[str, dict[str, Union[float, int]]] = dict()
+        for metric in self.metrics:
+            # e.g. {'levelA': 0.2, 'levelB': 0.4}
+            feature_level_metrics: dict[str, Union[float, int]] = feature_groups.apply(
+                metric.data_call
+            ).to_dict()
+
+            feature_metrics[metric.name] = feature_level_metrics
+
+        return feature_metrics
