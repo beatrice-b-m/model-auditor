@@ -77,7 +77,7 @@ class Auditor:
             raise ValueError("Please define at least one score first")
         if self.data is None:
             raise ValueError("Please add data with .add_data() first")
-        elif "_outcome" not in self.data.columns.tolist():
+        elif "_truth" not in self.data.columns.tolist():
             raise ValueError(
                 "Please define an outcome variable data with .add_outcome() first"
             )
@@ -87,7 +87,7 @@ class Auditor:
         score_list: list[float] = self.data[score.name].astype(float).tolist()
 
         # otherwise the target score will be the single item in the list
-        truth_list: list[float] = self.data["_outcome"].astype(float).tolist()
+        truth_list: list[float] = self.data["_truth"].astype(float).tolist()
 
         # calculate optimal threshold
         fpr, tpr, thresholds = roc_curve(truth_list, score_list)
@@ -95,7 +95,7 @@ class Auditor:
         optimal_threshold: float = thresholds[idx]
 
         print(
-            f"Optimal threshold for '{score.label}' [{score.name}] found at: {optimal_threshold}"
+            f"Optimal threshold for '{score.name}' found at: {optimal_threshold}"
         )
         return optimal_threshold
 
@@ -157,7 +157,7 @@ class Auditor:
         # then group the df by the feature and get all metrics for each
         feature_groups = data.groupby(feature.name)
 
-        # e.g.
+        # e.g. {"f1": {'levelA': 0.2, 'levelB': 0.4}, ... }
         feature_metrics: dict[str, dict[str, Union[float, int]]] = dict()
         for metric in self.metrics:
             # e.g. {'levelA': 0.2, 'levelB': 0.4}
