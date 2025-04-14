@@ -134,3 +134,35 @@ class FBetaScore(AuditorMetric):
             return 0.0
 
         return (1 + beta_sq) * (precision * recall) / ((beta_sq * precision) + recall)
+
+
+class TPR(Sensitivity):
+    name: str = "tpr"
+    label: str = "TPR"
+
+
+class TNR(Specificity):
+    name: str = "tnr"
+    label: str = "TNR"
+
+
+class FPR(AuditorMetric):
+    name: str = "fpr"
+    label: str = "FPR"
+    inputs: list[str] = ["fp", "tn"]
+
+    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
+        n_fp: int = data["fp"].sum()
+        n_tn: int = data["tn"].sum()
+        return n_fp / (n_fp + n_tn + eps)
+
+
+class FNR(AuditorMetric):
+    name: str = "fnr"
+    label: str = "FNR"
+    inputs: list[str] = ["fn", "tp"]
+
+    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
+        n_fn: int = data["fn"].sum()
+        n_tp: int = data["tp"].sum()
+        return n_fn / (n_fn + n_tp + eps)
