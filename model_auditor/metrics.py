@@ -21,10 +21,10 @@ class Sensitivity(AuditorMetric):
     label: str = "Sensitivity"
     inputs: list[str] = ["tp", "fn"]
 
-    def data_call(self, data: pd.DataFrame) -> float:
+    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
         n_tp: int = data["tp"].sum()
         n_fn: int = data["fn"].sum()
-        return n_tp / (n_tp + n_fn)
+        return n_tp / (n_tp + n_fn + eps)
 
 
 class Specificity(AuditorMetric):
@@ -32,10 +32,10 @@ class Specificity(AuditorMetric):
     label: str = "Specificity"
     inputs: list[str] = ["tn", "fp"]
 
-    def data_call(self, data: pd.DataFrame) -> float:
+    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
         n_tn: int = data["tn"].sum()
         n_fp: int = data["fp"].sum()
-        return n_tn / (n_tn + n_fp)
+        return n_tn / (n_tn + n_fp + eps)
 
 
 class Precision(AuditorMetric):
@@ -43,12 +43,10 @@ class Precision(AuditorMetric):
     label: str = "Precision"
     inputs: list[str] = ["tp", "fp"]
 
-    def data_call(self, data: pd.DataFrame) -> float:
+    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
         n_tp: int = data["tp"].sum()
         n_fp: int = data["fp"].sum()
-        if n_tp + n_fp == 0:
-            return 0.0
-        return n_tp / (n_tp + n_fp)
+        return n_tp / (n_tp + n_fp + eps)
 
 
 class Recall(AuditorMetric):
@@ -56,12 +54,10 @@ class Recall(AuditorMetric):
     label: str = "Recall"
     inputs: list[str] = ["tp", "fn"]
 
-    def data_call(self, data: pd.DataFrame) -> float:
+    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
         n_tp: int = data["tp"].sum()
         n_fn: int = data["fn"].sum()
-        if n_tp + n_fn == 0:
-            return 0.0
-        return n_tp / (n_tp + n_fn)
+        return n_tp / (n_tp + n_fn + eps)
 
 
 class F1Score(AuditorMetric):
@@ -69,12 +65,10 @@ class F1Score(AuditorMetric):
     label: str = "F1 Score"
     inputs: list[str] = ["precision", "recall"]
 
-    def data_call(self, data: pd.DataFrame) -> float:
+    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
         # Recalculate to avoid dependency on ordering of metrics
         precision = Precision().data_call(data)
         recall = Recall().data_call(data)
-        if precision + recall == 0:
-            return 0.0
         return 2 * (precision * recall) / (precision + recall)
 
 
@@ -107,7 +101,7 @@ class MatthewsCorrelationCoefficient(AuditorMetric):
     label: str = "Matthews Correlation Coefficient"
     inputs: list[str] = ["tp", "tn", "fp", "fn"]
 
-    def data_call(self, data: pd.DataFrame) -> float:
+    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
         tp = data["tp"].sum()
         tn = data["tn"].sum()
         fp = data["fp"].sum()
@@ -118,7 +112,7 @@ class MatthewsCorrelationCoefficient(AuditorMetric):
 
         if denominator == 0:
             return 0.0
-        return numerator / denominator
+        return numerator / (denominator + eps)
 
 
 class FBetaScore(AuditorMetric):
