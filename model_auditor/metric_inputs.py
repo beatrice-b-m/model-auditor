@@ -28,7 +28,7 @@ class TruePositives(AuditorMetricInput):
     inputs: list[str] = ["_truth", "_binary_pred"]
 
     def row_call(self, row: pd.Series) -> int:
-        return ((row["_truth"] == 1.0) & (row["_binary_pred"] == 1.0)).astype(int)
+        return int((row["_truth"] == 1.0) & (row["_binary_pred"] == 1.0))
 
 
 class FalsePositives(AuditorMetricInput):
@@ -37,7 +37,7 @@ class FalsePositives(AuditorMetricInput):
     inputs: list[str] = ["_truth", "_binary_pred"]
 
     def row_call(self, row: pd.Series) -> int:
-        return ((row["_truth"] == 1.0) & (row["_binary_pred"] == 1.0)).astype(int)
+        return int((row["_truth"] == 0.0) & (row["_binary_pred"] == 1.0))
 
 
 class TrueNegatives(AuditorMetricInput):
@@ -46,7 +46,7 @@ class TrueNegatives(AuditorMetricInput):
     inputs: list[str] = ["_truth", "_binary_pred"]
 
     def row_call(self, row: pd.Series) -> int:
-        return ((row["_truth"] == 1.0) & (row["_binary_pred"] == 1.0)).astype(int)
+        return int((row["_truth"] == 0.0) & (row["_binary_pred"] == 0.0))
 
 
 class FalseNegatives(AuditorMetricInput):
@@ -55,4 +55,4 @@ class FalseNegatives(AuditorMetricInput):
     inputs: list[str] = ["_truth", "_binary_pred"]
 
     def row_call(self, row: pd.Series) -> int:
-        return ((row["_truth"] == 1.0) & (row["_binary_pred"] == 1.0)).astype(int)
+        return int((row["_truth"] == 1.0) & (row["_binary_pred"] == 0.0))

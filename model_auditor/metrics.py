@@ -81,11 +81,11 @@ class F1Score(AuditorMetric):
 class AUROC(AuditorMetric):
     name: str = "auroc"
     label: str = "AUROC"
-    inputs: list[str] = ["_truth", "_score"]
+    inputs: list[str] = ["_truth", "_pred"]
 
     def data_call(self, data: pd.DataFrame) -> float:
         try:
-            return float(roc_auc_score(data["_truth"], data["_score"]))
+            return float(roc_auc_score(data["_truth"], data["_pred"]))
         except ValueError:
             return 0.0
 
@@ -93,11 +93,11 @@ class AUROC(AuditorMetric):
 class AUPRC(AuditorMetric):
     name: str = "auprc"
     label: str = "AUPRC"
-    inputs: list[str] = ["_truth", "_score"]
+    inputs: list[str] = ["_truth", "_pred"]
 
     def data_call(self, data: pd.DataFrame) -> float:
         try:
-            return float(average_precision_score(data["_truth"], data["_score"]))
+            return float(average_precision_score(data["_truth"], data["_pred"]))
         except ValueError:
             return 0.0
 
