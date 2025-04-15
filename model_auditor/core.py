@@ -97,7 +97,6 @@ class Auditor:
             label (Optional[str], optional): Optional label for the score. Defaults to None.
             threshold (Optional[float], optional): Threshold used to binarize the score column.
             Defaults to None and can be optimized using the Youden index or updated separately later.
-            TODO: Allow score thresholds to be updated.
         """
         score = AuditorScore(
             name=name,

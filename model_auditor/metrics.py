@@ -63,13 +63,13 @@ class Recall(AuditorMetric):
 class F1Score(AuditorMetric):
     name: str = "f1"
     label: str = "F1 Score"
-    inputs: list[str] = ["precision", "recall"]
+    inputs: list[str] = ["tp", "fp", "fn"]
 
     def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
         # Recalculate to avoid dependency on ordering of metrics
         precision = Precision().data_call(data)
         recall = Recall().data_call(data)
-        return 2 * (precision * recall) / (precision + recall)
+        return 2 * (precision * recall) / (precision + recall + eps)
 
 
 class AUROC(AuditorMetric):
