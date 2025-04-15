@@ -1,0 +1,149 @@
+from typing import Optional, Union, Callable
+import pandas as pd
+
+from model_auditor.schemas import AuditorScore, AuditorOutcome
+from model_auditor.plotting.schemas import Hierarchy, HLevel, HItem, PlotterData
+
+
+class HierarchyPlotter:
+    def __init__(self) -> None:
+        self.features: Optional[Hierarchy] = None  # type: ignore
+        self.data: Optional[pd.DataFrame] = None
+        self.aggregator: Union[str, Callable] = "median"
+
+        self.score: Optional[AuditorScore] = None
+        self.outcome: Optional[AuditorOutcome] = None
+
+    def set_data(self, data: pd.DataFrame) -> None:
+        self.data = data
+
+    def set_features(self, features: Union[Hierarchy, list[str]]) -> None:
+        # flat hierarchy
+        if isinstance(features, list):
+            self.features: Hierarchy = Hierarchy()
+            for feature in features:
+                self.features.levels.append(HLevel([HItem(name=feature)]))
+        # complex/custom hierarchy
+        elif isinstance(features, Hierarchy):
+            self.features = features
+        else:
+            raise ValueError(
+                "unrecognized type for features, please pass a list of strings or a predefined Hierarchy() object"
+            )
+
+    def set_aggregator(self, method: Union[str, Callable]) -> None:
+        self.aggregator = method
+
+    def set_score(
+        self, name: str, label: Optional[str] = None, threshold: Optional[float] = None
+    ) -> None:
+        self.score = AuditorScore(
+            name=name, label=label if label is not None else name, threshold=threshold
+        )
+
+    def compile(self, container: str) -> PlotterData:
+        if self.features is None:
+            raise ValueError("Please set features with .set_features() first")
+
+        if self.score is None:
+            raise ValueError("Please set a score variable with .set_score() first!")
+
+        datasource = self._prepare_datasource()
+        data = PlotterData()
+
+        if isinstance(self.aggregator, str):
+            container_agg: float = (
+                datasource[self.score.name].agg(self.aggregator).item()
+            )
+        else:
+            container_agg: float = self.aggregator(datasource[self.score.name])
+
+        data.add(
+            label=container,
+            id=container,
+            parent="",
+            value=len(datasource),
+            color=container_agg,
+        )
+
+        return self._recursive_record(
+            data=data, datasource=datasource, parent_id=container, idx=0
+        )
+
+    def _recursive_record(
+        self, data: PlotterData, datasource: pd.DataFrame, parent_id: str, idx: int
+    ):
+        level: HLevel = self.features.levels[idx]
+        if len(level.items) == 1:
+            feature = level.items[0]
+        else:
+            # handle query evaluation and select/derive the correct features here
+            raise NotImplementedError("implement this")
+
+        # group the df by the current feature and get its frequency and agg metric
+        assert isinstance(
+            self.score, AuditorScore
+        )  # handled by the wrapper but here for type hinting
+        count_dict: dict[str, int] = (
+            datasource.groupby(feature.name, as_index=True)[self.score.name]
+            .agg("count")
+            .to_dict()
+        )
+
+        if isinstance(self.aggregator, str):
+            # built-in aggregators
+            agg_dict: dict[str, float] = (
+                datasource.groupby(feature.name, as_index=True)[self.score.name]
+                .agg(self.aggregator)
+                .to_dict()
+            )
+        else:
+            # custom aggregators
+            agg_dict: dict = (
+                datasource.groupby(feature.name, as_index=True)[self.score.name]
+                .apply(self.aggregator)
+                .to_dict()
+            )
+
+        feature_levels: list[str] = list(count_dict.keys())
+        id_dict: dict[str, str] = {
+            feature_level: f"{parent_id}${feature_level}"
+            for feature_level in count_dict.keys()
+        }
+        for feature_level in feature_levels:
+            # add the current feature data
+            data.add(
+                label=feature_level,
+                id=id_dict[feature_level],
+                parent=parent_id,
+                value=count_dict[feature_level],
+                color=agg_dict[feature_level],
+            )
+
+            # if this isn't the last feature in the stack, get the subset of data for this feature and recurse
+            if idx < (len(self.features.levels) - 1):
+                data = self._recursive_record(
+                    data=data,
+                    datasource=datasource[datasource[feature.name] == feature_level],
+                    parent_id=id_dict[feature_level],
+                    idx=idx + 1,
+                )
+
+        return data
+
+    def _prepare_datasource(self) -> pd.DataFrame:
+        if self.data is None:
+            raise ValueError("Please set data with .set_data() first")
+
+        data = self.data.copy()
+        if self.score is not None:
+            data["_pred"] = self.score.name
+        else:
+            print("no score set")
+
+        if self.outcome is not None:
+            data["_outcome"] = self.outcome.name
+        else:
+            print("no outcome set")
+
+        return data
