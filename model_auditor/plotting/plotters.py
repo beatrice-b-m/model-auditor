@@ -15,9 +15,25 @@ class HierarchyPlotter:
         self.outcome: Optional[AuditorOutcome] = None
 
     def set_data(self, data: pd.DataFrame) -> None:
+        """Set data for the plotter
+
+        Args:
+            data (pd.DataFrame): Data used to build the plot
+        """
         self.data = data
 
     def set_features(self, features: Union[Hierarchy, list[str]]) -> None:
+        """Set the feature hierarchy for the plotter
+
+        Args:
+            features (Union[Hierarchy, list[str]]): Expects a list of strings
+            (column names corresponding to the data provided) or a predefined
+            custom Hierarchy object
+
+        Raises:
+            ValueError: Raised if something other than a list of Hierarchy
+            object was passed
+        """
         # flat hierarchy
         if isinstance(features, list):
             self.features: Hierarchy = Hierarchy()
@@ -32,16 +48,44 @@ class HierarchyPlotter:
             )
 
     def set_aggregator(self, method: Union[str, Callable]) -> None:
+        """Sets the aggregator used to color the plot cells
+
+        Args:
+            method (Union[str, Callable]): Expects a string corresponding to a
+            predefined aggregator for the .agg() pandas method, or a function
+            that takes the score column as a series and outputs some float
+        """
         self.aggregator = method
 
     def set_score(
         self, name: str, label: Optional[str] = None, threshold: Optional[float] = None
     ) -> None:
+        """Sets the score column used by the plotter
+
+        Args:
+            name (str): Name of the score column
+            label (Optional[str], optional): Label of the score column. Defaults to None
+            (plot will just use the column name).
+            threshold (Optional[float], optional): Threshold to binarize the score column.
+            Defaults to None (currently unused).
+        """
         self.score = AuditorScore(
             name=name, label=label if label is not None else name, threshold=threshold
         )
 
     def compile(self, container: str) -> PlotterData:
+        """Compiles the data for the plotter based on the defined HierarchyPlotter parameters
+
+        Args:
+            container (str): Name of the plot container trace
+
+        Raises:
+            ValueError: If features have not been set with .set_features() first
+            ValueError: If a score has not been set with .set_score() first
+
+        Returns:
+            PlotterData: Returns the formatted plotter data TODO: wrap this internally
+        """
         if self.features is None:
             raise ValueError("Please set features with .set_features() first")
 
@@ -73,6 +117,7 @@ class HierarchyPlotter:
     def _recursive_record(
         self, data: PlotterData, datasource: pd.DataFrame, parent_id: str, idx: int
     ):
+        """Recursive internal function used to compile data for the plotter"""
         level: HLevel = self.features.levels[idx]
         if len(level.items) == 1:
             feature = level.items[0]
@@ -132,6 +177,14 @@ class HierarchyPlotter:
         return data
 
     def _prepare_datasource(self) -> pd.DataFrame:
+        """Internal function used to prepare the datasource for plotting
+
+        Raises:
+            ValueError: If data has not been added with .set_data() first
+
+        Returns:
+            pd.DataFrame: Prepared data source
+        """
         if self.data is None:
             raise ValueError("Please set data with .set_data() first")
 
