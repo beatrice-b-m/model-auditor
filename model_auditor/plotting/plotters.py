@@ -100,7 +100,7 @@ class HierarchyPlotter:
                 datasource[self.score.name].agg(self.aggregator).item()
             )
         else:
-            container_agg: float = self.aggregator(datasource[self.score.name])
+            container_agg: float = self.aggregator(datasource)
 
         data.add(
             label=container,
@@ -119,18 +119,41 @@ class HierarchyPlotter:
     ):
         """Recursive internal function used to compile data for the plotter"""
         level: HLevel = self.features.levels[idx]
-        if len(level.items) == 1:
-            feature = level.items[0]
-        else:
-            # handle query evaluation and select/derive the correct features here
-            raise NotImplementedError("implement this")
+        # init a list to track valid features for this level
+        level_features: list[HItem] = []
+        for item in level.items:
+            # if the item has no query then include it
+            if item.query is None:
+                level_features.append(item)
 
+            # otherwise, include it if the feature query evaluates to true for the *entire* datasource
+            elif all(datasource.eval(item.query).tolist()): # type: ignore
+                level_features.append(item)
+
+        # if this level has only 1 valid item, consider it the feature
+        if len(level_features) == 1:
+            feature = level_features[0]
+
+        # otherwise, if this level has >1 valid item, concatenate them into a temp derived feature
+        elif len(level_features) > 1:
+            datasource.loc[:, '_temp_feature'] = (
+                datasource[[i.name for i in level_features]]
+                    .apply(lambda row: " & ".join(row.values.astype(str)), axis=1)
+            )
+
+            feature = HItem(name="_temp_feature")
+
+        # if this level has 0 valid items, return
+        else:
+            return data
+            
         # group the df by the current feature and get its frequency and agg metric
         assert isinstance(
             self.score, AuditorScore
         )  # handled by the wrapper but here for type hinting
+
         count_dict: dict[str, int] = (
-            datasource.groupby(feature.name, as_index=True)[self.score.name]
+            datasource.groupby(feature.name, as_index=True, observed=False)[self.score.name]
             .agg("count")
             .to_dict()
         )
@@ -138,23 +161,26 @@ class HierarchyPlotter:
         if isinstance(self.aggregator, str):
             # built-in aggregators
             agg_dict: dict[str, float] = (
-                datasource.groupby(feature.name, as_index=True)[self.score.name]
+                datasource.groupby(feature.name, as_index=True, observed=False)[self.score.name]
                 .agg(self.aggregator)
                 .to_dict()
             )
         else:
-            # custom aggregators
+            # custom aggregators (pass entire df here instead of just the score series)
             agg_dict: dict = (
-                datasource.groupby(feature.name, as_index=True)[self.score.name]
+                datasource.groupby(feature.name, as_index=True, observed=False)
                 .apply(self.aggregator)
                 .to_dict()
             )
 
+        # extract the count dict keys to get the levels for the current feature
         feature_levels: list[str] = list(count_dict.keys())
+        # format the parent_id + feature levels into trace identifiers
         id_dict: dict[str, str] = {
             feature_level: f"{parent_id}${feature_level}"
             for feature_level in count_dict.keys()
         }
+
         for feature_level in feature_levels:
             # add the current feature data
             data.add(
@@ -169,7 +195,7 @@ class HierarchyPlotter:
             if idx < (len(self.features.levels) - 1):
                 data = self._recursive_record(
                     data=data,
-                    datasource=datasource[datasource[feature.name] == feature_level],
+                    datasource=datasource.loc[datasource[feature.name] == feature_level, :].copy(),
                     parent_id=id_dict[feature_level],
                     idx=idx + 1,
                 )
