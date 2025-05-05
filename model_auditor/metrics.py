@@ -228,3 +228,23 @@ class nFN(AuditorMetric):
 
     def data_call(self, data: pd.DataFrame) -> int:
         return data['fn'].sum()
+
+
+class nPositive(AuditorMetric):
+    name: str = "n_pos"
+    label: str = "N Pos."
+    inputs: list[str] = ['_truth']
+    ci_eligible: bool = False
+
+    def data_call(self, data: pd.DataFrame) -> int:
+        return (data['_truth'] == 1).astype(int).sum()
+    
+
+class nNegative(AuditorMetric):
+    name: str = "n_neg"
+    label: str = "N Neg."
+    inputs: list[str] = ['_truth']
+    ci_eligible: bool = False
+
+    def data_call(self, data: pd.DataFrame) -> int:
+        return (data['_truth'] == 0).astype(int).sum()
