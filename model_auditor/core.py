@@ -295,7 +295,7 @@ class Auditor:
                 for level_name, level_data in tqdm(
                     feature_groups, position=2, desc="Bootstrap Levels", leave=False
                 ):
-                    # calculate confidence intervals for all metrics for the current feature level
+                    # calculate confidence intervals for eligible metrics for the current feature level
                     level_metric_intervals: dict[str, tuple[float, float]] = (
                         self._evaluate_confidence_interval(data=level_data)
                     )
