@@ -178,8 +178,9 @@ class FNR(AuditorMetric):
         n_fn: int = data["fn"].sum()
         n_tp: int = data["tp"].sum()
         return n_fn / (n_fn + n_tp + eps)
-    
-class n_Data(AuditorMetric):
+
+
+class nData(AuditorMetric):
     name: str = "n"
     label: str = "N"
     inputs: list[str] = []
@@ -187,3 +188,43 @@ class n_Data(AuditorMetric):
 
     def data_call(self, data: pd.DataFrame) -> int:
         return len(data)
+
+
+class nTP(AuditorMetric):
+    name: str = "n_tp"
+    label: str = "TP"
+    inputs: list[str] = ['tp']
+    ci_eligible: bool = False
+
+    def data_call(self, data: pd.DataFrame) -> int:
+        return data['tp'].sum()
+    
+
+class nTN(AuditorMetric):
+    name: str = "n_tn"
+    label: str = "TN"
+    inputs: list[str] = ['tn']
+    ci_eligible: bool = False
+
+    def data_call(self, data: pd.DataFrame) -> int:
+        return data['tn'].sum()
+  
+
+class nFP(AuditorMetric):
+    name: str = "n_fp"
+    label: str = "FP"
+    inputs: list[str] = ['fp']
+    ci_eligible: bool = False
+
+    def data_call(self, data: pd.DataFrame) -> int:
+        return data['fp'].sum()
+    
+
+class nFN(AuditorMetric):
+    name: str = "n_fn"
+    label: str = "FN"
+    inputs: list[str] = ['fn']
+    ci_eligible: bool = False
+
+    def data_call(self, data: pd.DataFrame) -> int:
+        return data['fn'].sum()
