@@ -53,7 +53,6 @@ class Auditor:
         # initialize attrs for later
         self._inputs: list[Type[AuditorMetricInput]] = list()
         self._evaluations: list = list()
-        self.n_bootstraps: int = 1000
 
     def add_data(self, data: pd.DataFrame) -> None:
         """
@@ -200,7 +199,7 @@ class Auditor:
     def _binarize(self, score_data: pd.Series, threshold: float) -> pd.Series:
         return (score_data >= threshold).astype(int)
 
-    def evaluate(self, score_name: str, threshold: Optional[float] = None):
+    def evaluate(self, score_name: str, threshold: Optional[float] = None, n_bootstraps: Optional[int] = 1000):
         if self.data is None:
             raise ValueError("Please add data with .add_data() first")
 
@@ -253,14 +252,14 @@ class Auditor:
 
                 # e.g. {"f1": {'levelA': 0.2, 'levelB': 0.4}, ... }
                 feature_eval: FeatureEvaluation = self._evaluate_feature(
-                    data=data_slice, feature=feature
+                    data=data_slice, feature=feature, n_bootstraps=n_bootstraps
                 )
                 score_eval.features[feature.name] = feature_eval
 
         return score_eval
 
     def _evaluate_feature(
-        self, data: pd.DataFrame, feature: AuditorFeature
+        self, data: pd.DataFrame, feature: AuditorFeature, n_bootstraps: Optional[int]
     ) -> FeatureEvaluation:
         with tqdm(range(2), position=1, desc="Stages", leave=False) as feature_pbar:
             feature_pbar.set_postfix({"stage": "Evaluating metrics"})
@@ -291,13 +290,13 @@ class Auditor:
             feature_pbar.update(1)
             feature_pbar.set_postfix({"stage": "Evaluating intervals"})
             # if calculating confidence intervals, do that here
-            if self.n_bootstraps is not None:
+            if n_bootstraps is not None:
                 for level_name, level_data in tqdm(
                     feature_groups, position=2, desc="Bootstrap Levels", leave=False
                 ):
                     # calculate confidence intervals for eligible metrics for the current feature level
                     level_metric_intervals: dict[str, tuple[float, float]] = (
-                        self._evaluate_confidence_interval(data=level_data)
+                        self._evaluate_confidence_interval(data=level_data, n_bootstraps=n_bootstraps)
                     )
                     # register the calculated intervals
                     feature_eval.update_intervals(
@@ -309,17 +308,17 @@ class Auditor:
         return feature_eval
 
     def _evaluate_confidence_interval(
-        self, data: pd.DataFrame
+        self, data: pd.DataFrame, n_bootstraps: int
     ) -> dict[str, tuple[float, float]]:
         n: int = len(data)
 
         bootstrap_results: dict[str, NDArray[np.float64]] = dict()
         for metric in self.metrics:
             if metric.ci_eligible:
-                bootstrap_results[metric.name] = np.empty(shape=(self.n_bootstraps), dtype=np.float64)
+                bootstrap_results[metric.name] = np.empty(shape=(n_bootstraps), dtype=np.float64)
 
         # sample n_bootstrap times with replacement
-        for i in range(self.n_bootstraps):
+        for i in range(n_bootstraps):
             boot_data: pd.DataFrame = data.sample(n, replace=True)
 
             # calculate metrics on current bootstrap data
