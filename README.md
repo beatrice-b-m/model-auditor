@@ -1,3 +1,5 @@
-# Model Auditor [Pre-Alpha]
+# Model Auditor [Early-Alpha]
 
 ### Beatrice BM
+
+Installable with `pip install model-auditor`
