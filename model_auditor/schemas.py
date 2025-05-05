@@ -12,14 +12,14 @@ class LevelMetric:
 
     Args:
         name (str): Name of the current feature level metric
-        score (float): Score for the current feature level metric
+        score (Union[float, int]): Score for the current feature level metric
         interval (tuple[float, float], optional): Optional lower and upper confidence
         bounds for the current feature level metric (defaults to None)
     """
 
     name: str
     label: str
-    score: float
+    score: Union[float, int]
     interval: Optional[tuple[float, float]] = None
 
 
@@ -47,15 +47,21 @@ class LevelEvaluation:
         for metric_name, confidence_interval in metric_intervals.items():
             self.metrics[metric_name].interval = confidence_interval
 
-    def to_dataframe(self, n_decimals: int = 3, add_index: bool = False):
+    def to_dataframe(self, n_decimals: int = 3, add_index: bool = False, metric_labels: bool = False):
         metric_data: dict[str, str] = dict()
         for metric in self.metrics.values():
+            # get the key name for the current metric (label if metric_labels is True)
+            metric_key: str = metric.label if metric_labels else metric.name
+            
             if metric.interval is not None:
-                metric_data[metric.name] = (
+                metric_data[metric_key] = (
                     f"{metric.score:.{n_decimals}f} ({metric.interval[0]:.{n_decimals}f}, {metric.interval[1]:.{n_decimals}f})"
                 )
+            elif isinstance(metric.score, float):
+                metric_data[metric_key] = f"{metric.score:.{n_decimals}f}"
             else:
-                metric_data[metric.name] = f"{metric.score:.{n_decimals}f}"
+                # integer scores (default to comma delimited for now)
+                metric_data[metric_key] = f"{metric.score:,}"
 
         return pd.DataFrame(metric_data, index=[self.name])
 
@@ -101,11 +107,11 @@ class FeatureEvaluation:
         self.levels[level_name].update_intervals(metric_intervals=metric_intervals)
 
     def to_dataframe(
-        self, n_decimals: int = 3, add_index: bool = False
+        self, n_decimals: int = 3, add_index: bool = False, metric_labels: bool = False
     ) -> pd.DataFrame:
         data: list[pd.DataFrame] = []
         for level_data in self.levels.values():
-            data.append(level_data.to_dataframe(n_decimals=n_decimals))
+            data.append(level_data.to_dataframe(n_decimals=n_decimals, metric_labels=metric_labels))
 
         if add_index:
             return pd.concat({self.label: pd.concat(data, axis=0)})
@@ -120,12 +126,12 @@ class ScoreEvaluation:
     features: dict[str, FeatureEvaluation] = field(default_factory=dict)
 
     def to_dataframe(
-        self, n_decimals: int = 3, add_index: bool = False
+        self, n_decimals: int = 3, add_index: bool = False, metric_labels: bool = False
     ) -> pd.DataFrame:
         data: list[pd.DataFrame] = []
         for feature_data in self.features.values():
             data.append(
-                feature_data.to_dataframe(n_decimals=n_decimals, add_index=True)
+                feature_data.to_dataframe(n_decimals=n_decimals, add_index=True, metric_labels=metric_labels)
             )
 
         if add_index:

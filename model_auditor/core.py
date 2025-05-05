@@ -295,7 +295,7 @@ class Auditor:
                 for level_name, level_data in tqdm(
                     feature_groups, position=2, desc="Bootstrap Levels", leave=False
                 ):
-                    # calculate confidence intervals for all metrics for the current feature level
+                    # calculate confidence intervals for eligible metrics for the current feature level
                     level_metric_intervals: dict[str, tuple[float, float]] = (
                         self._evaluate_confidence_interval(data=level_data)
                     )
@@ -313,10 +313,10 @@ class Auditor:
     ) -> dict[str, tuple[float, float]]:
         n: int = len(data)
 
-        bootstrap_results: dict[str, NDArray[np.float64]] = {
-            metric.name: np.empty(shape=(self.n_bootstraps), dtype=np.float64)
-            for metric in self.metrics
-        }
+        bootstrap_results: dict[str, NDArray[np.float64]] = dict()
+        for metric in self.metrics:
+            if metric.ci_eligible:
+                bootstrap_results[metric.name] = np.empty(shape=(self.n_bootstraps), dtype=np.float64)
 
         # sample n_bootstrap times with replacement
         for i in range(self.n_bootstraps):
@@ -324,7 +324,8 @@ class Auditor:
 
             # calculate metrics on current bootstrap data
             for metric in self.metrics:
-                bootstrap_results[metric.name][i] = metric.data_call(boot_data)
+                if metric.ci_eligible:
+                    bootstrap_results[metric.name][i] = metric.data_call(boot_data)
 
         metric_intervals: dict[str, tuple[float, float]] = dict()
         for metric_name, bootstrap_array in bootstrap_results.items():
