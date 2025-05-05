@@ -232,7 +232,7 @@ class nFN(AuditorMetric):
 
 class nPositive(AuditorMetric):
     name: str = "n_pos"
-    label: str = "N Pos."
+    label: str = "Pos."
     inputs: list[str] = ['_truth']
     ci_eligible: bool = False
 
@@ -242,7 +242,7 @@ class nPositive(AuditorMetric):
 
 class nNegative(AuditorMetric):
     name: str = "n_neg"
-    label: str = "N Neg."
+    label: str = "Neg."
     inputs: list[str] = ['_truth']
     ci_eligible: bool = False
 
