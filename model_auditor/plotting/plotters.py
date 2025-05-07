@@ -89,26 +89,34 @@ class HierarchyPlotter:
         if self.features is None:
             raise ValueError("Please set features with .set_features() first")
 
-        if self.score is None:
-            raise ValueError("Please set a score variable with .set_score() first!")
-
         datasource = self._prepare_datasource()
         data = PlotterData()
 
-        if isinstance(self.aggregator, str):
-            container_agg: float = (
-                datasource[self.score.name].agg(self.aggregator).item()
-            )
-        else:
-            container_agg: float = self.aggregator(datasource)
+        if self.score is not None:
+            if isinstance(self.aggregator, str):
+                container_agg: float = (
+                    datasource[self.score.name].agg(self.aggregator).item()
+                )
+            else:
+                container_agg: float = self.aggregator(datasource)
 
-        data.add(
-            label=container,
-            id=container,
-            parent="",
-            value=len(datasource),
-            color=container_agg,
-        )
+            data.add(
+                label=container,
+                id=container,
+                parent="",
+                value=len(datasource),
+                color=container_agg,
+            )
+
+        else:
+            print('No score specified')
+            data.add(
+                label=container,
+                id=container,
+                parent="",
+                value=len(datasource),
+            )
+
 
         return self._recursive_record(
             data=data, datasource=datasource, parent_id=container, idx=0
@@ -147,34 +155,38 @@ class HierarchyPlotter:
         else:
             return data
             
-        # group the df by the current feature and get its frequency and agg metric
-        assert isinstance(
-            self.score, AuditorScore
-        )  # handled by the wrapper but here for type hinting
-
         count_dict: dict[str, int] = (
-            datasource.groupby(feature.name, as_index=True, observed=False)[self.score.name]
-            .agg("count")
+            datasource.groupby(feature.name, as_index=True, observed=False)
+            .size()
             .to_dict()
         )
 
-        if isinstance(self.aggregator, str):
-            # built-in aggregators
-            agg_dict: dict[str, float] = (
-                datasource.groupby(feature.name, as_index=True, observed=False)[self.score.name]
-                .agg(self.aggregator)
-                .to_dict()
-            )
-        else:
-            # custom aggregators (pass entire df here instead of just the score series)
-            agg_dict: dict = (
-                datasource.groupby(feature.name, as_index=True, observed=False)
-                .apply(self.aggregator)
-                .to_dict()
-            )
+        if self.score is not None:
+            # group the df by the current feature and get its frequency and agg metric
+            assert isinstance(
+                self.score, AuditorScore
+            )  # handled by the wrapper but here for type hinting
+
+
+            if isinstance(self.aggregator, str):
+                # built-in aggregators
+                agg_dict: dict[str, float] = (
+                    datasource.groupby(feature.name, as_index=True, observed=False)[self.score.name]
+                    .agg(self.aggregator)
+                    .to_dict()
+                )
+
+            else:
+                # custom aggregators (pass entire df here instead of just the score series)
+                agg_dict: dict = (
+                    datasource.groupby(feature.name, as_index=True, observed=False)
+                    .apply(self.aggregator)
+                    .to_dict()
+                )
 
         # extract the count dict keys to get the levels for the current feature
         feature_levels: list[str] = list(count_dict.keys())
+
         # format the parent_id + feature levels into trace identifiers
         id_dict: dict[str, str] = {
             feature_level: f"{parent_id}${feature_level}"
@@ -183,13 +195,22 @@ class HierarchyPlotter:
 
         for feature_level in feature_levels:
             # add the current feature data
-            data.add(
-                label=feature_level,
-                id=id_dict[feature_level],
-                parent=parent_id,
-                value=count_dict[feature_level],
-                color=agg_dict[feature_level],
-            )
+            if self.score is not None:
+                data.add(
+                    label=feature_level,
+                    id=id_dict[feature_level],
+                    parent=parent_id,
+                    value=count_dict[feature_level],
+                    color=agg_dict[feature_level],
+                )
+                
+            else:
+                data.add(
+                    label=feature_level,
+                    id=id_dict[feature_level],
+                    parent=parent_id,
+                    value=count_dict[feature_level],
+                )
 
             # if this isn't the last feature in the stack, get the subset of data for this feature and recurse
             if idx < (len(self.features.levels) - 1):
