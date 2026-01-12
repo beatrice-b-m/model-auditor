@@ -6,11 +6,48 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "model-auditor"
 dynamic = ["version"]
+description = "A library for evaluating ML model performance across subgroups with stratified metrics and bootstrap confidence intervals"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    {name = "Beatrice Brown-Mulry"}
+]
+keywords = [
+    "machine-learning",
+    "model-evaluation",
+    "metrics",
+    "fairness",
+    "audit",
+    "classification",
+    "confidence-intervals",
+    "bootstrap",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Typing :: Typed",
+]
 
 dependencies = [
     "pandas >= 2.2",
     "numpy >= 2.1",
     "scikit-learn >= 1.5",
+    "tqdm >= 4.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/beatrice-b-m/model-auditor"
+Repository = "https://github.com/beatrice-b-m/model-auditor"
+Issues = "https://github.com/beatrice-b-m/model-auditor/issues"
 
 [tool.setuptools_scm]
