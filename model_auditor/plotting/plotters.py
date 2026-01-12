@@ -1,3 +1,10 @@
+"""Hierarchical plotter for visualizing stratified data.
+
+This module provides the HierarchyPlotter class for creating hierarchical
+visualizations (suitable for sunburst or treemap charts) from stratified
+data.
+"""
+
 from typing import Optional, Union, Callable
 import pandas as pd
 
@@ -6,7 +13,28 @@ from model_auditor.plotting.schemas import Hierarchy, HLevel, HItem, PlotterData
 
 
 class HierarchyPlotter:
+    """Creates hierarchical plot data from stratified DataFrames.
+
+    Builds the data structure needed for hierarchical visualizations
+    like sunburst or treemap charts, supporting both flat feature lists
+    and custom hierarchy definitions.
+
+    Attributes:
+        features: Hierarchy object defining the feature structure.
+        data: DataFrame containing the source data.
+        aggregator: Method for aggregating score values (string or callable).
+        score: AuditorScore defining the score column.
+        outcome: Optional AuditorOutcome for outcome-based analysis.
+
+    Example:
+        >>> plotter = HierarchyPlotter()
+        >>> plotter.set_data(df)
+        >>> plotter.set_features(["category", "subcategory"])
+        >>> plotter.set_score(name="score_column")
+        >>> plot_data = plotter.compile(container="Root")
+    """
     def __init__(self) -> None:
+        """Initialize the HierarchyPlotter with default settings."""
         self.features: Optional[Hierarchy] = None  # type: ignore
         self.data: Optional[pd.DataFrame] = None
         self.aggregator: Union[str, Callable] = "median"
@@ -124,8 +152,18 @@ class HierarchyPlotter:
 
     def _recursive_record(
         self, data: PlotterData, datasource: pd.DataFrame, parent_id: str, idx: int
-    ):
-        """Recursive internal function used to compile data for the plotter"""
+    ) -> PlotterData:
+        """Recursively build plotter data by traversing the hierarchy levels.
+
+        Args:
+            data: PlotterData object to append nodes to.
+            datasource: DataFrame subset for the current hierarchy branch.
+            parent_id: ID of the parent node in the hierarchy.
+            idx: Current index in the hierarchy levels.
+
+        Returns:
+            Updated PlotterData with nodes for current and child levels.
+        """
         level: HLevel = self.features.levels[idx]
         # init a list to track valid features for this level
         level_features: list[HItem] = []

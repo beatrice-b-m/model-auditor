@@ -1,3 +1,10 @@
+"""Data schemas for model auditor evaluation results.
+
+This module defines the data structures used to store and organize
+evaluation results, including features, scores, outcomes, and their
+associated metrics at various levels of aggregation.
+"""
+
 from typing import Optional, Union
 from dataclasses import dataclass, field
 
@@ -39,15 +46,37 @@ class LevelEvaluation:
     metrics: dict[str, LevelMetric] = field(default_factory=dict)
 
     def update(self, metric_name: str, metric_label: str, metric_score: float) -> None:
+        """Add or update a metric for this level.
+
+        Args:
+            metric_name: Unique identifier for the metric.
+            metric_label: Display label for the metric.
+            metric_score: Computed metric value.
+        """
         self.metrics[metric_name] = LevelMetric(
             name=metric_name, label=metric_label, score=metric_score
         )
 
-    def update_intervals(self, metric_intervals: dict[str, tuple[float, float]]):
+    def update_intervals(self, metric_intervals: dict[str, tuple[float, float]]) -> None:
+        """Update confidence intervals for existing metrics.
+
+        Args:
+            metric_intervals: Dictionary mapping metric names to (lower, upper) bounds.
+        """
         for metric_name, confidence_interval in metric_intervals.items():
             self.metrics[metric_name].interval = confidence_interval
 
-    def to_dataframe(self, n_decimals: int = 3, add_index: bool = False, metric_labels: bool = False):
+    def to_dataframe(self, n_decimals: int = 3, add_index: bool = False, metric_labels: bool = False) -> pd.DataFrame:
+        """Convert level evaluation to a pandas DataFrame.
+
+        Args:
+            n_decimals: Number of decimal places for formatting scores.
+            add_index: Unused parameter (kept for API consistency).
+            metric_labels: If True, use metric labels as column names; else use names.
+
+        Returns:
+            Single-row DataFrame with metrics as columns.
+        """
         metric_data: dict[str, str] = dict()
         for metric in self.metrics.values():
             # get the key name for the current metric (label if metric_labels is True)
@@ -86,6 +115,14 @@ class FeatureEvaluation:
     def update(
         self, metric_name: str, metric_label: str, data: dict[str, float]
     ) -> None:
+        """Update metrics for all levels from a metric-level dictionary.
+
+        Args:
+            metric_name: Unique identifier for the metric.
+            metric_label: Display label for the metric.
+            data: Dictionary mapping level names to metric scores,
+                e.g., {'levelA': 0.5, 'levelB': 0.5}.
+        """
         # expects a dict for one metric type: {'levelA': 0.5, 'levelB': 0.5}
         # and maps them to child level metric dicts
         for level_name, level_metric in data.items():
@@ -103,12 +140,28 @@ class FeatureEvaluation:
 
     def update_intervals(
         self, level_name: str, metric_intervals: dict[str, tuple[float, float]]
-    ):
+    ) -> None:
+        """Update confidence intervals for metrics at a specific level.
+
+        Args:
+            level_name: Name of the level to update.
+            metric_intervals: Dictionary mapping metric names to (lower, upper) bounds.
+        """
         self.levels[level_name].update_intervals(metric_intervals=metric_intervals)
 
     def to_dataframe(
         self, n_decimals: int = 3, add_index: bool = False, metric_labels: bool = False
     ) -> pd.DataFrame:
+        """Convert feature evaluation to a pandas DataFrame.
+
+        Args:
+            n_decimals: Number of decimal places for formatting scores.
+            add_index: If True, add feature label as a hierarchical index level.
+            metric_labels: If True, use metric labels as column names; else use names.
+
+        Returns:
+            DataFrame with levels as rows and metrics as columns.
+        """
         data: list[pd.DataFrame] = []
         for level_data in self.levels.values():
             data.append(level_data.to_dataframe(n_decimals=n_decimals, metric_labels=metric_labels))
@@ -121,6 +174,16 @@ class FeatureEvaluation:
 
 @dataclass
 class ScoreEvaluation:
+    """Container for all evaluation results for a single score.
+
+    Organizes evaluation results hierarchically by feature, then by level
+    within each feature.
+
+    Attributes:
+        name: Name of the score being evaluated.
+        label: Display label for the score.
+        features: Dictionary mapping feature names to FeatureEvaluation objects.
+    """
     name: str
     label: str
     features: dict[str, FeatureEvaluation] = field(default_factory=dict)
@@ -128,6 +191,16 @@ class ScoreEvaluation:
     def to_dataframe(
         self, n_decimals: int = 3, add_index: bool = False, metric_labels: bool = False
     ) -> pd.DataFrame:
+        """Convert score evaluation to a pandas DataFrame.
+
+        Args:
+            n_decimals: Number of decimal places for formatting scores.
+            add_index: If True, add score label as a hierarchical index level.
+            metric_labels: If True, use metric labels as column names; else use names.
+
+        Returns:
+            DataFrame with hierarchical index (feature, level) and metrics as columns.
+        """
         data: list[pd.DataFrame] = []
         for feature_data in self.features.values():
             data.append(
@@ -142,6 +215,17 @@ class ScoreEvaluation:
 
 @dataclass
 class AuditorFeature:
+    """Configuration for a stratification feature.
+
+    Defines a column in the data that will be used to stratify metric
+    evaluation into subgroups.
+
+    Attributes:
+        name: Column name in the DataFrame.
+        label: Display label for the feature (defaults to name if None).
+        levels: Optional list of specific levels to include; if None, all
+            unique values in the column are used.
+    """
     name: str
     label: Optional[str] = None
     levels: Optional[list[any]] = None
@@ -149,6 +233,17 @@ class AuditorFeature:
 
 @dataclass
 class AuditorScore:
+    """Configuration for a prediction score column.
+
+    Defines a continuous score column that will be evaluated against
+    the ground truth outcome.
+
+    Attributes:
+        name: Column name in the DataFrame containing prediction scores.
+        label: Display label for the score (defaults to name if None).
+        threshold: Optional threshold for binarizing continuous scores.
+    """
+
     name: str
     label: Optional[str] = None
     threshold: Optional[float] = None
@@ -156,5 +251,14 @@ class AuditorScore:
 
 @dataclass
 class AuditorOutcome:
+    """Configuration for the ground truth outcome column.
+
+    Defines the outcome (label) column that predictions are compared against.
+
+    Attributes:
+        name: Column name in the DataFrame containing ground truth labels.
+        mapping: Optional dictionary to convert outcome values to binary (0/1),
+            e.g., {"positive": 1, "negative": 0}.
+    """
     name: str
     mapping: Optional[dict[any, int]] = None

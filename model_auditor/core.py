@@ -1,3 +1,10 @@
+"""Core auditor module for ML model evaluation.
+
+This module contains the main Auditor class that orchestrates model evaluation
+across different features and subgroups, with support for bootstrap confidence
+intervals.
+"""
+
 from typing import Optional, Type, Union, Callable
 import pandas as pd
 import numpy as np
@@ -18,6 +25,27 @@ from model_auditor.utils import collect_metric_inputs
 
 
 class Auditor:
+    """Main class for auditing ML model performance across subgroups.
+
+    The Auditor class provides a flexible interface for evaluating model
+    predictions stratified by features (subgroups), supporting multiple
+    metrics and bootstrap confidence interval calculation.
+
+    Attributes:
+        data: DataFrame containing the evaluation data.
+        features: Dictionary mapping feature names to AuditorFeature objects.
+        scores: Dictionary mapping score names to AuditorScore objects.
+        metrics: List of metrics to compute during evaluation.
+
+    Example:
+        >>> auditor = Auditor()
+        >>> auditor.add_data(df)
+        >>> auditor.add_feature(name="age_group")
+        >>> auditor.add_score(name="risk_score", threshold=0.5)
+        >>> auditor.add_outcome(name="outcome")
+        >>> auditor.set_metrics([Sensitivity(), Specificity()])
+        >>> results = auditor.evaluate(score_name="risk_score")
+    """
     def __init__(
         self,
         data: Optional[pd.DataFrame] = None,
@@ -26,6 +54,15 @@ class Auditor:
         outcome: Optional[AuditorOutcome] = None,
         metrics: Optional[list[AuditorMetric]] = None,
     ) -> None:
+        """Initialize the Auditor.
+
+        Args:
+            data: DataFrame containing the data for evaluation.
+            features: List of AuditorFeature objects defining stratification variables.
+            scores: List of AuditorScore objects defining prediction columns.
+            outcome: AuditorOutcome object defining the ground truth column.
+            metrics: List of AuditorMetric objects to compute during evaluation.
+        """
         # initialize data
         self.data: Optional[pd.DataFrame] = None if data is None else data.copy()
 
@@ -105,6 +142,16 @@ class Auditor:
         self.scores[score.name] = score
 
     def add_outcome(self, name: str, mapping: Optional[dict[any, int]] = None) -> None:
+        """Add an outcome (ground truth) variable to the auditor.
+
+        Args:
+            name: Column name for the outcome variable.
+            mapping: Optional dictionary to map outcome values to binary (0/1).
+                For example, {"positive": 1, "negative": 0}.
+
+        Raises:
+            ValueError: If no data has been added with .add_data() first.
+        """
         if self.data is None:
             raise ValueError("Please add data with .add_data() first")
 
@@ -197,9 +244,38 @@ class Auditor:
         return data
 
     def _binarize(self, score_data: pd.Series, threshold: float) -> pd.Series:
+        """Convert continuous scores to binary predictions using a threshold.
+
+        Args:
+            score_data: Series of continuous score values.
+            threshold: Threshold value; scores >= threshold become 1, else 0.
+
+        Returns:
+            Series of binary predictions (0 or 1).
+        """
         return (score_data >= threshold).astype(int)
 
     def evaluate(self, score_name: str, threshold: Optional[float] = None, n_bootstraps: Optional[int] = 1000):
+        """Evaluate model performance for a given score across all features.
+
+        Computes all configured metrics stratified by each feature, with optional
+        bootstrap confidence intervals.
+
+        Args:
+            score_name: Name of the score column to evaluate.
+            threshold: Decision threshold for binarizing scores. If None, uses
+                the threshold defined in the AuditorScore object.
+            n_bootstraps: Number of bootstrap samples for confidence interval
+                calculation. Set to None to disable CI calculation.
+
+        Returns:
+            ScoreEvaluation object containing metrics for all features and levels.
+
+        Raises:
+            ValueError: If no data has been added with .add_data() first.
+            ValueError: If no metrics have been defined with .set_metrics() first.
+            ValueError: If threshold is None and not defined in the score object.
+        """
         if self.data is None:
             raise ValueError("Please add data with .add_data() first")
 
@@ -261,6 +337,16 @@ class Auditor:
     def _evaluate_feature(
         self, data: pd.DataFrame, feature: AuditorFeature, n_bootstraps: Optional[int]
     ) -> FeatureEvaluation:
+        """Evaluate all metrics for a single feature across its levels.
+
+        Args:
+            data: DataFrame containing the evaluation data with metric input columns.
+            feature: The feature to stratify evaluation by.
+            n_bootstraps: Number of bootstrap samples for CI calculation, or None.
+
+        Returns:
+            FeatureEvaluation containing metrics for each level of the feature.
+        """
         with tqdm(range(2), position=1, desc="Stages", leave=False) as feature_pbar:
             feature_pbar.set_postfix({"stage": "Evaluating metrics"})
 
@@ -310,6 +396,18 @@ class Auditor:
     def _evaluate_confidence_interval(
         self, data: pd.DataFrame, n_bootstraps: int
     ) -> dict[str, tuple[float, float]]:
+        """Calculate bootstrap confidence intervals for all CI-eligible metrics.
+
+        Uses bootstrap resampling to estimate 95% confidence intervals for
+        metrics that have ci_eligible=True.
+
+        Args:
+            data: DataFrame containing the data for a single feature level.
+            n_bootstraps: Number of bootstrap samples to draw.
+
+        Returns:
+            Dictionary mapping metric names to (lower, upper) confidence bounds.
+        """
         n: int = len(data)
 
         bootstrap_results: dict[str, NDArray[np.float64]] = dict()
