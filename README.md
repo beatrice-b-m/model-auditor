@@ -214,6 +214,46 @@ gender_results = results.features["gender"].to_dataframe()
 male_results = results.features["gender"].levels["Male"].to_dataframe()
 ```
 
+## Controlling Feature Level Order
+
+By default, feature levels appear in the order they were encountered in the
+data.  To control the row order in exported DataFrames, assign the feature
+column a `pd.Categorical` dtype with an explicit `categories` list before
+passing the data to the auditor:
+
+```python
+import pandas as pd
+from model_auditor import Auditor
+from model_auditor.metrics import Sensitivity, Specificity
+
+# Declare the desired display order for the 'age_group' column.
+# Categories not present in the data still appear as rows (with NaN values).
+df["age_group"] = pd.Categorical(
+    df["age_group"],
+    categories=["<30", "30-50", "50-70", ">70"],
+    ordered=True,
+)
+
+auditor = Auditor()
+auditor.add_data(df)
+auditor.add_feature(name="age_group")
+auditor.add_score(name="risk_score", threshold=0.5)
+auditor.add_outcome(name="outcome")
+auditor.set_metrics([Sensitivity(), Specificity()])
+
+results = auditor.evaluate(score_name="risk_score", n_bootstraps=None)
+
+# Rows appear in the declared order: <30, 30-50, 50-70, >70.
+# If no rows belong to a declared category (e.g. '>70' is absent from the
+# data), that category still appears as a row with NaN metric values.
+df_out = results.features["age_group"].to_dataframe()
+```
+
+The same order is preserved in `style_dataframe()` and in the score-level
+`ScoreEvaluation.to_dataframe()` / `ScoreEvaluation.style_dataframe()` exports.
+Non-categorical feature columns are unaffected.
+
+
 ## License
 ## Notebook Styling
 
