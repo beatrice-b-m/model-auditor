@@ -215,6 +215,46 @@ male_results = results.features["gender"].levels["Male"].to_dataframe()
 ```
 
 ## License
+## Notebook Styling
+
+For Jupyter notebooks, `style_dataframe(...)` returns a pandas `Styler` that colours cells by relative performance tier within each metric column.
+
+```python
+# Colour all levels in a feature by relative tier (default: performance metrics only)
+display(results.features['age_group'].style_dataframe(n_decimals=3, metric_labels=True))
+
+# Also colour count columns (N, TP, TN, …)
+display(results.features['gender'].style_dataframe(include_count_metrics=True))
+
+# Opt into custom colours
+display(results.style_dataframe(
+    low_color="#ffd6d6",
+    medium_color="#fff9c4",
+    high_color="#d0f0d0",
+))
+```
+
+### Tier assignment
+
+| Tier | Default colour | Meaning |
+|------|---------------|----------|
+| High | `#d4edda` (green) | Top third of values in the column |
+| Medium | `#fff3cd` (yellow) | Middle third |
+| Low | `#f8d7da` (red) | Bottom third |
+
+Tiers are computed **per metric column** across all rows in the table. Lower-is-better metrics (`fpr`, `fnr`) are inverted: a lower value receives the high (green) tier.
+
+### Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `n_decimals` | `3` | Decimal places for numeric display |
+| `metric_labels` | `False` | Use metric labels as column headers instead of names |
+| `include_count_metrics` | `False` | Also style count columns (N, TP, TN, FP, FN, Pos., Neg.) |
+| `low_color` | `"#f8d7da"` | Background colour for low-tier cells |
+| `medium_color` | `"#fff3cd"` | Background colour for medium-tier cells |
+| `high_color` | `"#d4edda"` | Background colour for high-tier cells |
+
 
 MIT License
 

@@ -5,10 +5,173 @@ evaluation results, including features, scores, outcomes, and their
 associated metrics at various levels of aggregation.
 """
 
-from typing import Any, Optional, Union
+from __future__ import annotations
+
+from typing import Any, Optional, Union, Callable
 from dataclasses import dataclass, field
 
 import pandas as pd
+import numpy as np
+
+
+# Helper functions for styling DataFrames
+
+
+def _is_count_metric(metric_name: str) -> bool:
+    """Check if a metric is a count metric (excluded from performance styling by default).
+
+    Count metrics are identified by exact matching against known names,
+    not prefix matching. This prevents misclassifying performance
+    metrics like tpr/tnr/fpr/fnr as count metrics.
+
+    Args:
+        metric_name: Name of the metric to check.
+
+    Returns:
+        True if the metric is a count metric, False otherwise.
+    """
+    metric_name_upper = metric_name.upper()
+    # Count metrics: exact matches only (case-insensitive)
+    # Names with underscore prefix: n, n_tp, n_tn, n_fp, n_fn, n_pos, n_neg
+    # Labels without prefix: N, TP, TN, FP, FN, Pos, Neg (with or without dots)
+    count_metrics = {
+        "N",
+        "TP",
+        "TN",
+        "FP",
+        "FN",
+        "POS",
+        "NEG",
+        "POS.",
+        "NEG.",  # labels (with and without dots)
+        "N_TP",
+        "N_TN",
+        "N_FP",
+        "N_FN",
+        "N_POS",
+        "N_NEG",  # with underscore
+    }
+    return metric_name_upper in count_metrics
+
+
+def _is_lower_better_metric(metric_name: str) -> bool:
+    """Check if a metric is lower-is-better (e.g., FPR, FNR).
+
+    Args:
+        metric_name: Name of the metric to check.
+
+    Returns:
+        True if the metric is lower-is-better, False otherwise.
+    """
+    metric_name_upper = metric_name.upper()
+    lower_better_metrics = ["FPR", "FNR", "FALSE_POSITIVE_RATE", "FALSE_NEGATIVE_RATE"]
+    return metric_name_upper in lower_better_metrics
+
+
+def _get_metric_tier(
+    value: float, values: pd.Series, lower_better: bool = False
+) -> str:
+    """Get the performance tier for a metric value relative to other values.
+
+    Uses percentile-based tiering with thresholds at 0.33 and 0.66 for robustness
+    across small samples and ties. Handles NaN values gracefully.
+
+    Args:
+        value: The value to classify.
+        values: Series of all values for the metric (including the value).
+        lower_better: If True, lower values are considered better performance.
+
+    Returns:
+        One of 'high', 'medium', 'low', or 'none' (for NaN).
+    """
+    if pd.isna(value):
+        return "none"
+
+    # Guard against empty series
+    if values.count() == 0:
+        return "none"
+
+    # Calculate percentile rank (0-1) using strict less-than comparison
+    # This handles ties by using consistent ranking across all values
+    percentile = (values < value).sum() / values.count()
+
+    # Define tier thresholds for 3-way split
+    # Low: < 1/3, Medium: 1/3 to 2/3, High: >= 2/3
+    if not lower_better:
+        # Higher values are better: high tier has highest percentile
+        if percentile >= 2 / 3:
+            return "high"
+        elif percentile >= 1 / 3:
+            return "medium"
+        else:
+            return "low"
+    else:
+        # Lower values are better: invert the logic.
+        # Use strict < boundaries so they mirror the higher_better >= boundaries.
+        # higher_better: [0,1/3)→low, [1/3,2/3)→medium, [2/3,1]→high
+        # lower_better:  [0,1/3)→high, [1/3,2/3)→medium, [2/3,1]→low
+        if percentile < 1 / 3:
+            return "high"
+        elif percentile < 2 / 3:
+            return "medium"
+        else:
+            return "low"
+
+
+def _apply_tier_styling(
+    display_df: pd.DataFrame,
+    numeric_df: pd.DataFrame,
+    metric_names: list[str],
+    include_count_metrics: bool = False,
+    low_color: str = "#f8d7da",
+    medium_color: str = "#fff3cd",
+    high_color: str = "#d4edda",
+) -> pd.io.formats.style.Styler:
+    """Apply tier-based coloring to a DataFrame.
+
+    Args:
+        display_df: DataFrame with formatted display values (strings).
+        numeric_df: DataFrame with raw numeric values for tier classification.
+        metric_names: List of metric names to apply styling to.
+        include_count_metrics: If True, include count metrics in styling.
+        low_color: Background color for low performance tier.
+        medium_color: Background color for medium performance tier.
+        high_color: Background color for high performance tier.
+
+    Returns:
+        A pandas Styler object with tier-based coloring applied.
+    """
+    # Initialize style matrix with all empty strings
+    style_df = pd.DataFrame("", index=display_df.index, columns=display_df.columns)
+
+    for metric_name in metric_names:
+        if metric_name not in display_df.columns:
+            continue
+
+        # Skip count metrics unless explicitly included
+        if not include_count_metrics and _is_count_metric(metric_name):
+            continue
+
+        # Get the numeric values for this metric
+        numeric_values = numeric_df[metric_name]
+
+        # Determine if this is a lower-is-better metric
+        lower_better = _is_lower_better_metric(metric_name)
+
+        # Apply tier coloring for each row
+        for idx in display_df.index:
+            value = numeric_values.loc[idx]
+            tier = _get_metric_tier(value, numeric_values, lower_better=lower_better)
+
+            if tier == "low":
+                style_df.loc[idx, metric_name] = f"background-color: {low_color}"
+            elif tier == "medium":
+                style_df.loc[idx, metric_name] = f"background-color: {medium_color}"
+            elif tier == "high":
+                style_df.loc[idx, metric_name] = f"background-color: {high_color}"
+
+    # Create and return the Styler
+    return display_df.style.apply(lambda x: style_df, axis=None)
 
 
 @dataclass
@@ -57,7 +220,9 @@ class LevelEvaluation:
             name=metric_name, label=metric_label, score=metric_score
         )
 
-    def update_intervals(self, metric_intervals: dict[str, tuple[float, float]]) -> None:
+    def update_intervals(
+        self, metric_intervals: dict[str, tuple[float, float]]
+    ) -> None:
         """Update confidence intervals for existing metrics.
 
         Args:
@@ -66,7 +231,9 @@ class LevelEvaluation:
         for metric_name, confidence_interval in metric_intervals.items():
             self.metrics[metric_name].interval = confidence_interval
 
-    def to_dataframe(self, n_decimals: int = 3, add_index: bool = False, metric_labels: bool = False) -> pd.DataFrame:
+    def to_dataframe(
+        self, n_decimals: int = 3, add_index: bool = False, metric_labels: bool = False
+    ) -> pd.DataFrame:
         """Convert level evaluation to a pandas DataFrame.
 
         Args:
@@ -81,7 +248,7 @@ class LevelEvaluation:
         for metric in self.metrics.values():
             # get the key name for the current metric (label if metric_labels is True)
             metric_key: str = metric.label if metric_labels else metric.name
-            
+
             if metric.interval is not None:
                 metric_data[metric_key] = (
                     f"{metric.score:.{n_decimals}f} ({metric.interval[0]:.{n_decimals}f}, {metric.interval[1]:.{n_decimals}f})"
@@ -93,6 +260,55 @@ class LevelEvaluation:
                 metric_data[metric_key] = f"{metric.score:,}"
 
         return pd.DataFrame(metric_data, index=[self.name])
+
+    def style_dataframe(
+        self,
+        n_decimals: int = 3,
+        metric_labels: bool = False,
+        include_count_metrics: bool = False,
+        low_color: str = "#f8d7da",
+        medium_color: str = "#fff3cd",
+        high_color: str = "#d4edda",
+    ) -> pd.io.formats.style.Styler:
+        """Convert level evaluation to a styled pandas DataFrame for Jupyter display.
+
+        Styles cells based on relative performance tiers within each metric column.
+
+        Args:
+            n_decimals: Number of decimal places for formatting scores.
+            metric_labels: If True, use metric labels as column names; else use names.
+            include_count_metrics: If True, include count metrics in tier styling.
+            low_color: Background color for low performance tier.
+            medium_color: Background color for medium performance tier.
+            high_color: Background color for high performance tier.
+
+        Returns:
+            A pandas Styler object with tier-based coloring applied.
+        """
+        # Build the display DataFrame (same as to_dataframe)
+        display_df = self.to_dataframe(
+            n_decimals=n_decimals, metric_labels=metric_labels
+        )
+
+        # Build parallel numeric DataFrame for styling decisions
+        numeric_data = {}
+        metric_names = []
+        for metric in self.metrics.values():
+            metric_key = metric.label if metric_labels else metric.name
+            numeric_data[metric_key] = metric.score
+            metric_names.append(metric_key)
+        numeric_df = pd.DataFrame(numeric_data, index=[self.name])
+
+        # Apply tier styling
+        return _apply_tier_styling(
+            display_df=display_df,
+            numeric_df=numeric_df,
+            metric_names=metric_names,
+            include_count_metrics=include_count_metrics,
+            low_color=low_color,
+            medium_color=medium_color,
+            high_color=high_color,
+        )
 
 
 @dataclass
@@ -164,12 +380,70 @@ class FeatureEvaluation:
         """
         data: list[pd.DataFrame] = []
         for level_data in self.levels.values():
-            data.append(level_data.to_dataframe(n_decimals=n_decimals, metric_labels=metric_labels))
+            data.append(
+                level_data.to_dataframe(
+                    n_decimals=n_decimals, metric_labels=metric_labels
+                )
+            )
 
         if add_index:
             return pd.concat({self.label: pd.concat(data, axis=0)})
         else:
             return pd.concat(data, axis=0)
+
+    def style_dataframe(
+        self,
+        n_decimals: int = 3,
+        metric_labels: bool = False,
+        include_count_metrics: bool = False,
+        low_color: str = "#f8d7da",
+        medium_color: str = "#fff3cd",
+        high_color: str = "#d4edda",
+    ) -> pd.io.formats.style.Styler:
+        """Convert feature evaluation to a styled pandas DataFrame for Jupyter display.
+
+        Styles cells based on relative performance tiers within each metric column.
+
+        Args:
+            n_decimals: Number of decimal places for formatting scores.
+            metric_labels: If True, use metric labels as column names; else use names.
+            include_count_metrics: If True, include count metrics in tier styling.
+            low_color: Background color for low performance tier.
+            medium_color: Background color for medium performance tier.
+            high_color: Background color for high performance tier.
+
+        Returns:
+            A pandas Styler object with tier-based coloring applied.
+        """
+        # Build the display DataFrame (same as to_dataframe)
+        display_df = self.to_dataframe(
+            n_decimals=n_decimals, metric_labels=metric_labels
+        )
+
+        # Build parallel numeric DataFrame for styling decisions
+        numeric_data_list = []
+        metric_names = set()
+
+        for level_eval in self.levels.values():
+            level_numeric = {}
+            for metric in level_eval.metrics.values():
+                metric_key = metric.label if metric_labels else metric.name
+                level_numeric[metric_key] = metric.score
+                metric_names.add(metric_key)
+            numeric_data_list.append(level_numeric)
+
+        numeric_df = pd.DataFrame(numeric_data_list, index=display_df.index)
+
+        # Apply tier styling
+        return _apply_tier_styling(
+            display_df=display_df,
+            numeric_df=numeric_df,
+            metric_names=list(metric_names),
+            include_count_metrics=include_count_metrics,
+            low_color=low_color,
+            medium_color=medium_color,
+            high_color=high_color,
+        )
 
 
 @dataclass
@@ -184,6 +458,7 @@ class ScoreEvaluation:
         label: Display label for the score.
         features: Dictionary mapping feature names to FeatureEvaluation objects.
     """
+
     name: str
     label: str
     features: dict[str, FeatureEvaluation] = field(default_factory=dict)
@@ -204,13 +479,70 @@ class ScoreEvaluation:
         data: list[pd.DataFrame] = []
         for feature_data in self.features.values():
             data.append(
-                feature_data.to_dataframe(n_decimals=n_decimals, add_index=True, metric_labels=metric_labels)
+                feature_data.to_dataframe(
+                    n_decimals=n_decimals, add_index=True, metric_labels=metric_labels
+                )
             )
 
         if add_index:
             return pd.concat({self.label: pd.concat(data, axis=0)})
         else:
             return pd.concat(data, axis=0)
+
+    def style_dataframe(
+        self,
+        n_decimals: int = 3,
+        metric_labels: bool = False,
+        include_count_metrics: bool = False,
+        low_color: str = "#f8d7da",
+        medium_color: str = "#fff3cd",
+        high_color: str = "#d4edda",
+    ) -> pd.io.formats.style.Styler:
+        """Convert score evaluation to a styled pandas DataFrame for Jupyter display.
+
+        Styles cells based on relative performance tiers within each metric column.
+
+        Args:
+            n_decimals: Number of decimal places for formatting scores.
+            metric_labels: If True, use metric labels as column names; else use names.
+            include_count_metrics: If True, include count metrics in tier styling.
+            low_color: Background color for low performance tier.
+            medium_color: Background color for medium performance tier.
+            high_color: Background color for high performance tier.
+
+        Returns:
+            A pandas Styler object with tier-based coloring applied.
+        """
+        # Build the display DataFrame (same as to_dataframe)
+        display_df = self.to_dataframe(
+            n_decimals=n_decimals, metric_labels=metric_labels
+        )
+
+        # Build parallel numeric DataFrame for styling decisions
+        numeric_data_list = []
+        metric_names = set()
+
+        for feature_eval in self.features.values():
+            for level_eval in feature_eval.levels.values():
+                level_numeric = {}
+                for metric in level_eval.metrics.values():
+                    metric_key = metric.label if metric_labels else metric.name
+                    level_numeric[metric_key] = metric.score
+                    metric_names.add(metric_key)
+                numeric_data_list.append(level_numeric)
+
+        numeric_df = pd.DataFrame(numeric_data_list, index=display_df.index)
+
+        # Apply tier styling
+        return _apply_tier_styling(
+            display_df=display_df,
+            numeric_df=numeric_df,
+            metric_names=list(metric_names),
+            include_count_metrics=include_count_metrics,
+            low_color=low_color,
+            medium_color=medium_color,
+            high_color=high_color,
+        )
 
 
 @dataclass
@@ -224,6 +556,7 @@ class AuditorFeature:
         name: Column name in the DataFrame.
         label: Display label for the feature (defaults to name if None).
     """
+
     name: str
     label: Optional[str] = None
 
@@ -257,5 +590,6 @@ class AuditorOutcome:
         mapping: Optional dictionary to convert outcome values to binary (0/1),
             e.g., {"positive": 1, "negative": 0}.
     """
+
     name: str
     mapping: Optional[dict[Any, int]] = None
