@@ -20,6 +20,7 @@ from model_auditor.schemas import (
     AuditorScore,
     AuditorOutcome,
     FeatureEvaluation,
+    LevelEvaluation,
     ScoreEvaluation,
 )
 from model_auditor.utils import collect_metric_inputs
@@ -347,6 +348,11 @@ class Auditor:
     ) -> FeatureEvaluation:
         """Evaluate all metrics for a single feature across its levels.
 
+        When the feature column carries a categorical dtype, levels are ordered
+        according to the declared category order.  Categories present in the
+        declaration but absent in the data appear as placeholder rows whose
+        metric scores are NaN.
+
         Args:
             data: DataFrame containing the evaluation data with metric input columns.
             feature: The feature to stratify evaluation by.
@@ -355,12 +361,31 @@ class Auditor:
         Returns:
             FeatureEvaluation containing metrics for each level of the feature.
         """
-        # Drop rows where the feature value is NaN (they don't belong to any subgroup)
-        feature_data = data.dropna(subset=[feature.name]).copy()
-        feature_data[feature.name] = feature_data[feature.name].astype(str)
-        feature_groups = feature_data.groupby(feature.name)
+        feature_col = feature.name
 
-        # e.g. {"f1": {'levelA': 0.2, 'levelB': 0.4}, ... }
+        # Detect categorical dtype *before* any transformation so we capture the
+        # user-declared category order.  dropna preserves the dtype, but astype(str)
+        # would destroy it.
+        is_categorical = isinstance(data[feature_col].dtype, pd.CategoricalDtype)
+        declared_categories: list[str] = []
+        if is_categorical:
+            declared_categories = [
+                str(c) for c in data[feature_col].cat.categories.tolist()
+            ]
+
+        # Drop rows where the feature value is NaN; they don't belong to any level.
+        feature_data = data.dropna(subset=[feature_col]).copy()
+
+        if is_categorical:
+            # Keep the categorical dtype so the groupby key type is consistent.
+            # observed=True restricts grouping to categories that actually appear in
+            # this slice; unobserved categories are handled as placeholders below.
+            feature_groups = feature_data.groupby(feature_col, observed=True)
+        else:
+            # Non-categorical path: coerce to string (existing behaviour).
+            feature_data[feature_col] = feature_data[feature_col].astype(str)
+            feature_groups = feature_data.groupby(feature_col)
+
         feature_eval: FeatureEvaluation = FeatureEvaluation(
             name=feature.name,
             label=feature.label if feature.label is not None else feature.name,
@@ -369,6 +394,9 @@ class Auditor:
             # gets a dict with the current metric calculated for levels of the feature
             # e.g. {levelA: 0.5, levelB: 0.5}
             level_eval_dict = feature_groups.apply(metric.data_call).to_dict()
+            # Normalise keys to strings; categorical keys are the category values,
+            # which may already be strings but we guarantee it here.
+            level_eval_dict = {str(k): v for k, v in level_eval_dict.items()}
 
             feature_eval.update(
                 metric_name=metric.name,
@@ -390,6 +418,26 @@ class Auditor:
                     level_name=str(level_name),
                     metric_intervals=level_metric_intervals,
                 )
+
+        if is_categorical:
+            # Rebuild levels dict in declared category order.  For each declared
+            # category: use the computed LevelEvaluation if the category was
+            # observed, otherwise insert a placeholder with NaN metric scores so
+            # that to_dataframe() / style_dataframe() produce a complete row.
+            ordered_levels: dict[str, LevelEvaluation] = {}
+            for cat_str in declared_categories:
+                if cat_str in feature_eval.levels:
+                    ordered_levels[cat_str] = feature_eval.levels[cat_str]
+                else:
+                    placeholder = LevelEvaluation(name=cat_str)
+                    for metric in self.metrics:
+                        placeholder.update(
+                            metric_name=metric.name,
+                            metric_label=metric.label,
+                            metric_score=float("nan"),
+                        )
+                    ordered_levels[cat_str] = placeholder
+            feature_eval.levels = ordered_levels
 
         return feature_eval
 
