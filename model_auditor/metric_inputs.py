@@ -73,6 +73,10 @@ class TruePositives(AuditorMetricInput):
         """
         return int((row["_truth"] == 1.0) & (row["_binary_pred"] == 1.0))
 
+    def data_transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        data[self.name] = ((data["_truth"] == 1.0) & (data["_binary_pred"] == 1.0)).astype(int)
+        return data
+
 
 class FalsePositives(AuditorMetricInput):
     """Calculator for false positive indicators.
@@ -94,6 +98,10 @@ class FalsePositives(AuditorMetricInput):
             1 if truth is 0 and prediction is 1, else 0.
         """
         return int((row["_truth"] == 0.0) & (row["_binary_pred"] == 1.0))
+
+    def data_transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        data[self.name] = ((data["_truth"] == 0.0) & (data["_binary_pred"] == 1.0)).astype(int)
+        return data
 
 
 class TrueNegatives(AuditorMetricInput):
@@ -117,6 +125,10 @@ class TrueNegatives(AuditorMetricInput):
         """
         return int((row["_truth"] == 0.0) & (row["_binary_pred"] == 0.0))
 
+    def data_transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        data[self.name] = ((data["_truth"] == 0.0) & (data["_binary_pred"] == 0.0)).astype(int)
+        return data
+
 
 class FalseNegatives(AuditorMetricInput):
     """Calculator for false negative indicators.
@@ -138,3 +150,7 @@ class FalseNegatives(AuditorMetricInput):
             1 if truth is 1 and prediction is 0, else 0.
         """
         return int((row["_truth"] == 1.0) & (row["_binary_pred"] == 0.0))
+
+    def data_transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        data[self.name] = ((data["_truth"] == 1.0) & (data["_binary_pred"] == 0.0)).astype(int)
+        return data

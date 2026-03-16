@@ -214,7 +214,7 @@ class AUROC(AuditorMetric):
         try:
             return float(roc_auc_score(data["_truth"], data["_pred"]))
         except ValueError:
-            return 0.0
+            return float("nan")
 
 
 class AUPRC(AuditorMetric):
@@ -240,7 +240,7 @@ class AUPRC(AuditorMetric):
         try:
             return float(average_precision_score(data["_truth"], data["_pred"]))
         except ValueError:
-            return 0.0
+            return float("nan")
 
 
 class MatthewsCorrelationCoefficient(AuditorMetric):
@@ -287,7 +287,7 @@ class FBetaScore(AuditorMetric):
     """
     name: str = "fbeta"
     label: str = "F-beta Score"
-    inputs: list[str] = ["precision", "recall"]
+    inputs: list[str] = ["tp", "fp", "fn"]
     ci_eligible: bool = True
 
     def __init__(self, beta: float = 1.0):

@@ -5,7 +5,7 @@ evaluation results, including features, scores, outcomes, and their
 associated metrics at various levels of aggregation.
 """
 
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -223,12 +223,9 @@ class AuditorFeature:
     Attributes:
         name: Column name in the DataFrame.
         label: Display label for the feature (defaults to name if None).
-        levels: Optional list of specific levels to include; if None, all
-            unique values in the column are used.
     """
     name: str
     label: Optional[str] = None
-    levels: Optional[list[any]] = None
 
 
 @dataclass
@@ -261,4 +258,4 @@ class AuditorOutcome:
             e.g., {"positive": 1, "negative": 0}.
     """
     name: str
-    mapping: Optional[dict[any, int]] = None
+    mapping: Optional[dict[Any, int]] = None

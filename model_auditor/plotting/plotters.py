@@ -5,10 +5,11 @@ visualizations (suitable for sunburst or treemap charts) from stratified
 data.
 """
 
+import warnings
 from typing import Optional, Union, Callable
 import pandas as pd
 
-from model_auditor.schemas import AuditorScore, AuditorOutcome
+from model_auditor.schemas import AuditorScore
 from model_auditor.plotting.schemas import Hierarchy, HLevel, HItem, PlotterData
 
 
@@ -40,7 +41,6 @@ class HierarchyPlotter:
         self.aggregator: Union[str, Callable] = "median"
 
         self.score: Optional[AuditorScore] = None
-        self.outcome: Optional[AuditorOutcome] = None
 
     def set_data(self, data: pd.DataFrame) -> None:
         """Set data for the plotter
@@ -130,17 +130,17 @@ class HierarchyPlotter:
 
             data.add(
                 label=container,
-                id=container,
+                node_id=container,
                 parent="",
                 value=len(datasource),
                 color=container_agg,
             )
 
         else:
-            print('No score specified')
+            warnings.warn("No score specified. Color values will not be computed.")
             data.add(
                 label=container,
-                id=container,
+                node_id=container,
                 parent="",
                 value=len(datasource),
             )
@@ -201,9 +201,8 @@ class HierarchyPlotter:
 
         if self.score is not None:
             # group the df by the current feature and get its frequency and agg metric
-            assert isinstance(
-                self.score, AuditorScore
-            )  # handled by the wrapper but here for type hinting
+            if not isinstance(self.score, AuditorScore):
+                raise TypeError(f"Expected AuditorScore, got {type(self.score)}")
 
 
             if isinstance(self.aggregator, str):
@@ -236,7 +235,7 @@ class HierarchyPlotter:
             if self.score is not None:
                 data.add(
                     label=feature_level,
-                    id=id_dict[feature_level],
+                    node_id=id_dict[feature_level],
                     parent=parent_id,
                     value=count_dict[feature_level],
                     color=agg_dict[feature_level],
@@ -245,7 +244,7 @@ class HierarchyPlotter:
             else:
                 data.add(
                     label=feature_level,
-                    id=id_dict[feature_level],
+                    node_id=id_dict[feature_level],
                     parent=parent_id,
                     value=count_dict[feature_level],
                 )
@@ -272,16 +271,4 @@ class HierarchyPlotter:
         """
         if self.data is None:
             raise ValueError("Please set data with .set_data() first")
-
-        data = self.data.copy()
-        if self.score is not None:
-            data["_pred"] = self.score.name
-        else:
-            print("no score set")
-
-        if self.outcome is not None:
-            data["_outcome"] = self.outcome.name
-        else:
-            print("no outcome set")
-
-        return data
+        return self.data.copy()

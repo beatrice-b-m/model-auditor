@@ -5,7 +5,8 @@ across different features and subgroups, with support for bootstrap confidence
 intervals.
 """
 
-from typing import Optional, Type, Union, Callable
+from typing import Any, Optional, Type, Union
+import warnings
 import pandas as pd
 import numpy as np
 from numpy.typing import NDArray
@@ -46,6 +47,7 @@ class Auditor:
         >>> auditor.set_metrics([Sensitivity(), Specificity()])
         >>> results = auditor.evaluate(score_name="risk_score")
     """
+
     def __init__(
         self,
         data: Optional[pd.DataFrame] = None,
@@ -83,13 +85,12 @@ class Auditor:
             self.add_outcome(**vars(outcome))
 
         # initialize metrics
-        self.metrics: list[AuditorScore] = list()
+        self.metrics: list[AuditorMetric] = list()
         if metrics is not None:
             self.metrics = metrics
 
         # initialize attrs for later
         self._inputs: list[Type[AuditorMetricInput]] = list()
-        self._evaluations: list = list()
 
     def add_data(self, data: pd.DataFrame) -> None:
         """
@@ -101,7 +102,7 @@ class Auditor:
         self.data = data.copy()
 
     def add_feature(
-        self, name: str, label: Optional[str] = None, levels: Optional[list[any]] = None
+        self, name: str, label: Optional[str] = None,
     ) -> None:
         """
         Method to add a feature to the auditor. Equivalent to a grouping variable in
@@ -110,14 +111,10 @@ class Auditor:
         Args:
             name (str): Column name for the feature.
             label (Optional[str], optional): Optional label for the feature. Defaults to None.
-            levels (Optional[list[any]], optional): Valid levels to consider for the feature,
-            by default (when set to None) all levels will be considered. Defaults to None.
-            [Not currently implemented]
         """
         feature = AuditorFeature(
             name=name,
             label=label,
-            levels=levels,
         )
         self.features[feature.name] = feature
 
@@ -141,7 +138,7 @@ class Auditor:
         )
         self.scores[score.name] = score
 
-    def add_outcome(self, name: str, mapping: Optional[dict[any, int]] = None) -> None:
+    def add_outcome(self, name: str, mapping: Optional[dict[Any, int]] = None) -> None:
         """Add an outcome (ground truth) variable to the auditor.
 
         Args:
@@ -186,17 +183,17 @@ class Auditor:
 
         # throws an error if the score has not been defined
         score: AuditorScore = self.scores[score_name]
-        score_list: list[float] = self.data[score.name].astype(float).tolist()
+        score_list: list[float] = self.data[score.name].astype(float).tolist()  # type: ignore
 
         # otherwise the target score will be the single item in the list
-        truth_list: list[float] = self.data["_truth"].astype(float).tolist()
+        truth_list: list[float] = self.data["_truth"].astype(float).tolist()  # type: ignore
 
         # calculate optimal threshold
         fpr, tpr, thresholds = roc_curve(truth_list, score_list)
         idx: int = np.argmax(tpr - fpr).astype(int)
         optimal_threshold: float = thresholds[idx]
 
-        print(f"Optimal threshold for '{score.name}' found at: {optimal_threshold}")
+        warnings.warn(f"Optimal threshold for '{score.name}' found at: {optimal_threshold}")
         return optimal_threshold
 
     def set_metrics(self, metrics: list[AuditorMetric]) -> None:
@@ -255,7 +252,12 @@ class Auditor:
         """
         return (score_data >= threshold).astype(int)
 
-    def evaluate(self, score_name: str, threshold: Optional[float] = None, n_bootstraps: Optional[int] = 1000):
+    def evaluate(
+        self,
+        score_name: str,
+        threshold: Optional[float] = None,
+        n_bootstraps: Optional[int] = 1000,
+    ):
         """Evaluate model performance for a given score across all features.
 
         Computes all configured metrics stratified by each feature, with optional
@@ -285,9 +287,15 @@ class Auditor:
             )
 
         # get score
+        if score_name not in self.scores:
+            available = ", ".join(self.scores.keys()) or "(none)"
+            raise ValueError(
+                f"Score '{score_name}' not found. Available scores: {available}"
+            )
+
         score: AuditorScore = self.scores[score_name]
 
-        if (threshold is None) & (score.threshold is None):
+        if threshold is None and score.threshold is None:
             raise ValueError(
                 "Threshold must be defined in score object or passed to .evaluate_score()"
             )
@@ -301,7 +309,7 @@ class Auditor:
         column_list: list[str] = [*self.features.keys(), "_truth"]
 
         # copy a slice of the dataframe
-        data_slice: pd.DataFrame = self.data.loc[:, column_list]
+        data_slice: pd.DataFrame = self.data.loc[:, column_list]  # type: ignore
         data_slice["_pred"] = self.data[score.name]
         data_slice["_binary_pred"] = self._binarize(score_data=data_slice["_pred"], threshold=threshold)  # type: ignore
         data_slice = self._apply_inputs(data=data_slice)
@@ -347,49 +355,41 @@ class Auditor:
         Returns:
             FeatureEvaluation containing metrics for each level of the feature.
         """
-        with tqdm(range(2), position=1, desc="Stages", leave=False) as feature_pbar:
-            feature_pbar.set_postfix({"stage": "Evaluating metrics"})
+        # Drop rows where the feature value is NaN (they don't belong to any subgroup)
+        feature_data = data.dropna(subset=[feature.name]).copy()
+        feature_data[feature.name] = feature_data[feature.name].astype(str)
+        feature_groups = feature_data.groupby(feature.name)
 
-            # cast feature levels to string
-            data[feature.name] = data[feature.name].astype(str)
+        # e.g. {"f1": {'levelA': 0.2, 'levelB': 0.4}, ... }
+        feature_eval: FeatureEvaluation = FeatureEvaluation(
+            name=feature.name,
+            label=feature.label if feature.label is not None else feature.name,
+        )
+        for metric in self.metrics:
+            # gets a dict with the current metric calculated for levels of the feature
+            # e.g. {levelA: 0.5, levelB: 0.5}
+            level_eval_dict = feature_groups.apply(metric.data_call).to_dict()
 
-            # then group the df by this feature (so each group contains one
-            # unique level of the data) and get all metrics for each
-            feature_groups = data.groupby(feature.name)
-
-            # e.g. {"f1": {'levelA': 0.2, 'levelB': 0.4}, ... }
-            feature_eval: FeatureEvaluation = FeatureEvaluation(
-                name=feature.name,
-                label=feature.label if feature.label is not None else feature.name,
+            feature_eval.update(
+                metric_name=metric.name,
+                metric_label=metric.label,
+                data=level_eval_dict,  # type: ignore
             )
-            for metric in tqdm(self.metrics, position=2, desc="Metrics", leave=False):
-                # gets a dict with the current metric calculated for levels of the feature
-                # e.g. {levelA: 0.5, levelB: 0.5}
-                level_eval_dict = feature_groups.apply(metric.data_call).to_dict()
 
-                feature_eval.update(
-                    metric_name=metric.name,
-                    metric_label=metric.label,
-                    data=level_eval_dict,
+        # if calculating confidence intervals, do that here
+        if n_bootstraps is not None:
+            for level_name, level_data in feature_groups:
+                # calculate confidence intervals for eligible metrics for the current feature level
+                level_metric_intervals: dict[str, tuple[float, float]] = (
+                    self._evaluate_confidence_interval(
+                        data=level_data, n_bootstraps=n_bootstraps
+                    )
                 )
-
-            feature_pbar.update(1)
-            feature_pbar.set_postfix({"stage": "Evaluating intervals"})
-            # if calculating confidence intervals, do that here
-            if n_bootstraps is not None:
-                for level_name, level_data in tqdm(
-                    feature_groups, position=2, desc="Bootstrap Levels", leave=False
-                ):
-                    # calculate confidence intervals for eligible metrics for the current feature level
-                    level_metric_intervals: dict[str, tuple[float, float]] = (
-                        self._evaluate_confidence_interval(data=level_data, n_bootstraps=n_bootstraps)
-                    )
-                    # register the calculated intervals
-                    feature_eval.update_intervals(
-                        level_name=str(level_name),
-                        metric_intervals=level_metric_intervals,
-                    )
-            feature_pbar.update(1)
+                # register the calculated intervals
+                feature_eval.update_intervals(
+                    level_name=str(level_name),
+                    metric_intervals=level_metric_intervals,
+                )
 
         return feature_eval
 
@@ -413,7 +413,9 @@ class Auditor:
         bootstrap_results: dict[str, NDArray[np.float64]] = dict()
         for metric in self.metrics:
             if metric.ci_eligible:
-                bootstrap_results[metric.name] = np.empty(shape=(n_bootstraps), dtype=np.float64)
+                bootstrap_results[metric.name] = np.empty(
+                    shape=(n_bootstraps), dtype=np.float64
+                )
 
         # sample n_bootstrap times with replacement
         for i in range(n_bootstraps):
@@ -427,7 +429,7 @@ class Auditor:
         metric_intervals: dict[str, tuple[float, float]] = dict()
         for metric_name, bootstrap_array in bootstrap_results.items():
             # get 95% confidence bounds for metric
-            lower, upper = np.percentile(bootstrap_array, [2.5, 97.5])
+            lower, upper = np.nanpercentile(bootstrap_array, [2.5, 97.5])
             metric_intervals[metric_name] = (lower, upper)
 
         return metric_intervals

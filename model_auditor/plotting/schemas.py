@@ -29,23 +29,21 @@ class PlotterData:
     values: list = field(default_factory=list)
     colors: list = field(default_factory=list)
 
-    def add(self, label: str, id: str, parent: str, value: int, color: Optional[float] = None) -> None:
+    def add(self, label: str, node_id: str, parent: str, value: int, color: Optional[float] = None) -> None:
         """Add a node to the plotter data.
 
         Args:
             label: Display label for the node.
-            id: Unique identifier for the node.
+            node_id: Unique identifier for the node.
             parent: ID of the parent node (empty string for root).
             value: Numeric value for sizing the node.
             color: Optional color value for the node.
         """
         self.labels.append(label)
-        self.ids.append(id)
+        self.ids.append(node_id)
         self.parents.append(parent)
         self.values.append(value)
-
-        if color is not None:
-            self.colors.append(color)
+        self.colors.append(color)
 
 
 @dataclass
