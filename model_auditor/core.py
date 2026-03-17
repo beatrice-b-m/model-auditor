@@ -473,6 +473,11 @@ class Auditor:
             threshold=threshold,
         )
 
+        # Global dataset size used as the denominator for all % overall calculations.
+        # Computed from the full data slice, before any per-feature dropna.
+        global_total_n = len(data_slice)
+        error_eval.global_total_n = global_total_n
+
         metric = RepresentationRatio()
 
         for group_col in ("tp", "tn", "fp", "fn"):
@@ -481,14 +486,17 @@ class Auditor:
                 label=group_col.upper(),
             )
             for feature in eval_features.values():
-                feature_eval = self._evaluate_error_feature(
+                feature_eval, support = self._evaluate_error_feature(
                     data=data_slice,
                     group_col=group_col,
                     feature=feature,
                     metric=metric,
                     n_bootstraps=n_bootstraps,
+                    global_total_n=global_total_n,
                 )
                 group_eval.features[feature.name] = feature_eval
+                # Accumulate per-feature support counts into the error evaluation's sidecar.
+                error_eval.support_data.setdefault(group_col, {})[feature.name] = support
             error_eval.groups[group_col] = group_eval
 
         return error_eval
@@ -602,7 +610,8 @@ class Auditor:
         feature: AuditorFeature,
         metric: AuditorErrorMetric,
         n_bootstraps: Optional[int],
-    ) -> FeatureEvaluation:
+        global_total_n: int,
+    ) -> tuple[FeatureEvaluation, dict[str, dict[str, float]]]:
         """Compute error metrics for one feature within one confusion-matrix group.
 
         Calculates the representation ratio for each feature level, then
@@ -619,8 +628,12 @@ class Auditor:
             metric: Error metric to compute (e.g. RepresentationRatio).
             n_bootstraps: Bootstrap iterations, or None to skip.
 
+            global_total_n: Total rows in the full data slice; used as the
+                denominator for pct_overall in the returned support counts.
+
         Returns:
-            FeatureEvaluation with one LevelEvaluation per feature level.
+            Two-tuple (feature_eval, support) where support maps each level name to
+            {"n": int, "pct_overall": float, "pct_group": float}.
         """
         feature_col = feature.name
 
@@ -748,7 +761,26 @@ class Auditor:
                     ordered_levels[cat_str] = placeholder
             feature_eval.levels = ordered_levels
 
-        return feature_eval
+        # Build sidecar support counts per level for the wide-format DataFrame export.
+        # These are derived from the same full_data / group_data counts already computed above.
+        # For categorical placeholders (levels in declared_categories but absent from full_counts),
+        # all counts are zero.
+        support: dict[str, dict[str, float]] = {}
+        for level_name in all_levels:
+            g_n = group_counts.get(level_name, 0)
+            g_pct_overall = g_n / global_total_n if global_total_n > 0 else float("nan")
+            g_pct_group = g_n / group_total if group_total > 0 else 0.0
+            support[level_name] = {
+                "n": g_n,
+                "pct_overall": g_pct_overall,
+                "pct_group": g_pct_group,
+            }
+        if is_categorical:
+            for cat_str in declared_categories:
+                if cat_str not in support:
+                    support[cat_str] = {"n": 0, "pct_overall": 0.0, "pct_group": 0.0}
+
+        return feature_eval, support
 
     def _evaluate_confidence_interval(
         self, data: pd.DataFrame, n_bootstraps: int

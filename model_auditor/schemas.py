@@ -616,31 +616,135 @@ class ErrorEvaluation:
     label: str
     threshold: float
     groups: dict[str, ScoreEvaluation] = field(default_factory=dict)
+    global_total_n: int = 0
+    # Sidecar support counts: {group_col: {feature_name: {level_name: {"n": int, "pct_overall": float, "pct_group": float}}}}
+    # Used by to_dataframe() to compute class balance, overall N, and %-of-group metrics.
+    support_data: dict = field(default_factory=dict)
 
     def to_dataframe(
         self, n_decimals: int = 3, metric_labels: bool = False
     ) -> pd.DataFrame:
-        """Convert error evaluation to a pandas DataFrame.
+        """Convert error evaluation to a wide cross-group analysis DataFrame.
 
-        Returns a DataFrame with a three-level MultiIndex:
-        (group, feature, level), where group is one of TP/TN/FP/FN.
+        Returns a numeric DataFrame suitable for fairness and error auditing without
+        additional reshaping:
+
+        - Row index: MultiIndex(feature_label, level_name)
+        - Column index: MultiIndex(section, metric)
+
+        Sections and sub-columns:
+          - ("Class Balance", "N_pos") : positives (TP+FN) at this level
+          - ("Class Balance", "N_neg") : negatives (TN+FP) at this level
+          - ("Class Balance", "Pos %") : N_pos / global_total_n
+          - ("Class Balance", "Neg %") : N_neg / global_total_n
+          - ("Overall", "N")          : total rows at this level (TP+TN+FP+FN)
+          - ("Overall", "% overall")   : Overall N / global_total_n
+          - For each group in TP/TN/FP/FN:
+            - (GROUP, "N")                  : rows in this group at this level
+            - (GROUP, "% overall")          : group N / global_total_n
+            - (GROUP, "% group")            : group N / total rows in that group
+            - (GROUP, rr_col_name)          : representation ratio (NaN for the
+                                              overall/Overall row — it is trivially 1.0
+                                              and not informative)
 
         Args:
-            n_decimals: Number of decimal places for formatting scores.
-            metric_labels: If True, use metric labels as column names; else use names.
+            n_decimals: Ignored; kept for API compatibility. Output is always numeric.
+            metric_labels: If True, use "Representation Ratio" as the ratio column
+                name; else use "representation_ratio".
 
         Returns:
-            DataFrame with MultiIndex (group, feature, level) and metrics as columns.
+            Numeric DataFrame with MultiIndex rows and columns, or an empty DataFrame
+            when no groups have been evaluated.
         """
         if not self.groups:
             return pd.DataFrame()
 
-        frames: dict[str, pd.DataFrame] = {}
-        for group_name, group_eval in self.groups.items():
-            frames[group_name.upper()] = group_eval.to_dataframe(
-                n_decimals=n_decimals, metric_labels=metric_labels
-            )
-        return pd.concat(frames)
+        rr_col_name = "Representation Ratio" if metric_labels else "representation_ratio"
+        group_order = [g for g in ("tp", "tn", "fp", "fn") if g in self.groups]
+
+        # Use the first group's feature ordering to determine all (feature, level) rows.
+        # All groups are evaluated over the same features and levels.
+        first_group = next(iter(self.groups.values()))
+        feature_order: list[tuple[str, str, str]] = []  # (feature_name, feature_label, level_name)
+        for fname, feval in first_group.features.items():
+            for lname in feval.levels:
+                feature_order.append((fname, feval.label, lname))
+
+        rows: list[dict] = []
+        index_tuples: list[tuple[str, str]] = []
+
+        for feature_name, feature_label, level_name in feature_order:
+            # The overall/Overall row has a trivially defined ratio (always 1.0) so we
+            # emit NaN to signal that this cell should not be interpreted as a ratio.
+            is_overall_level = (feature_name == "overall" and level_name == "Overall")
+
+            # Pull raw support counts from the sidecar populated by evaluate_errors().
+            def _n(group_col: str) -> int:
+                return int(
+                    self.support_data
+                    .get(group_col, {})
+                    .get(feature_name, {})
+                    .get(level_name, {})
+                    .get("n", 0)
+                )
+
+            def _pct(group_col: str, key: str) -> float:
+                return float(
+                    self.support_data
+                    .get(group_col, {})
+                    .get(feature_name, {})
+                    .get(level_name, {})
+                    .get(key, 0.0)
+                )
+
+            tp_n = _n("tp")
+            tn_n = _n("tn")
+            fp_n = _n("fp")
+            fn_n = _n("fn")
+
+            n_pos = tp_n + fn_n   # true class-positive count
+            n_neg = tn_n + fp_n   # true class-negative count
+            denom = self.global_total_n if self.global_total_n > 0 else None
+
+            row: dict[tuple[str, str], Any] = {
+                ("Class Balance", "N_pos"): n_pos,
+                ("Class Balance", "N_neg"): n_neg,
+                ("Class Balance", "Pos %"): n_pos / denom if denom else float("nan"),
+                ("Class Balance", "Neg %"): n_neg / denom if denom else float("nan"),
+                ("Overall", "N"): tp_n + tn_n + fp_n + fn_n,
+                ("Overall", "% overall"): (
+                    (tp_n + tn_n + fp_n + fn_n) / denom if denom else float("nan")
+                ),
+            }
+
+            for group_col in group_order:
+                group_label = group_col.upper()
+                g_n = _n(group_col)
+                g_pct_overall = _pct(group_col, "pct_overall")
+                g_pct_group = _pct(group_col, "pct_group")
+
+                row[(group_label, "N")] = g_n
+                row[(group_label, "% overall")] = g_pct_overall
+                row[(group_label, "% group")] = g_pct_group
+
+                if is_overall_level:
+                    row[(group_label, rr_col_name)] = float("nan")
+                else:
+                    lm = (
+                        self.groups[group_col]
+                        .features[feature_name]
+                        .levels[level_name]
+                        .metrics.get("representation_ratio")
+                    )
+                    row[(group_label, rr_col_name)] = lm.score if lm is not None else float("nan")
+
+            rows.append(row)
+            index_tuples.append((feature_label, level_name))
+
+        index = pd.MultiIndex.from_tuples(index_tuples, names=["feature", "level"])
+        df = pd.DataFrame(rows, index=index)
+        df.columns = pd.MultiIndex.from_tuples(list(df.columns))
+        return df
 
     def style_dataframe(
         self,
@@ -653,45 +757,60 @@ class ErrorEvaluation:
     ) -> pd.io.formats.style.Styler:
         """Convert error evaluation to a styled pandas DataFrame for Jupyter display.
 
-        Styles cells based on relative representation ratio tiers across all
-        groups, features, and levels combined.
+        Applies tier-based background colouring to the representation-ratio columns
+        of the wide cross-group table returned by to_dataframe().  Count columns
+        (N, % overall, % group) and class-balance columns are not coloured.
 
         Args:
-            n_decimals: Number of decimal places for formatting scores.
-            metric_labels: If True, use metric labels as column names; else use names.
-            include_count_metrics: If True, include count metrics in tier styling.
-            low_color: Background color for low tier.
-            medium_color: Background color for medium tier.
-            high_color: Background color for high tier.
+            n_decimals: Decimal places used when formatting float cells.
+            metric_labels: Passed through to to_dataframe().
+            include_count_metrics: Unused; kept for API consistency with other
+                style_dataframe() methods.
+            low_color: Background colour for low representation tier.
+            medium_color: Background colour for medium representation tier.
+            high_color: Background colour for high representation tier.
 
         Returns:
-            A pandas Styler object with tier-based coloring applied.
+            A pandas Styler with tier-based colouring applied to representation-ratio
+            columns.  Count and percentage cells are formatted but not coloured.
         """
-        display_df = self.to_dataframe(n_decimals=n_decimals, metric_labels=metric_labels)
+        numeric_df = self.to_dataframe(metric_labels=metric_labels)
+        if numeric_df.empty:
+            return numeric_df.style
 
-        numeric_data_list = []
-        metric_names: set[str] = set()
+        rr_col_name = "Representation Ratio" if metric_labels else "representation_ratio"
+        group_order = [g for g in ("tp", "tn", "fp", "fn") if g in self.groups]
 
-        # Iterate in the same traversal order as to_dataframe() so that
-        # numeric_data_list rows align with display_df.index exactly.
-        for group_eval in self.groups.values():
-            for feature_eval in group_eval.features.values():
-                for level_eval in feature_eval.levels.values():
-                    level_numeric: dict[str, float] = {}
-                    for metric in level_eval.metrics.values():
-                        metric_key = metric.label if metric_labels else metric.name
-                        level_numeric[metric_key] = metric.score
-                        metric_names.add(metric_key)
-                    numeric_data_list.append(level_numeric)
+        # Format each column for display.
+        def _fmt(val: Any, col: tuple[str, str]) -> str:
+            if pd.isna(val):
+                return "—"
+            section, metric = col
+            # Count columns: integer display with thousands separator.
+            if metric == "N" or metric in ("N_pos", "N_neg"):
+                return f"{int(val):,}"
+            # Percentage / ratio columns: fixed decimal.
+            return f"{val:.{n_decimals}f}"
 
-        numeric_df = pd.DataFrame(numeric_data_list, index=display_df.index)
+        display_df = numeric_df.copy().astype(object)
+        for col in numeric_df.columns:
+            display_df[col] = [_fmt(v, col) for v in numeric_df[col]]
 
-        return _apply_tier_styling(
-            display_df=display_df,
-            numeric_df=numeric_df,
-            metric_names=list(metric_names),
-            include_count_metrics=include_count_metrics,
-            low_color=low_color,
-            medium_color=medium_color,
-            high_color=high_color,
-        )
+        # Build a style DataFrame for representation-ratio columns only.
+        style_df = pd.DataFrame("", index=display_df.index, columns=display_df.columns)
+        for group_col in group_order:
+            group_label = group_col.upper()
+            rr_key = (group_label, rr_col_name)
+            if rr_key not in numeric_df.columns:
+                continue
+            rr_values = numeric_df[rr_key]
+            for idx in numeric_df.index:
+                tier = _get_metric_tier(rr_values.loc[idx], rr_values)
+                if tier == "low":
+                    style_df.loc[idx, rr_key] = f"background-color: {low_color}"
+                elif tier == "medium":
+                    style_df.loc[idx, rr_key] = f"background-color: {medium_color}"
+                elif tier == "high":
+                    style_df.loc[idx, rr_key] = f"background-color: {high_color}"
+
+        return display_df.style.apply(lambda x: style_df, axis=None)

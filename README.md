@@ -271,14 +271,18 @@ over-representation in that confusion group; below 1.0 under-representation.
 # by default.
 error_results = auditor.evaluate_errors(score_name="risk_score", n_bootstraps=1000)
 
-# error_results.groups is keyed by 'tp', 'tn', 'fp', 'fn'.
-# Each value is a ScoreEvaluation containing per-feature representation ratios.
-
-# Convert to a (group, feature, level) MultiIndex DataFrame:
+# Convert to a wide analysis-ready DataFrame.
+# Rows: MultiIndex(feature, level)
+# Columns: MultiIndex(section, metric)
+#   Sections: "Class Balance", "Overall", "TP", "TN", "FP", "FN"
+#   Sub-columns per group: N, % overall, % group, representation_ratio
 df = error_results.to_dataframe()
 print(df)
 
-# Inspect a specific group/feature:
+# Use metric_labels=True for human-readable column names:
+df_labels = error_results.to_dataframe(metric_labels=True)
+
+# Per-group deep inspection is still available:
 tp_age = error_results.groups["tp"].features["age_group"]
 print(tp_age.to_dataframe())
 ```

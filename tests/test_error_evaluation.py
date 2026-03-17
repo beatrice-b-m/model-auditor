@@ -10,7 +10,7 @@ Coverage:
 - Bootstrap CI bounds are present and satisfy lower <= upper.
 - No CI for levels with NaN baseline, even when bootstraps are requested.
 - Categorical ordering is preserved across all groups.
-- to_dataframe() produces the expected MultiIndex structure.
+- to_dataframe() produces the expected wide cross-group format.
 - Validation errors: missing data, missing outcome, bad score name, no threshold.
 """
 
@@ -336,50 +336,169 @@ class TestCategoricalOrdering:
 
 
 # ---------------------------------------------------------------------------
-# TestToDataframe
+# TestToDataframe — wide cross-group format contract
 # ---------------------------------------------------------------------------
 
 
 class TestToDataframe:
-    """ErrorEvaluation.to_dataframe() structure and content."""
+    """ErrorEvaluation.to_dataframe() wide cross-group format contract.
+
+    Dataset used (threshold=0.5, global_total_n=20):
+      Female: 4 TP, 1 FP, 1 FN, 2 TN  → 8 rows
+      Male:   3 TP, 1 FP, 1 FN, 3 TN  → 8 rows
+      Other:  1 TP, 0 FP, 1 FN, 2 TN  → 4 rows
+      Unknown: 0 rows (declared but unobserved)
+    """
+
+    def setup_method(self):
+        self.result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        self.df = self.result.to_dataframe()
+
+    # -- basic structure -------------------------------------------------------
 
     def test_returns_dataframe(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
-        df = result.to_dataframe()
-        assert isinstance(df, pd.DataFrame)
+        assert isinstance(self.df, pd.DataFrame)
 
-    def test_multiindex_has_three_levels(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
-        df = result.to_dataframe()
-        assert df.index.nlevels == 3, (
-            f"Expected 3-level MultiIndex (group, feature, level), got {df.index.nlevels}"
+    def test_row_index_has_two_levels(self):
+        assert self.df.index.nlevels == 2, (
+            f"Expected 2-level MultiIndex (feature, level), got {self.df.index.nlevels}"
         )
 
-    def test_all_four_groups_in_top_index_level(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
-        df = result.to_dataframe()
-        top_level_groups = set(df.index.get_level_values(0).unique())
-        assert top_level_groups == {"TP", "TN", "FP", "FN"}
+    def test_row_index_names(self):
+        assert list(self.df.index.names) == ["feature", "level"]
 
-    def test_representation_ratio_column_present(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
-        df = result.to_dataframe()
-        assert "representation_ratio" in df.columns
+    def test_columns_are_multiindex(self):
+        assert isinstance(self.df.columns, pd.MultiIndex)
 
-    def test_metric_labels_flag(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
-        df = result.to_dataframe(metric_labels=True)
-        assert "Representation Ratio" in df.columns
+    # -- row membership --------------------------------------------------------
 
-    def test_n_decimals_applied(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
-        df2 = result.to_dataframe(n_decimals=2)
-        df5 = result.to_dataframe(n_decimals=5)
-        # Different precision → different string representations for non-NaN values
-        assert df2["representation_ratio"].iloc[0] != df5["representation_ratio"].iloc[0]
+    def test_overall_row_present(self):
+        assert ("Overall", "Overall") in self.df.index
+
+    def test_gender_observed_levels_present(self):
+        for level in ("Female", "Male", "Other"):
+            assert ("gender", level) in self.df.index, (
+                f"Row ('gender', {level!r}) missing from index"
+            )
+
+    def test_gender_unobserved_level_present(self):
+        """Declared-but-unobserved 'Unknown' category must appear as a row."""
+        assert ("gender", "Unknown") in self.df.index
+
+    # -- column section presence -----------------------------------------------
+
+    def test_class_balance_section_present(self):
+        top_cols = set(self.df.columns.get_level_values(0))
+        assert "Class Balance" in top_cols
+
+    def test_overall_section_present(self):
+        top_cols = set(self.df.columns.get_level_values(0))
+        assert "Overall" in top_cols
+
+    def test_all_group_sections_present(self):
+        top_cols = set(self.df.columns.get_level_values(0))
+        assert {"TP", "TN", "FP", "FN"}.issubset(top_cols)
+
+    # -- column sub-column completeness ----------------------------------------
+
+    def test_class_balance_sub_columns(self):
+        cb_cols = set(self.df["Class Balance"].columns)
+        assert cb_cols == {"N_pos", "N_neg", "Pos %", "Neg %"}
+
+    def test_overall_section_sub_columns(self):
+        overall_cols = set(self.df["Overall"].columns)
+        assert overall_cols == {"N", "% overall"}
+
+    def test_group_section_sub_columns_default_names(self):
+        for group in ("TP", "TN", "FP", "FN"):
+            group_cols = set(self.df[group].columns)
+            expected = {"N", "% overall", "% group", "representation_ratio"}
+            assert expected.issubset(group_cols), (
+                f"Group {group} missing columns; got {group_cols}"
+            )
+
+    def test_metric_labels_flag_renames_ratio_column(self):
+        df_labels = self.result.to_dataframe(metric_labels=True)
+        for group in ("TP", "TN", "FP", "FN"):
+            assert "Representation Ratio" in df_labels[group].columns
+            assert "representation_ratio" not in df_labels[group].columns
+
+    # -- numeric types ---------------------------------------------------------
+
+    def test_all_columns_are_numeric(self):
+        """to_dataframe() must return numeric data, never preformatted strings."""
+        for col in self.df.columns:
+            non_nan = self.df[col].dropna()
+            if len(non_nan) == 0:
+                continue
+            assert non_nan.dtype.kind in ("f", "i", "u"), (
+                f"Column {col} has non-numeric dtype {self.df[col].dtype}"
+            )
+
+    # -- overall/Overall row: representation ratio must be NaN ----------------
+
+    def test_overall_row_group_rr_is_nan(self):
+        """(Overall, Overall) row emits NaN for all group representation ratios.
+
+        The ratio is trivially 1.0 by definition (whole group / whole dataset);
+        NaN signals that the cell is not analytically meaningful.
+        """
+        overall_row = self.df.loc[("Overall", "Overall")]
+        for group in ("TP", "TN", "FP", "FN"):
+            rr = overall_row[(group, "representation_ratio")]
+            assert pd.isna(rr), (
+                f"Overall/Overall RR for {group} must be NaN, got {rr}"
+            )
+
+    # -- class balance arithmetic (Female row) ---------------------------------
+
+    def test_class_balance_n_pos_female(self):
+        """Female N_pos = TP_n(4) + FN_n(1) = 5."""
+        row = self.df.loc[("gender", "Female")]
+        assert row[("Class Balance", "N_pos")] == 5
+
+    def test_class_balance_n_neg_female(self):
+        """Female N_neg = TN_n(2) + FP_n(1) = 3."""
+        row = self.df.loc[("gender", "Female")]
+        assert row[("Class Balance", "N_neg")] == 3
+
+    def test_class_balance_pos_pct_female(self):
+        """Female Pos % = 5 / 20 = 0.25."""
+        row = self.df.loc[("gender", "Female")]
+        assert abs(row[("Class Balance", "Pos %")] - 5 / 20) < 1e-10
+
+    def test_class_balance_neg_pct_female(self):
+        """Female Neg % = 3 / 20 = 0.15."""
+        row = self.df.loc[("gender", "Female")]
+        assert abs(row[("Class Balance", "Neg %")] - 3 / 20) < 1e-10
+
+    # -- pct_overall uses global N denominator (not per-feature N) -------------
+
+    def test_pct_overall_female_tp(self):
+        """Female % overall for TP = 4/20 (global N=20)."""
+        row = self.df.loc[("gender", "Female")]
+        assert abs(row[("TP", "% overall")] - 4 / 20) < 1e-10
+
+    # -- pct_group uses confusion-group total as denominator -------------------
+
+    def test_pct_group_female_tp(self):
+        """Female % group for TP = 4/8 (total TP rows = 8)."""
+        row = self.df.loc[("gender", "Female")]
+        assert abs(row[("TP", "% group")] - 4 / 8) < 1e-10
+
+    # -- support counts for unobserved category --------------------------------
+
+    def test_unobserved_level_n_is_zero(self):
+        """Unobserved 'Unknown' level must have N=0 for all groups."""
+        row = self.df.loc[("gender", "Unknown")]
+        for group in ("TP", "TN", "FP", "FN"):
+            assert row[(group, "N")] == 0, (
+                f"Unobserved 'Unknown' should have N=0 for {group}, got {row[(group, 'N')]}"
+            )
+
+    # -- empty container -------------------------------------------------------
 
     def test_empty_groups_dict_returns_empty_dataframe(self):
-        from model_auditor.schemas import ErrorEvaluation
         empty = ErrorEvaluation(name="x", label="x", threshold=0.5)
         df = empty.to_dataframe()
         assert isinstance(df, pd.DataFrame)
