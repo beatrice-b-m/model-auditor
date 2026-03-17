@@ -260,6 +260,99 @@ def _get_metric_display_label(metric_key: str, feval: FeatureEvaluation) -> str:
     return metric_key
 
 
+
+def _extract_level_counts(
+    leval: "LevelEvaluation",
+) -> tuple[Optional[int], Optional[int], Optional[int]]:
+    """Extract (n, n_pos, n_neg) from a LevelEvaluation's metrics.
+
+    Tries direct metric lookup first (metric names ``"n"``, ``"n_pos"``,
+    ``"n_neg"``), then derives missing values from confusion-matrix component
+    counts (n_tp, n_tn, n_fp, n_fn).  Returns ``None`` for any count that
+    cannot be determined from the available metrics.
+    """
+
+    def _count(key: str) -> Optional[int]:
+        lm = leval.metrics.get(key)
+        if lm is not None and not pd.isna(lm.score):
+            return int(lm.score)
+        return None
+
+    n = _count("n")
+    n_pos = _count("n_pos")
+    n_neg = _count("n_neg")
+    n_tp = _count("n_tp")
+    n_tn = _count("n_tn")
+    n_fp = _count("n_fp")
+    n_fn = _count("n_fn")
+
+    # Derive n_pos and n_neg from confusion-matrix components when direct
+    # count metrics are absent.
+    if n_pos is None and n_tp is not None and n_fn is not None:
+        n_pos = n_tp + n_fn
+    if n_neg is None and n_tn is not None and n_fp is not None:
+        n_neg = n_tn + n_fp
+
+    # Derive total n last so it can use the (potentially derived) n_pos/n_neg.
+    if n is None:
+        if n_pos is not None and n_neg is not None:
+            n = n_pos + n_neg
+        elif (
+            n_tp is not None
+            and n_tn is not None
+            and n_fp is not None
+            and n_fn is not None
+        ):
+            n = n_tp + n_tn + n_fp + n_fn
+
+    return n, n_pos, n_neg
+
+
+def _format_level_annotation(
+    n_level: Optional[int],
+    n_overall: Optional[int],
+    n_pos_level: Optional[int],
+    n_neg_level: Optional[int],
+    include_sample_size: bool,
+    include_class_balance: bool,
+) -> str:
+    """Build annotation text for a single level point.
+
+    Sample size fragment:    ``"{n_level} ({pct_of_overall}%)"``
+    Class balance fragment:  ``"{n_pos_level} ({pct_positive}%)"``
+
+    ``NA`` placeholders are emitted for any value that cannot be computed
+    (missing counts or zero denominator).  Returns an empty string when both
+    ``include_sample_size`` and ``include_class_balance`` are ``False``.
+    """
+    fragments: list[str] = []
+
+    if include_sample_size:
+        if n_level is not None:
+            if n_overall is not None and n_overall > 0:
+                pct = 100.0 * n_level / n_overall
+                fragments.append(f"{n_level} ({pct:.1f}%)")
+            else:
+                fragments.append(f"{n_level} (NA)")
+        else:
+            fragments.append("NA (NA)")
+
+    if include_class_balance:
+        if n_pos_level is not None:
+            denom = (
+                n_pos_level + n_neg_level if n_neg_level is not None else None
+            )
+            if denom is not None and denom > 0:
+                pct = 100.0 * n_pos_level / denom
+                fragments.append(f"{n_pos_level} ({pct:.1f}%)")
+            else:
+                fragments.append(f"{n_pos_level} (NA)")
+        else:
+            fragments.append("NA (NA)")
+
+    return "\n".join(fragments)
+
+
 @dataclass
 class LevelMetric:
     """
@@ -634,29 +727,57 @@ class ScoreEvaluation:
         self,
         metric: str,
         feature_names: Optional[list[str]] = None,
+        include_overall: bool = True,
+        rotate_plots: bool = False,
+        include_sample_size: bool = True,
+        include_class_balance: bool = True,
     ) -> dict:
-        """Create horizontal interval plots for a metric across feature levels.
+        """Create interval plots for a metric across feature levels.
 
-        For each selected feature, produces one matplotlib figure with a
-        horizontal error-bar per level: the point marks the metric mean (score)
-        and the whiskers extend to the bootstrap CI lower and upper bounds.
+        For each selected feature, produces one matplotlib figure with an
+        error-bar per level: the point marks the metric mean (score) and
+        the whiskers extend to the bootstrap CI lower and upper bounds.
+
+        By default each feature subplot prepends an ``Overall`` comparator
+        level (drawn from the ``"overall"`` synthetic feature when present)
+        so subgroup performance can be read against the global baseline in
+        the same figure.  The standalone ``"overall"`` feature is never
+        rendered as its own subplot.
+
         Levels without plottable CI data (NaN score, None interval, or NaN
         bounds) are silently excluded from that feature's plot.
 
         Args:
             metric: Metric to plot.  Matched first by exact name, then by
-                label.  Example: ``"sensitivity"`` or ``"Sensitivity``.
+                label.  Example: ``"sensitivity"`` or ``"Sensitivity"``.
             feature_names: Feature names to include.  ``None`` plots all
-                features in the order they appear in ``self.features``.
+                features except the synthetic ``"overall"`` feature.
+                Passing ``"overall"`` in this list has no effect (it is
+                silently filtered out).
+            include_overall: If ``True`` (default) and an ``"overall"``
+                feature is present, prepend an ``Overall`` level to each
+                feature subplot for visual comparison.
+            rotate_plots: If ``False`` (default), error bars are horizontal
+                (metric on x-axis, levels on y-axis).  If ``True``, error
+                bars are vertical (levels on x-axis, metric on y-axis).
+            include_sample_size: If ``True`` (default), annotate each level
+                with its sample size as ``"{n} ({pct_of_overall}%)"``
+                (``NA`` placeholders when counts are unavailable).
+            include_class_balance: If ``True`` (default), annotate each
+                level with its positive-class count as
+                ``"{n_pos} ({pct_positive}%)"`` (``NA`` placeholders when
+                counts are unavailable).
 
         Returns:
-            Dictionary mapping feature name to ``(matplotlib.figure.Figure,
-            matplotlib.axes.Axes)`` tuples, one entry per selected feature.
+            Dictionary mapping feature name to
+            ``(matplotlib.figure.Figure, matplotlib.axes.Axes)`` tuples,
+            one entry per selected feature.
 
         Raises:
             ImportError: If matplotlib is not installed.
             ValueError: If ``self.features`` is empty, ``feature_names``
-                contains unknown names, the metric is not found in any
+                contains unknown names, no plottable features remain after
+                filtering ``"overall"``, the metric is not found in any
                 selected feature, or a selected feature has no levels with
                 plottable CI data.
         """
@@ -671,9 +792,11 @@ class ScoreEvaluation:
         if not self.features:
             raise ValueError("ScoreEvaluation has no features to plot.")
 
-        # Validate and resolve the feature list.
+        # Always exclude the synthetic "overall" feature from standalone
+        # subplots — it is shown as a comparator level inside each feature
+        # subplot when include_overall=True.
         if feature_names is None:
-            selected_features = list(self.features.keys())
+            selected_features = [f for f in self.features.keys() if f != "overall"]
         else:
             unknown = [f for f in feature_names if f not in self.features]
             if unknown:
@@ -681,60 +804,151 @@ class ScoreEvaluation:
                     f"Unknown feature(s): {unknown!r}. "
                     f"Available features: {list(self.features.keys())!r}"
                 )
-            selected_features = list(feature_names)
+            selected_features = [f for f in feature_names if f != "overall"]
+
+        if not selected_features:
+            raise ValueError(
+                "No plottable features remain after excluding 'overall'. "
+                "Provide at least one non-'overall' feature in feature_names."
+            )
 
         # Resolve metric selector (name or label) to an internal metric key.
         metric_key = _resolve_metric_key(metric, selected_features, self.features)
+
+        # Resolve overall level data once: used both for prepending the
+        # Overall comparator level and as the n_overall denominator in
+        # sample-size annotations.
+        overall_leval: Optional[LevelEvaluation] = None
+        if "overall" in self.features:
+            overall_leval = self.features["overall"].levels.get("Overall")
+        overall_lm: Optional[LevelMetric] = None
+        if overall_leval is not None:
+            overall_lm = overall_leval.metrics.get(metric_key)
+        n_overall: Optional[int] = None
+        if overall_leval is not None:
+            n_overall, _, _ = _extract_level_counts(overall_leval)
 
         plots: dict[str, tuple] = {}
         for fname in selected_features:
             feval = self.features[fname]
 
-            # Collect plottable tuples in level insertion order (preserves
-            # categorical order where applicable).
-            plottable: list[tuple[str, float, float, float]] = []
+            # Collect plottable entries as parallel lists.
+            # Level insertion order is preserved so the plot matches
+            # the row order of to_dataframe().
+            plot_names: list[str] = []
+            plot_scores: list[float] = []
+            plot_lowers: list[float] = []
+            plot_uppers: list[float] = []
+            plot_levals: list[LevelEvaluation] = []
+
+            # Prepend Overall comparator when requested and CI data exists.
+            if (
+                include_overall
+                and overall_leval is not None
+                and overall_lm is not None
+                and _is_plottable_level(overall_lm)
+            ):
+                lower, upper = overall_lm.interval  # type: ignore[misc]
+                plot_names.append("Overall")
+                plot_scores.append(float(overall_lm.score))
+                plot_lowers.append(lower)
+                plot_uppers.append(upper)
+                plot_levals.append(overall_leval)
+
             for level_name, leval in feval.levels.items():
                 lm = leval.metrics.get(metric_key)
                 if lm is not None and _is_plottable_level(lm):
                     lower, upper = lm.interval  # type: ignore[misc]
-                    plottable.append(
-                        (level_name, float(lm.score), lower, upper)
-                    )
+                    plot_names.append(level_name)
+                    plot_scores.append(float(lm.score))
+                    plot_lowers.append(lower)
+                    plot_uppers.append(upper)
+                    plot_levals.append(leval)
 
-            if not plottable:
+            if not plot_names:
                 raise ValueError(
                     f"Feature {fname!r}: no levels have plottable CI data for "
                     f"metric {metric!r}. Ensure n_bootstraps was set during "
                     f"evaluation and the metric is CI-eligible."
                 )
 
-            level_names = [p[0] for p in plottable]
-            scores = [p[1] for p in plottable]
-            lowers = [p[2] for p in plottable]
-            uppers = [p[3] for p in plottable]
-
-            y = list(range(len(plottable)))
-            # errorbar asymmetric xerr shape: [[left_deltas], [right_deltas]].
-            xerr_low = [s - lo for s, lo in zip(scores, lowers)]
-            xerr_high = [hi - s for s, hi in zip(scores, uppers)]
-
-            fig, ax = plt.subplots()
-            ax.errorbar(
-                x=scores,
-                y=y,
-                xerr=[xerr_low, xerr_high],
-                fmt="o",
-                capsize=4,
-            )
-            ax.set_yticks(y)
-            ax.set_yticklabels(level_names)
-            # Invert y so the first level appears at the top, matching
-            # the row order of to_dataframe().
-            ax.invert_yaxis()
-
             metric_label = _get_metric_display_label(metric_key, feval)
-            ax.set_xlabel(metric_label)
-            ax.set_title(f"{feval.label}: {metric_label}")
+            fig, ax = plt.subplots()
+
+            if not rotate_plots:
+                # Horizontal: metric value on x-axis, levels on y-axis.
+                y = list(range(len(plot_names)))
+                xerr_low = [s - lo for s, lo in zip(plot_scores, plot_lowers)]
+                xerr_high = [hi - s for s, hi in zip(plot_scores, plot_uppers)]
+                ax.errorbar(
+                    x=plot_scores,
+                    y=y,
+                    xerr=[xerr_low, xerr_high],
+                    fmt="o",
+                    capsize=4,
+                )
+                ax.set_yticks(y)
+                ax.set_yticklabels(plot_names)
+                # Invert y so the first level appears at the top, matching
+                # the row order of to_dataframe().
+                ax.invert_yaxis()
+                ax.set_xlabel(metric_label)
+                ax.set_title(f"{feval.label}: {metric_label}")
+
+                if include_sample_size or include_class_balance:
+                    for i, (score, ann_leval) in enumerate(
+                        zip(plot_scores, plot_levals)
+                    ):
+                        n_lev, n_pos_lev, n_neg_lev = _extract_level_counts(ann_leval)
+                        text = _format_level_annotation(
+                            n_lev, n_overall, n_pos_lev, n_neg_lev,
+                            include_sample_size, include_class_balance,
+                        )
+                        if text:
+                            ax.annotate(
+                                text,
+                                xy=(score, y[i]),
+                                xytext=(5, 0),
+                                textcoords="offset points",
+                                va="center",
+                                fontsize=7,
+                            )
+            else:
+                # Rotated: levels on x-axis, metric value on y-axis.
+                x = list(range(len(plot_names)))
+                yerr_low = [s - lo for s, lo in zip(plot_scores, plot_lowers)]
+                yerr_high = [hi - s for s, hi in zip(plot_scores, plot_uppers)]
+                ax.errorbar(
+                    x=x,
+                    y=plot_scores,
+                    yerr=[yerr_low, yerr_high],
+                    fmt="o",
+                    capsize=4,
+                )
+                ax.set_xticks(x)
+                ax.set_xticklabels(plot_names, rotation=45, ha="right")
+                ax.set_ylabel(metric_label)
+                ax.set_title(f"{feval.label}: {metric_label}")
+
+                if include_sample_size or include_class_balance:
+                    for i, (score, ann_leval) in enumerate(
+                        zip(plot_scores, plot_levals)
+                    ):
+                        n_lev, n_pos_lev, n_neg_lev = _extract_level_counts(ann_leval)
+                        text = _format_level_annotation(
+                            n_lev, n_overall, n_pos_lev, n_neg_lev,
+                            include_sample_size, include_class_balance,
+                        )
+                        if text:
+                            ax.annotate(
+                                text,
+                                xy=(x[i], score),
+                                xytext=(0, 5),
+                                textcoords="offset points",
+                                ha="center",
+                                fontsize=7,
+                            )
+
             fig.tight_layout()
             plots[fname] = (fig, ax)
 
