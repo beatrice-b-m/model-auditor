@@ -13,12 +13,14 @@ from numpy.typing import NDArray
 from sklearn.metrics import roc_curve
 from tqdm.auto import tqdm
 
+from model_auditor.error_metrics import AuditorErrorMetric, RepresentationRatio
 from model_auditor.metric_inputs import AuditorMetricInput
 from model_auditor.metrics import AuditorMetric
 from model_auditor.schemas import (
     AuditorFeature,
     AuditorScore,
     AuditorOutcome,
+    ErrorEvaluation,
     FeatureEvaluation,
     LevelEvaluation,
     ScoreEvaluation,
@@ -46,7 +48,7 @@ class Auditor:
         >>> auditor.add_score(name="risk_score", threshold=0.5)
         >>> auditor.add_outcome(name="outcome")
         >>> auditor.set_metrics([Sensitivity(), Specificity()])
-        >>> results = auditor.evaluate(score_name="risk_score")
+        >>> results = auditor.evaluate_metrics(score_name="risk_score")
     """
 
     def __init__(
@@ -207,6 +209,34 @@ class Auditor:
         """
         self.metrics: list[AuditorMetric] = metrics
 
+    # ------------------------------------------------------------------ #
+    # Private helpers                                                      #
+    # ------------------------------------------------------------------ #
+
+    def _resolve_threshold(
+        self, score: AuditorScore, threshold: Optional[float]
+    ) -> float:
+        """Resolve the effective threshold for a score.
+
+        Args:
+            score: The AuditorScore containing the optional default threshold.
+            threshold: Override value from the caller; None to use the score default.
+
+        Returns:
+            The resolved threshold value.
+
+        Raises:
+            ValueError: If both the caller argument and the score default are None.
+        """
+        if threshold is not None:
+            return threshold
+        if score.threshold is not None:
+            return score.threshold
+        raise ValueError(
+            f"Threshold for score '{score.name}' must be defined via "
+            "add_score(threshold=...) or passed to the evaluation method."
+        )
+
     def _collect_inputs(self) -> None:
         """
         Collects the minimum set of metric inputs necessary for evaluation
@@ -253,7 +283,28 @@ class Auditor:
         """
         return (score_data >= threshold).astype(int)
 
-    def evaluate(
+    def _add_confusion_columns(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Add tp/tn/fp/fn indicator columns to a DataFrame in-place.
+
+        Requires '_truth' and '_binary_pred' columns to already be present.
+
+        Args:
+            data: DataFrame to augment.
+
+        Returns:
+            The same DataFrame with tp, tn, fp, fn integer columns added.
+        """
+        data["tp"] = ((data["_truth"] == 1.0) & (data["_binary_pred"] == 1.0)).astype(int)
+        data["tn"] = ((data["_truth"] == 0.0) & (data["_binary_pred"] == 0.0)).astype(int)
+        data["fp"] = ((data["_truth"] == 0.0) & (data["_binary_pred"] == 1.0)).astype(int)
+        data["fn"] = ((data["_truth"] == 1.0) & (data["_binary_pred"] == 0.0)).astype(int)
+        return data
+
+    # ------------------------------------------------------------------ #
+    # Public evaluation methods                                            #
+    # ------------------------------------------------------------------ #
+
+    def evaluate_metrics(
         self,
         score_name: str,
         threshold: Optional[float] = None,
@@ -276,11 +327,18 @@ class Auditor:
 
         Raises:
             ValueError: If no data has been added with .add_data() first.
+            ValueError: If no outcome has been defined with .add_outcome() first.
             ValueError: If no metrics have been defined with .set_metrics() first.
+            ValueError: If score_name is not found in the registered scores.
             ValueError: If threshold is None and not defined in the score object.
         """
         if self.data is None:
             raise ValueError("Please add data with .add_data() first")
+
+        if "_truth" not in self.data.columns:
+            raise ValueError(
+                "Please define an outcome variable with .add_outcome() first"
+            )
 
         if len(self.metrics) == 0:
             raise ValueError(
@@ -295,13 +353,7 @@ class Auditor:
             )
 
         score: AuditorScore = self.scores[score_name]
-
-        if threshold is None and score.threshold is None:
-            raise ValueError(
-                "Threshold must be defined in score object or passed to .evaluate_score()"
-            )
-        elif threshold is None:
-            threshold = score.threshold
+        threshold = self._resolve_threshold(score, threshold)
 
         # collect metric inputs to prep for evaluation
         self._collect_inputs()
@@ -342,6 +394,108 @@ class Auditor:
                 score_eval.features[feature.name] = feature_eval
 
         return score_eval
+
+    def evaluate_errors(
+        self,
+        score_name: str,
+        threshold: Optional[float] = None,
+        n_bootstraps: Optional[int] = 1000,
+    ) -> ErrorEvaluation:
+        """Analyse feature-level representation within each confusion-matrix group.
+
+        For each confusion-matrix group (TP, TN, FP, FN) and each registered
+        feature, computes the representation ratio of every feature level:
+
+            ratio = P(level | group) / P(level | full dataset)
+
+        A ratio of 1.0 indicates a level appears proportionally in the group.
+        Values above 1.0 indicate over-representation; below 1.0 under-
+        representation.
+
+        With bootstrap resampling enabled (n_bootstraps is not None), the stored
+        point estimate is the bootstrap mean ratio and the confidence interval
+        spans the 2.5th–97.5th percentiles of the bootstrap distribution.
+
+        Args:
+            score_name: Name of the score column to evaluate.
+            threshold: Decision threshold for binarizing scores. If None, uses
+                the threshold defined in the AuditorScore object.
+            n_bootstraps: Number of bootstrap samples for confidence intervals.
+                Set to None to disable CI calculation.
+
+        Returns:
+            ErrorEvaluation containing one ScoreEvaluation per confusion group.
+
+        Raises:
+            ValueError: If no data has been added with .add_data() first.
+            ValueError: If no outcome has been defined with .add_outcome() first.
+            ValueError: If score_name is not found in the registered scores.
+            ValueError: If threshold is None and not defined in the score object.
+        """
+        if self.data is None:
+            raise ValueError("Please add data with .add_data() first")
+
+        if "_truth" not in self.data.columns:
+            raise ValueError(
+                "Please define an outcome variable with .add_outcome() first"
+            )
+
+        if score_name not in self.scores:
+            available = ", ".join(self.scores.keys()) or "(none)"
+            raise ValueError(
+                f"Score '{score_name}' not found. Available scores: {available}"
+            )
+
+        score: AuditorScore = self.scores[score_name]
+        threshold = self._resolve_threshold(score, threshold)
+
+        # Build the analysis slice: feature columns + truth + binarised predictions
+        # + all four confusion-matrix indicator columns.
+        column_list: list[str] = [*self.features.keys(), "_truth"]
+        data_slice: pd.DataFrame = self.data.loc[:, column_list].copy()  # type: ignore
+        data_slice["_pred"] = self.data[score.name]
+        data_slice["_binary_pred"] = self._binarize(
+            score_data=data_slice["_pred"], threshold=threshold
+        )
+        self._add_confusion_columns(data_slice)
+
+        # Synthetic 'Overall' feature (same pattern as evaluate_metrics).
+        data_slice["overall"] = "Overall"
+        eval_features: dict[str, AuditorFeature] = {
+            "overall": AuditorFeature(name="overall", label="Overall")
+        }
+        eval_features.update(**self.features)
+
+        score_label = score.label if score.label is not None else score.name
+        error_eval = ErrorEvaluation(
+            name=score.name,
+            label=score_label,
+            threshold=threshold,
+        )
+
+        metric = RepresentationRatio()
+
+        for group_col in ("tp", "tn", "fp", "fn"):
+            group_eval = ScoreEvaluation(
+                name=group_col,
+                label=group_col.upper(),
+            )
+            for feature in eval_features.values():
+                feature_eval = self._evaluate_error_feature(
+                    data=data_slice,
+                    group_col=group_col,
+                    feature=feature,
+                    metric=metric,
+                    n_bootstraps=n_bootstraps,
+                )
+                group_eval.features[feature.name] = feature_eval
+            error_eval.groups[group_col] = group_eval
+
+        return error_eval
+
+    # ------------------------------------------------------------------ #
+    # Private evaluation helpers                                           #
+    # ------------------------------------------------------------------ #
 
     def _evaluate_feature(
         self, data: pd.DataFrame, feature: AuditorFeature, n_bootstraps: Optional[int]
@@ -436,6 +590,161 @@ class Auditor:
                             metric_label=metric.label,
                             metric_score=float("nan"),
                         )
+                    ordered_levels[cat_str] = placeholder
+            feature_eval.levels = ordered_levels
+
+        return feature_eval
+
+    def _evaluate_error_feature(
+        self,
+        data: pd.DataFrame,
+        group_col: str,
+        feature: AuditorFeature,
+        metric: AuditorErrorMetric,
+        n_bootstraps: Optional[int],
+    ) -> FeatureEvaluation:
+        """Compute error metrics for one feature within one confusion-matrix group.
+
+        Calculates the representation ratio for each feature level, then
+        optionally runs bootstrap resampling to derive confidence intervals and
+        replace the point estimate with the bootstrap mean.
+
+        Categorical dtype is honoured: declared-but-unobserved categories appear
+        as NaN placeholder rows (same behaviour as _evaluate_feature).
+
+        Args:
+            data: Full data slice including confusion indicator columns.
+            group_col: Column name of the confusion indicator ('tp', 'tn', etc.).
+            feature: The feature whose levels are being analysed.
+            metric: Error metric to compute (e.g. RepresentationRatio).
+            n_bootstraps: Bootstrap iterations, or None to skip.
+
+        Returns:
+            FeatureEvaluation with one LevelEvaluation per feature level.
+        """
+        feature_col = feature.name
+
+        is_categorical = isinstance(data[feature_col].dtype, pd.CategoricalDtype)
+        declared_categories: list[str] = []
+        if is_categorical:
+            declared_categories = [
+                str(c) for c in data[feature_col].cat.categories.tolist()
+            ]
+
+        # Drop rows where the feature is NaN; they don't belong to any level.
+        full_data = data.dropna(subset=[feature_col]).copy()
+        if not is_categorical:
+            full_data[feature_col] = full_data[feature_col].astype(str)
+
+        full_total = len(full_data)
+
+        # Per-level counts over the full dataset.
+        if is_categorical:
+            full_gs = full_data.groupby(feature_col, observed=True).size()
+        else:
+            full_gs = full_data.groupby(feature_col).size()
+        full_counts: dict[str, int] = {str(k): int(v) for k, v in full_gs.items()}
+
+        # Per-level counts within the confusion group.
+        group_data = full_data[full_data[group_col] == 1]
+        group_total = len(group_data)
+
+        if is_categorical:
+            group_gs = group_data.groupby(feature_col, observed=True).size() if not group_data.empty else pd.Series(dtype=int)
+        else:
+            group_gs = group_data.groupby(feature_col).size() if not group_data.empty else pd.Series(dtype=int)
+        group_counts: dict[str, int] = {str(k): int(v) for k, v in group_gs.items()}
+
+        # All levels to evaluate: declared order for categorical, observed order otherwise.
+        all_levels: list[str] = (
+            declared_categories if is_categorical else list(full_counts.keys())
+        )
+
+        feature_eval = FeatureEvaluation(
+            name=feature.name,
+            label=feature.label if feature.label is not None else feature.name,
+        )
+
+        # Point estimates (raw ratio, or bootstrap mean if bootstraps requested).
+        level_scores: dict[str, float] = {}
+        for level_name in all_levels:
+            full_count = full_counts.get(level_name, 0)
+            group_count = group_counts.get(level_name, 0)
+            level_scores[level_name] = metric.compute(
+                group_count=group_count,
+                group_total=group_total,
+                full_count=full_count,
+                full_total=full_total,
+            )
+
+        for level_name in all_levels:
+            feature_eval.update(
+                metric_name=metric.name,
+                metric_label=metric.label,
+                data={level_name: level_scores[level_name]},
+            )
+
+        # Bootstrap: replaces point estimates with bootstrap mean and adds CI.
+        # Levels with an undefined baseline (NaN score) are excluded — they cannot
+        # yield a meaningful CI and the NaN placeholder should be preserved.
+        if n_bootstraps is not None and metric.ci_eligible:
+            valid_levels = [l for l in all_levels if not np.isnan(level_scores[l])]
+
+            if valid_levels:
+                bootstrap_results: dict[str, NDArray[np.float64]] = {
+                    l: np.empty(n_bootstraps, dtype=np.float64) for l in valid_levels
+                }
+                n = len(data)  # resample from the full slice (all confusion groups)
+
+                for i in range(n_bootstraps):
+                    boot = data.sample(n, replace=True)
+                    boot_full = boot.dropna(subset=[feature_col]).copy()
+                    if not is_categorical:
+                        boot_full[feature_col] = boot_full[feature_col].astype(str)
+
+                    boot_full_total = len(boot_full)
+                    boot_group = boot_full[boot_full[group_col] == 1]
+                    boot_group_total = len(boot_group)
+
+                    if is_categorical:
+                        bfgs = boot_full.groupby(feature_col, observed=True).size()
+                        bgGs = boot_group.groupby(feature_col, observed=True).size() if not boot_group.empty else pd.Series(dtype=int)
+                    else:
+                        bfgs = boot_full.groupby(feature_col).size()
+                        bgGs = boot_group.groupby(feature_col).size() if not boot_group.empty else pd.Series(dtype=int)
+
+                    bfgs_dict: dict[str, int] = {str(k): int(v) for k, v in bfgs.items()}
+                    bgGs_dict: dict[str, int] = {str(k): int(v) for k, v in bgGs.items()}
+
+                    for level_name in valid_levels:
+                        bootstrap_results[level_name][i] = metric.compute(
+                            group_count=bgGs_dict.get(level_name, 0),
+                            group_total=boot_group_total,
+                            full_count=bfgs_dict.get(level_name, 0),
+                            full_total=boot_full_total,
+                        )
+
+                for level_name in valid_levels:
+                    bs = bootstrap_results[level_name]
+                    point_estimate = float(np.nanmean(bs))
+                    lower, upper = np.nanpercentile(bs, [2.5, 97.5])
+                    lm = feature_eval.levels[level_name].metrics[metric.name]
+                    lm.score = point_estimate
+                    lm.interval = (float(lower), float(upper))
+
+        # Categorical ordering and placeholders (mirrors _evaluate_feature).
+        if is_categorical:
+            ordered_levels: dict[str, LevelEvaluation] = {}
+            for cat_str in declared_categories:
+                if cat_str in feature_eval.levels:
+                    ordered_levels[cat_str] = feature_eval.levels[cat_str]
+                else:
+                    placeholder = LevelEvaluation(name=cat_str)
+                    placeholder.update(
+                        metric_name=metric.name,
+                        metric_label=metric.label,
+                        metric_score=float("nan"),
+                    )
                     ordered_levels[cat_str] = placeholder
             feature_eval.levels = ordered_levels
 

@@ -593,3 +593,105 @@ class AuditorOutcome:
 
     name: str
     mapping: Optional[dict[Any, int]] = None
+
+
+
+@dataclass
+class ErrorEvaluation:
+    """Container for confusion-matrix group error analysis for a single score.
+
+    Groups evaluation results by confusion-matrix category (TP, TN, FP, FN),
+    each of which is itself a ScoreEvaluation holding per-feature representation
+    ratio metrics.
+
+    Attributes:
+        name: Name of the score that was evaluated.
+        label: Display label for the score.
+        threshold: Binarization threshold used during evaluation.
+        groups: Dictionary mapping group keys ('tp', 'tn', 'fp', 'fn') to
+            ScoreEvaluation objects containing per-feature metrics.
+    """
+
+    name: str
+    label: str
+    threshold: float
+    groups: dict[str, ScoreEvaluation] = field(default_factory=dict)
+
+    def to_dataframe(
+        self, n_decimals: int = 3, metric_labels: bool = False
+    ) -> pd.DataFrame:
+        """Convert error evaluation to a pandas DataFrame.
+
+        Returns a DataFrame with a three-level MultiIndex:
+        (group, feature, level), where group is one of TP/TN/FP/FN.
+
+        Args:
+            n_decimals: Number of decimal places for formatting scores.
+            metric_labels: If True, use metric labels as column names; else use names.
+
+        Returns:
+            DataFrame with MultiIndex (group, feature, level) and metrics as columns.
+        """
+        if not self.groups:
+            return pd.DataFrame()
+
+        frames: dict[str, pd.DataFrame] = {}
+        for group_name, group_eval in self.groups.items():
+            frames[group_name.upper()] = group_eval.to_dataframe(
+                n_decimals=n_decimals, metric_labels=metric_labels
+            )
+        return pd.concat(frames)
+
+    def style_dataframe(
+        self,
+        n_decimals: int = 3,
+        metric_labels: bool = False,
+        include_count_metrics: bool = False,
+        low_color: str = "#f8d7da",
+        medium_color: str = "#fff3cd",
+        high_color: str = "#d4edda",
+    ) -> pd.io.formats.style.Styler:
+        """Convert error evaluation to a styled pandas DataFrame for Jupyter display.
+
+        Styles cells based on relative representation ratio tiers across all
+        groups, features, and levels combined.
+
+        Args:
+            n_decimals: Number of decimal places for formatting scores.
+            metric_labels: If True, use metric labels as column names; else use names.
+            include_count_metrics: If True, include count metrics in tier styling.
+            low_color: Background color for low tier.
+            medium_color: Background color for medium tier.
+            high_color: Background color for high tier.
+
+        Returns:
+            A pandas Styler object with tier-based coloring applied.
+        """
+        display_df = self.to_dataframe(n_decimals=n_decimals, metric_labels=metric_labels)
+
+        numeric_data_list = []
+        metric_names: set[str] = set()
+
+        # Iterate in the same traversal order as to_dataframe() so that
+        # numeric_data_list rows align with display_df.index exactly.
+        for group_eval in self.groups.values():
+            for feature_eval in group_eval.features.values():
+                for level_eval in feature_eval.levels.values():
+                    level_numeric: dict[str, float] = {}
+                    for metric in level_eval.metrics.values():
+                        metric_key = metric.label if metric_labels else metric.name
+                        level_numeric[metric_key] = metric.score
+                        metric_names.add(metric_key)
+                    numeric_data_list.append(level_numeric)
+
+        numeric_df = pd.DataFrame(numeric_data_list, index=display_df.index)
+
+        return _apply_tier_styling(
+            display_df=display_df,
+            numeric_df=numeric_df,
+            metric_names=list(metric_names),
+            include_count_metrics=include_count_metrics,
+            low_color=low_color,
+            medium_color=medium_color,
+            high_color=high_color,
+        )

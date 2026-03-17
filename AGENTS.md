@@ -253,7 +253,7 @@ class AuditorMetricInput(Protocol):
 
 ### Accessing Results
 ```python
-results = auditor.evaluate(score_name="risk_score")
+results = auditor.evaluate_metrics(score_name="risk_score")
 df = results.to_dataframe(n_decimals=3, metric_labels=True)
 feature_df = results.features["gender"].to_dataframe()
 level_df = results.features["gender"].levels["Male"].to_dataframe()
