@@ -214,6 +214,51 @@ gender_results = results.features["gender"].to_dataframe()
 male_results = results.features["gender"].levels["Male"].to_dataframe()
 ```
 
+## Score Interval Plots
+
+Visualise bootstrap confidence intervals for any metric across feature levels
+using `plot_metric_intervals`.  The method requires `matplotlib` and returns one
+`(Figure, Axes)` tuple per feature:
+
+```python
+# Run evaluation with bootstrap CIs first.
+results = auditor.evaluate_metrics(score_name="risk_score", n_bootstraps=1000)
+
+# Plot every feature (one figure per feature).
+plots = results.plot_metric_intervals(metric="sensitivity")
+
+# Select a subset of features.
+plots = results.plot_metric_intervals(
+    metric="sensitivity",
+    feature_names=["gender", "age_group"],
+)
+
+# Metric can be supplied by name or by label.
+plots = results.plot_metric_intervals(metric="Sensitivity")   # label also works
+
+# Display in a Jupyter notebook.
+import matplotlib.pyplot as plt
+
+for feature_name, (fig, ax) in plots.items():
+    plt.show()
+```
+
+Each figure shows levels on the y-axis (in evaluation order) and the metric
+value on the x-axis.  Horizontal whiskers span the 95% CI bounds.
+Levels with no CI data (e.g. unobserved categorical placeholders, count
+metrics) are automatically excluded from the plot.
+
+```python
+# Access the Axes object to customise the figure further.
+fig, ax = plots["gender"]
+ax.set_xlim(0.0, 1.0)
+ax.axvline(0.8, linestyle="--", color="grey", label="Target")
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+
 ## Controlling Feature Level Order
 
 By default, feature levels appear in the order they were encountered in the

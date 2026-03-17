@@ -174,6 +174,92 @@ def _apply_tier_styling(
     return display_df.style.apply(lambda x: style_df, axis=None)
 
 
+
+# ---------------------------------------------------------------------------
+# Private helpers for interval plotting (used by ScoreEvaluation)
+# ---------------------------------------------------------------------------
+
+
+def _is_plottable_level(lm: LevelMetric) -> bool:
+    """Return True iff a LevelMetric has a non-NaN score and finite CI bounds.
+
+    Levels with NaN scores (e.g., unobserved categorical placeholders) or
+    None/NaN intervals (e.g., count metrics or missing bootstrap runs) are
+    excluded from interval plots.
+    """
+    if pd.isna(lm.score):
+        return False
+    if lm.interval is None:
+        return False
+    lo, hi = lm.interval
+    return not (pd.isna(lo) or pd.isna(hi))
+
+
+def _resolve_metric_key(
+    metric: str,
+    selected_features: list[str],
+    features: dict[str, FeatureEvaluation],
+) -> str:
+    """Resolve a metric selector (name or label) to the internal metric name key.
+
+    Performs exact name match first, then label match across all selected
+    features.  Raises ValueError with actionable context if neither matches.
+
+    Args:
+        metric: User-supplied metric selector.
+        selected_features: Feature names to search through.
+        features: Feature evaluation dict from ScoreEvaluation.
+
+    Returns:
+        The internal metric name (key in LevelEvaluation.metrics).
+
+    Raises:
+        ValueError: If the metric is not found in any selected feature.
+    """
+    label_match: Optional[str] = None
+    for fname in selected_features:
+        feval = features[fname]
+        for leval in feval.levels.values():
+            # Exact name match takes priority over label match.
+            if metric in leval.metrics:
+                return metric
+            # Record the first label match as a fallback.
+            if label_match is None:
+                for key, lm in leval.metrics.items():
+                    if lm.label == metric:
+                        label_match = key
+    if label_match is not None:
+        return label_match
+
+    # Build a helpful error message from the first non-empty level.
+    seen_names: list[str] = []
+    seen_labels: list[str] = []
+    for fname in selected_features:
+        for leval in features[fname].levels.values():
+            if leval.metrics:
+                seen_names = sorted(leval.metrics.keys())
+                seen_labels = sorted(lm.label for lm in leval.metrics.values())
+                break
+        if seen_names:
+            break
+    raise ValueError(
+        f"Metric {metric!r} not found by name or label in the selected features. "
+        f"Available names: {seen_names!r}, labels: {seen_labels!r}"
+    )
+
+
+def _get_metric_display_label(metric_key: str, feval: FeatureEvaluation) -> str:
+    """Return the display label for a metric, falling back to its key.
+
+    Looks up the label from the first level that contains the metric.
+    """
+    for leval in feval.levels.values():
+        lm = leval.metrics.get(metric_key)
+        if lm is not None:
+            return lm.label
+    return metric_key
+
+
 @dataclass
 class LevelMetric:
     """
@@ -544,6 +630,116 @@ class ScoreEvaluation:
             high_color=high_color,
         )
 
+    def plot_metric_intervals(
+        self,
+        metric: str,
+        feature_names: Optional[list[str]] = None,
+    ) -> dict:
+        """Create horizontal interval plots for a metric across feature levels.
+
+        For each selected feature, produces one matplotlib figure with a
+        horizontal error-bar per level: the point marks the metric mean (score)
+        and the whiskers extend to the bootstrap CI lower and upper bounds.
+        Levels without plottable CI data (NaN score, None interval, or NaN
+        bounds) are silently excluded from that feature's plot.
+
+        Args:
+            metric: Metric to plot.  Matched first by exact name, then by
+                label.  Example: ``"sensitivity"`` or ``"Sensitivity``.
+            feature_names: Feature names to include.  ``None`` plots all
+                features in the order they appear in ``self.features``.
+
+        Returns:
+            Dictionary mapping feature name to ``(matplotlib.figure.Figure,
+            matplotlib.axes.Axes)`` tuples, one entry per selected feature.
+
+        Raises:
+            ImportError: If matplotlib is not installed.
+            ValueError: If ``self.features`` is empty, ``feature_names``
+                contains unknown names, the metric is not found in any
+                selected feature, or a selected feature has no levels with
+                plottable CI data.
+        """
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError as exc:
+            raise ImportError(
+                "matplotlib is required for interval plots. "
+                "Install it with: pip install matplotlib"
+            ) from exc
+
+        if not self.features:
+            raise ValueError("ScoreEvaluation has no features to plot.")
+
+        # Validate and resolve the feature list.
+        if feature_names is None:
+            selected_features = list(self.features.keys())
+        else:
+            unknown = [f for f in feature_names if f not in self.features]
+            if unknown:
+                raise ValueError(
+                    f"Unknown feature(s): {unknown!r}. "
+                    f"Available features: {list(self.features.keys())!r}"
+                )
+            selected_features = list(feature_names)
+
+        # Resolve metric selector (name or label) to an internal metric key.
+        metric_key = _resolve_metric_key(metric, selected_features, self.features)
+
+        plots: dict[str, tuple] = {}
+        for fname in selected_features:
+            feval = self.features[fname]
+
+            # Collect plottable tuples in level insertion order (preserves
+            # categorical order where applicable).
+            plottable: list[tuple[str, float, float, float]] = []
+            for level_name, leval in feval.levels.items():
+                lm = leval.metrics.get(metric_key)
+                if lm is not None and _is_plottable_level(lm):
+                    lower, upper = lm.interval  # type: ignore[misc]
+                    plottable.append(
+                        (level_name, float(lm.score), lower, upper)
+                    )
+
+            if not plottable:
+                raise ValueError(
+                    f"Feature {fname!r}: no levels have plottable CI data for "
+                    f"metric {metric!r}. Ensure n_bootstraps was set during "
+                    f"evaluation and the metric is CI-eligible."
+                )
+
+            level_names = [p[0] for p in plottable]
+            scores = [p[1] for p in plottable]
+            lowers = [p[2] for p in plottable]
+            uppers = [p[3] for p in plottable]
+
+            y = list(range(len(plottable)))
+            # errorbar asymmetric xerr shape: [[left_deltas], [right_deltas]].
+            xerr_low = [s - lo for s, lo in zip(scores, lowers)]
+            xerr_high = [hi - s for s, hi in zip(scores, uppers)]
+
+            fig, ax = plt.subplots()
+            ax.errorbar(
+                x=scores,
+                y=y,
+                xerr=[xerr_low, xerr_high],
+                fmt="o",
+                capsize=4,
+            )
+            ax.set_yticks(y)
+            ax.set_yticklabels(level_names)
+            # Invert y so the first level appears at the top, matching
+            # the row order of to_dataframe().
+            ax.invert_yaxis()
+
+            metric_label = _get_metric_display_label(metric_key, feval)
+            ax.set_xlabel(metric_label)
+            ax.set_title(f"{feval.label}: {metric_label}")
+            fig.tight_layout()
+            plots[fname] = (fig, ax)
+
+        return plots
+
 
 @dataclass
 class AuditorFeature:
@@ -743,7 +939,7 @@ class ErrorEvaluation:
 
         index = pd.MultiIndex.from_tuples(index_tuples, names=["feature", "level"])
         df = pd.DataFrame(rows, index=index)
-        df.columns = pd.MultiIndex.from_tuples(list(df.columns))
+        df.columns = pd.MultiIndex.from_tuples(list(df.columns)) # type: ignore
         return df
 
     def style_dataframe(
@@ -794,7 +990,7 @@ class ErrorEvaluation:
 
         display_df = numeric_df.copy().astype(object)
         for col in numeric_df.columns:
-            display_df[col] = [_fmt(v, col) for v in numeric_df[col]]
+            display_df[col] = [_fmt(v, col) for v in numeric_df[col]] # type: ignore
 
         # Build a style DataFrame for representation-ratio columns only.
         style_df = pd.DataFrame("", index=display_df.index, columns=display_df.columns)
