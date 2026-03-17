@@ -2,15 +2,17 @@
 
 Coverage:
 - evaluate_errors() returns ErrorEvaluation with all four confusion groups.
-- RepresentationRatio formula correctness on deterministic synthetic data.
+- OddsRatio formula correctness on deterministic synthetic data.
 - NaN baseline for levels absent from the full dataset (full_count == 0).
-- Zero-in-group: a level that appears in the full dataset but has no rows in a
-  specific confusion group yields ratio == 0.0 (not NaN).
-- Bootstrap mean replaces the raw ratio as point estimate when n_bootstraps > 0.
+- NaN when no comparator population (overall/Overall: full_total == full_count).
+- Zero-in-group: a level present in the full dataset but absent from a specific
+  confusion group yields OR == 0.0 (not NaN).
+- Bootstrap mean replaces the raw OR as point estimate when n_bootstraps > 0.
 - Bootstrap CI bounds are present and satisfy lower <= upper.
 - No CI for levels with NaN baseline, even when bootstraps are requested.
 - Categorical ordering is preserved across all groups.
 - to_dataframe() produces the expected wide cross-group format.
+- to_dataframe() includes OR CI columns populated from LevelMetric.interval.
 - Validation errors: missing data, missing outcome, bad score name, no threshold.
 """
 
@@ -34,15 +36,12 @@ from model_auditor.schemas import ErrorEvaluation, ScoreEvaluation
 #   Other:  1 TP, 0 FP, 1 FN, 2 TN  → 4 rows
 #   Total:  8 TP, 2 FP, 3 FN, 7 TN  → 20 rows
 #
-# Representation ratios for Female in TP group:
-#   P(Female | full) = 8/20 = 0.4
-#   P(Female | TP)   = 4/8  = 0.5
-#   ratio            = 0.5 / 0.4 = 1.25
+# Canonical OR for Female in TP group:
+#   a=4 (Female∩TP), b=4 (Female∩not-TP), c=4 (not-Female∩TP), d=8 (not-Female∩not-TP)
+#   OR = (4*8)/(4*4) = 2.0
 #
-# Representation ratio for Other in FP group:
-#   P(Other | full) = 4/20  = 0.2
-#   P(Other | FP)   = 0/2   = 0.0
-#   ratio            = 0.0 / 0.2 = 0.0  (zero-in-group case)
+# OR for Other in FP group (zero-in-group):
+#   a=0, b=4, c=2, d=14 → OR = 0/8 = 0.0
 
 
 def _make_df(include_unknown: bool = False) -> pd.DataFrame:
@@ -91,16 +90,27 @@ def _make_auditor(df: pd.DataFrame) -> Auditor:
 
 
 # ---------------------------------------------------------------------------
-# Helpers for exact-ratio assertions
+# Helpers for exact OR assertions
 # ---------------------------------------------------------------------------
 
 
-def _ratio(group_count: int, group_total: int, full_count: int, full_total: int) -> float:
-    if full_total == 0 or full_count == 0:
+def _or(group_count: int, group_total: int, full_count: int, full_total: int) -> float:
+    """Canonical 2x2 odds ratio matching OddsRatio.compute()."""
+    if full_count == 0:
         return float("nan")
-    baseline = full_count / full_total
-    group_rate = group_count / group_total if group_total > 0 else 0.0
-    return group_rate / baseline
+    if full_total - full_count == 0:
+        return float("nan")
+    a = group_count
+    b = full_count - group_count
+    c = group_total - group_count
+    d = (full_total - full_count) - c
+    numerator = a * d
+    denominator = b * c
+    if denominator == 0:
+        if numerator == 0:
+            return float("nan")
+        return float("inf")
+    return numerator / denominator
 
 
 # ---------------------------------------------------------------------------
@@ -143,60 +153,60 @@ class TestEvaluateErrorsStructure:
         for group_eval in result.groups.values():
             assert "overall" in group_eval.features
 
-    def test_representation_ratio_metric_present_in_levels(self):
+    def test_odds_ratio_metric_present_in_levels(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
         gender = result.groups["tp"].features["gender"]
         for level_eval in gender.levels.values():
-            assert "representation_ratio" in level_eval.metrics
+            assert "odds_ratio" in level_eval.metrics
 
 
 # ---------------------------------------------------------------------------
-# TestRepresentationRatioValues
+# TestOddsRatioValues
 # ---------------------------------------------------------------------------
 
 
-class TestRepresentationRatioValues:
-    """Ratio formula correctness on deterministic data."""
+class TestOddsRatioValues:
+    """OR formula correctness on deterministic data."""
 
     def setup_method(self):
         df = _make_df()
         self.result = _make_auditor(df).evaluate_errors(score_name="score", n_bootstraps=None)
 
-    def _ratio_for(self, group: str, level: str) -> float:
-        return self.result.groups[group].features["gender"].levels[level].metrics["representation_ratio"].score
+    def _or_for(self, group: str, level: str) -> float:
+        return self.result.groups[group].features["gender"].levels[level].metrics["odds_ratio"].score
 
     def test_female_in_tp(self):
-        # P(Female|full)=8/20=0.4, P(Female|TP)=4/8=0.5 → 1.25
-        expected = _ratio(4, 8, 8, 20)
-        assert abs(self._ratio_for("tp", "Female") - expected) < 1e-10
+        # a=4, b=4, c=4, d=8 → OR=32/16=2.0
+        expected = _or(4, 8, 8, 20)
+        assert abs(self._or_for("tp", "Female") - expected) < 1e-10
 
     def test_male_in_tp(self):
-        # P(Male|full)=8/20=0.4, P(Male|TP)=3/8=0.375 → 0.9375
-        expected = _ratio(3, 8, 8, 20)
-        assert abs(self._ratio_for("tp", "Male") - expected) < 1e-10
+        # a=3, b=5, c=5, d=7 → OR=21/25=0.84
+        expected = _or(3, 8, 8, 20)
+        assert abs(self._or_for("tp", "Male") - expected) < 1e-10
 
     def test_other_in_tp(self):
-        # P(Other|full)=4/20=0.2, P(Other|TP)=1/8=0.125 → 0.625
-        expected = _ratio(1, 8, 4, 20)
-        assert abs(self._ratio_for("tp", "Other") - expected) < 1e-10
+        # a=1, b=3, c=7, d=9 → OR=9/21=3/7
+        expected = _or(1, 8, 4, 20)
+        assert abs(self._or_for("tp", "Other") - expected) < 1e-10
 
     def test_female_in_fn(self):
-        # FN total = 3; Female FN = 1
-        expected = _ratio(1, 3, 8, 20)
-        assert abs(self._ratio_for("fn", "Female") - expected) < 1e-10
+        # FN total=3; Female FN=1; a=1, b=7, c=2, d=10 → OR=10/14=5/7
+        expected = _or(1, 3, 8, 20)
+        assert abs(self._or_for("fn", "Female") - expected) < 1e-10
 
-    def test_overall_ratio_is_one_for_nonempty_group(self):
-        # P(Overall|group) / P(Overall|full) = 1.0 by definition when group non-empty.
+    def test_overall_or_is_nan(self):
+        # The overall level covers all rows: full_total - full_count == 0 → NaN.
         for group in ("tp", "tn", "fp", "fn"):
-            overall_ratio = (
+            overall_or = (
                 self.result.groups[group]
                 .features["overall"]
                 .levels["Overall"]
-                .metrics["representation_ratio"]
+                .metrics["odds_ratio"]
                 .score
             )
-            assert abs(overall_ratio - 1.0) < 1e-10, (
-                f"Overall ratio for group '{group}' should be 1.0, got {overall_ratio}"
+            assert math.isnan(overall_or), (
+                f"Overall OR for group '{group}' should be NaN (no comparator), got {overall_or}"
             )
 
 
@@ -206,22 +216,23 @@ class TestRepresentationRatioValues:
 
 
 class TestZeroInGroup:
-    """Level present in full dataset but absent from a confusion group → ratio 0.0."""
+    """Level present in full dataset but absent from a confusion group → OR == 0.0."""
 
     def test_other_in_fp_is_zero(self):
-        # Other has no FP rows (score threshold 0.5; all Other scores are 0.3/0.1).
+        # Other has no FP rows (all Other scores are 0.3/0.1 < threshold=0.5).
+        # a=0, b=4, c=2, d=14 → OR=0/8=0.0
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
         fp_other = result.groups["fp"].features["gender"].levels["Other"]
-        ratio = fp_other.metrics["representation_ratio"].score
+        ratio = fp_other.metrics["odds_ratio"].score
         assert ratio == 0.0, f"Expected 0.0 for Other in FP, got {ratio}"
 
-    def test_zero_ratio_is_not_nan(self):
+    def test_zero_or_is_not_nan(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
         ratio = (
             result.groups["fp"].features["gender"].levels["Other"]
-            .metrics["representation_ratio"].score
+            .metrics["odds_ratio"].score
         )
-        assert not math.isnan(ratio), "Zero-in-group ratio must not be NaN"
+        assert not math.isnan(ratio), "Zero-in-group OR must not be NaN"
 
 
 # ---------------------------------------------------------------------------
@@ -230,20 +241,20 @@ class TestZeroInGroup:
 
 
 class TestNaNBaseline:
-    """Level absent from the full dataset (full_count == 0) → ratio NaN, no CI."""
+    """Level absent from the full dataset (full_count == 0) → OR NaN, no CI."""
 
-    def test_unobserved_category_nan_ratio(self):
+    def test_unobserved_category_nan_or(self):
         # 'Unknown' is a declared category with zero rows in the full dataset.
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
         unknown = result.groups["tp"].features["gender"].levels["Unknown"]
-        ratio = unknown.metrics["representation_ratio"].score
+        ratio = unknown.metrics["odds_ratio"].score
         assert math.isnan(ratio), f"Expected NaN for unobserved 'Unknown', got {ratio}"
 
     def test_unobserved_category_no_ci(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=500)
         for group in ("tp", "tn", "fp", "fn"):
             unknown = result.groups[group].features["gender"].levels["Unknown"]
-            lm = unknown.metrics["representation_ratio"]
+            lm = unknown.metrics["odds_ratio"]
             assert lm.interval is None, (
                 f"NaN-baseline level 'Unknown' in group '{group}' must have no CI, "
                 f"got {lm.interval}"
@@ -253,7 +264,7 @@ class TestNaNBaseline:
         """Bootstrap must preserve NaN score for levels with undefined baseline."""
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=50)
         unknown = result.groups["tp"].features["gender"].levels["Unknown"]
-        assert math.isnan(unknown.metrics["representation_ratio"].score)
+        assert math.isnan(unknown.metrics["odds_ratio"].score)
 
 
 # ---------------------------------------------------------------------------
@@ -267,7 +278,7 @@ class TestBootstrap:
     def test_observed_levels_have_ci(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=100)
         for level in ("Female", "Male", "Other"):
-            lm = result.groups["tp"].features["gender"].levels[level].metrics["representation_ratio"]
+            lm = result.groups["tp"].features["gender"].levels[level].metrics["odds_ratio"]
             assert lm.interval is not None, (
                 f"Observed level '{level}' must have a CI after bootstrapping"
             )
@@ -280,7 +291,7 @@ class TestBootstrap:
                     result.groups[group]
                     .features["gender"]
                     .levels[level]
-                    .metrics["representation_ratio"]
+                    .metrics["odds_ratio"]
                 )
                 if lm.interval is not None:
                     lower, upper = lm.interval
@@ -290,7 +301,7 @@ class TestBootstrap:
 
     def test_bootstrap_mean_is_float(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=50)
-        lm = result.groups["tp"].features["gender"].levels["Female"].metrics["representation_ratio"]
+        lm = result.groups["tp"].features["gender"].levels["Female"].metrics["odds_ratio"]
         assert isinstance(lm.score, float)
 
     def test_no_bootstraps_no_ci(self):
@@ -301,7 +312,7 @@ class TestBootstrap:
                     result.groups[group]
                     .features["gender"]
                     .levels[level]
-                    .metrics["representation_ratio"]
+                    .metrics["odds_ratio"]
                 )
                 assert lm.interval is None, (
                     f"No bootstraps requested; {level} in {group} should have no CI"
@@ -412,16 +423,21 @@ class TestToDataframe:
     def test_group_section_sub_columns_default_names(self):
         for group in ("TP", "TN", "FP", "FN"):
             group_cols = set(self.df[group].columns)
-            expected = {"N", "% overall", "% group", "representation_ratio"}
+            expected = {"N", "% overall", "% group", "odds_ratio",
+                        "odds_ratio_ci_lower", "odds_ratio_ci_upper"}
             assert expected.issubset(group_cols), (
                 f"Group {group} missing columns; got {group_cols}"
             )
 
-    def test_metric_labels_flag_renames_ratio_column(self):
+    def test_metric_labels_flag_renames_or_columns(self):
         df_labels = self.result.to_dataframe(metric_labels=True)
         for group in ("TP", "TN", "FP", "FN"):
-            assert "Representation Ratio" in df_labels[group].columns
-            assert "representation_ratio" not in df_labels[group].columns
+            assert "Odds Ratio" in df_labels[group].columns
+            assert "OR 95% CI Lower" in df_labels[group].columns
+            assert "OR 95% CI Upper" in df_labels[group].columns
+            assert "odds_ratio" not in df_labels[group].columns
+            assert "odds_ratio_ci_lower" not in df_labels[group].columns
+            assert "odds_ratio_ci_upper" not in df_labels[group].columns
 
     # -- numeric types ---------------------------------------------------------
 
@@ -435,19 +451,38 @@ class TestToDataframe:
                 f"Column {col} has non-numeric dtype {self.df[col].dtype}"
             )
 
-    # -- overall/Overall row: representation ratio must be NaN ----------------
+    # -- overall/Overall row: OR and CI columns must be NaN -------------------
 
-    def test_overall_row_group_rr_is_nan(self):
-        """(Overall, Overall) row emits NaN for all group representation ratios.
+    def test_overall_row_group_or_is_nan(self):
+        """(Overall, Overall) row emits NaN for all group odds ratios.
 
-        The ratio is trivially 1.0 by definition (whole group / whole dataset);
-        NaN signals that the cell is not analytically meaningful.
+        The OR is undefined when all rows belong to the level (no comparator
+        population exists).
         """
         overall_row = self.df.loc[("Overall", "Overall")]
         for group in ("TP", "TN", "FP", "FN"):
-            rr = overall_row[(group, "representation_ratio")]
-            assert pd.isna(rr), (
-                f"Overall/Overall RR for {group} must be NaN, got {rr}"
+            or_val = overall_row[(group, "odds_ratio")]
+            assert pd.isna(or_val), (
+                f"Overall/Overall OR for {group} must be NaN, got {or_val}"
+            )
+
+    def test_overall_row_ci_columns_are_nan(self):
+        """(Overall, Overall) CI columns are also NaN."""
+        overall_row = self.df.loc[("Overall", "Overall")]
+        for group in ("TP", "TN", "FP", "FN"):
+            assert pd.isna(overall_row[(group, "odds_ratio_ci_lower")])
+            assert pd.isna(overall_row[(group, "odds_ratio_ci_upper")])
+
+    # -- no-bootstrap run: CI columns are NaN --------------------------------
+
+    def test_ci_columns_are_nan_without_bootstraps(self):
+        """When n_bootstraps=None, all CI bound columns must be NaN."""
+        for group in ("TP", "TN", "FP", "FN"):
+            assert self.df[(group, "odds_ratio_ci_lower")].isna().all(), (
+                f"CI lower column for {group} should be all-NaN without bootstraps"
+            )
+            assert self.df[(group, "odds_ratio_ci_upper")].isna().all(), (
+                f"CI upper column for {group} should be all-NaN without bootstraps"
             )
 
     # -- class balance arithmetic (Female row) ---------------------------------
@@ -471,6 +506,7 @@ class TestToDataframe:
         """Female Neg % = 3 / 8 (fraction of Female rows that are negative)."""
         row = self.df.loc[("gender", "Female")]
         assert abs(row[("Class Balance", "Neg %")] - 3 / 8) < 1e-10
+
     def test_class_balance_pct_sum_to_one(self):
         """Pos % + Neg % must sum to 1.0 for every non-empty row."""
         for idx in self.df.index:
@@ -498,7 +534,6 @@ class TestToDataframe:
         assert cols[1] == ("Overall", "% overall"), (
             f"Second column should be ('Overall', '% overall'), got {cols[1]}"
         )
-
 
     # -- pct_overall uses global N denominator (not per-feature N) -------------
 
@@ -531,6 +566,81 @@ class TestToDataframe:
         df = empty.to_dataframe()
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 0
+
+
+# ---------------------------------------------------------------------------
+# TestToDataframeWithBootstrap — CI columns populated after bootstrapping
+# ---------------------------------------------------------------------------
+
+
+class TestToDataframeWithBootstrap:
+    """CI columns in to_dataframe() are populated when n_bootstraps is set."""
+
+    def setup_method(self):
+        self.result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=100
+        )
+        self.df = self.result.to_dataframe()
+
+    def test_ci_columns_present_in_schema(self):
+        for group in ("TP", "TN", "FP", "FN"):
+            assert (group, "odds_ratio_ci_lower") in self.df.columns
+            assert (group, "odds_ratio_ci_upper") in self.df.columns
+
+    def test_observed_level_ci_columns_are_numeric(self):
+        """Observed levels must have non-NaN CI values after bootstrapping.
+
+        CI bounds may be +inf (OR is unbounded when b*c==0 in a bootstrap sample)
+        but must never be NaN for observed levels.
+        """
+        for group in ("TP", "TN", "FP", "FN"):
+            for level in ("Female", "Male", "Other"):
+                row = self.df.loc[("gender", level)]
+                lower = row[(group, "odds_ratio_ci_lower")]
+                upper = row[(group, "odds_ratio_ci_upper")]
+                # CI bounds must not be NaN; +inf is allowed (sparse-table bootstrap).
+                assert not pd.isna(lower), (
+                    f"CI lower for {level}/{group} should not be NaN after bootstrapping"
+                )
+                assert not pd.isna(upper), (
+                    f"CI upper for {level}/{group} should not be NaN after bootstrapping"
+                )
+
+    def test_ci_lower_le_upper_in_dataframe(self):
+        """CI lower bound must not exceed upper bound in the DataFrame."""
+        for group in ("TP", "TN", "FP", "FN"):
+            for level in ("Female", "Male", "Other"):
+                row = self.df.loc[("gender", level)]
+                lower = row[(group, "odds_ratio_ci_lower")]
+                upper = row[(group, "odds_ratio_ci_upper")]
+                if pd.isna(lower) or pd.isna(upper):
+                    continue
+                assert lower <= upper, (
+                    f"{level}/{group}: CI lower={lower} > upper={upper}"
+                )
+
+    def test_ci_columns_numeric_dtype(self):
+        """CI columns must have floating-point dtype."""
+        for group in ("TP", "TN", "FP", "FN"):
+            for suffix in ("odds_ratio_ci_lower", "odds_ratio_ci_upper"):
+                col = self.df[(group, suffix)]
+                assert col.dtype.kind == "f", (
+                    f"({group}, {suffix}) should be float dtype, got {col.dtype}"
+                )
+
+    def test_unobserved_level_ci_still_nan(self):
+        """Declared-but-unobserved level 'Unknown' must retain NaN CI even after bootstrapping."""
+        for group in ("TP", "TN", "FP", "FN"):
+            row = self.df.loc[("gender", "Unknown")]
+            assert pd.isna(row[(group, "odds_ratio_ci_lower")])
+            assert pd.isna(row[(group, "odds_ratio_ci_upper")])
+
+    def test_overall_row_ci_still_nan(self):
+        """(Overall, Overall) OR is undefined; its CI columns must be NaN."""
+        overall_row = self.df.loc[("Overall", "Overall")]
+        for group in ("TP", "TN", "FP", "FN"):
+            assert pd.isna(overall_row[(group, "odds_ratio_ci_lower")])
+            assert pd.isna(overall_row[(group, "odds_ratio_ci_upper")])
 
 
 # ---------------------------------------------------------------------------

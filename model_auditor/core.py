@@ -13,7 +13,7 @@ from numpy.typing import NDArray
 from sklearn.metrics import roc_curve
 from tqdm.auto import tqdm
 
-from model_auditor.error_metrics import AuditorErrorMetric, RepresentationRatio
+from model_auditor.error_metrics import AuditorErrorMetric, OddsRatio
 from model_auditor.metric_inputs import AuditorMetricInput
 from model_auditor.metrics import AuditorMetric
 from model_auditor.schemas import (
@@ -401,19 +401,23 @@ class Auditor:
         threshold: Optional[float] = None,
         n_bootstraps: Optional[int] = 1000,
     ) -> ErrorEvaluation:
-        """Analyse feature-level representation within each confusion-matrix group.
+        """Analyse feature-level odds of confusion-matrix group membership.
 
         For each confusion-matrix group (TP, TN, FP, FN) and each registered
-        feature, computes the representation ratio of every feature level:
+        feature, computes the canonical 2x2 odds ratio for every feature level
+        versus all other levels combined:
 
-            ratio = P(level | group) / P(level | full dataset)
+            OR = (a * d) / (b * c)
 
-        A ratio of 1.0 indicates a level appears proportionally in the group.
-        Values above 1.0 indicate over-representation; below 1.0 under-
-        representation.
+        Where a = count(level ∩ group), b = count(level ∩ not-group),
+        c = count(not-level ∩ group), d = count(not-level ∩ not-group).
+
+        OR = 1 means the level has the same odds of being in the group as
+        all others combined.  OR > 1 means over-represented; OR < 1 means
+        under-represented.
 
         With bootstrap resampling enabled (n_bootstraps is not None), the stored
-        point estimate is the bootstrap mean ratio and the confidence interval
+        point estimate is the bootstrap mean OR and the confidence interval
         spans the 2.5th–97.5th percentiles of the bootstrap distribution.
 
         Args:
@@ -478,7 +482,7 @@ class Auditor:
         global_total_n = len(data_slice)
         error_eval.global_total_n = global_total_n
 
-        metric = RepresentationRatio()
+        metric = OddsRatio()
 
         for group_col in ("tp", "tn", "fp", "fn"):
             group_eval = ScoreEvaluation(
@@ -612,11 +616,11 @@ class Auditor:
         n_bootstraps: Optional[int],
         global_total_n: int,
     ) -> tuple[FeatureEvaluation, dict[str, dict[str, float]]]:
-        """Compute error metrics for one feature within one confusion-matrix group.
+        """Compute odds ratios for one feature within one confusion-matrix group.
 
-        Calculates the representation ratio for each feature level, then
-        optionally runs bootstrap resampling to derive confidence intervals and
-        replace the point estimate with the bootstrap mean.
+        Calculates the canonical 2x2 odds ratio for each feature level versus all
+        other levels combined, then optionally runs bootstrap resampling to derive
+        confidence intervals and replace the point estimate with the bootstrap mean.
 
         Categorical dtype is honoured: declared-but-unobserved categories appear
         as NaN placeholder rows (same behaviour as _evaluate_feature).
@@ -625,9 +629,8 @@ class Auditor:
             data: Full data slice including confusion indicator columns.
             group_col: Column name of the confusion indicator ('tp', 'tn', etc.).
             feature: The feature whose levels are being analysed.
-            metric: Error metric to compute (e.g. RepresentationRatio).
+            metric: Error metric to compute (e.g. OddsRatio).
             n_bootstraps: Bootstrap iterations, or None to skip.
-
             global_total_n: Total rows in the full data slice; used as the
                 denominator for pct_overall in the returned support counts.
 
@@ -741,6 +744,14 @@ class Auditor:
                     bs = bootstrap_results[level_name]
                     point_estimate = float(np.nanmean(bs))
                     lower, upper = np.nanpercentile(bs, [2.5, 97.5])
+                    # np.nanpercentile returns NaN when interpolating between
+                    # two inf values (inf − inf = NaN).  Recover the correct
+                    # bound: if the bootstrap tail contains +inf OR values
+                    # (b*c == 0 in that sample), the true CI bound is +inf.
+                    if np.isnan(upper) and np.any(np.isposinf(bs)):
+                        upper = float("inf")
+                    if np.isnan(lower) and np.any(np.isneginf(bs)):
+                        lower = float("-inf")
                     lm = feature_eval.levels[level_name].metrics[metric.name]
                     lm.score = point_estimate
                     lm.interval = (float(lower), float(upper))

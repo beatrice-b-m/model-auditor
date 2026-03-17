@@ -797,8 +797,8 @@ class ErrorEvaluation:
     """Container for confusion-matrix group error analysis for a single score.
 
     Groups evaluation results by confusion-matrix category (TP, TN, FP, FN),
-    each of which is itself a ScoreEvaluation holding per-feature representation
-    ratio metrics.
+    each of which is itself a ScoreEvaluation holding per-feature odds-ratio
+    metrics.
 
     Attributes:
         name: Name of the score that was evaluated.
@@ -836,17 +836,22 @@ class ErrorEvaluation:
           - ("Overall", "N")          : total rows at this level (TP+TN+FP+FN)
           - ("Overall", "% overall")   : Overall N / global_total_n
           - For each group in TP/TN/FP/FN:
-            - (GROUP, "N")                  : rows in this group at this level
-            - (GROUP, "% overall")          : group N / global_total_n
-            - (GROUP, "% group")            : group N / total rows in that group
-            - (GROUP, rr_col_name)          : representation ratio (NaN for the
-                                              overall/Overall row — it is trivially 1.0
-                                              and not informative)
+            - (GROUP, "N")                     : rows in this group at this level
+            - (GROUP, "% overall")             : group N / global_total_n
+            - (GROUP, "% group")              : group N / total rows in that group
+            - (GROUP, or_col_name)            : odds ratio (NaN for overall/Overall
+                                               row — OR is undefined when all rows
+                                               belong to the level)
+            - (GROUP, or_ci_lower_name)       : bootstrap 95% CI lower bound for OR
+            - (GROUP, or_ci_upper_name)       : bootstrap 95% CI upper bound for OR
+                                               (NaN when n_bootstraps was None)
 
         Args:
             n_decimals: Ignored; kept for API compatibility. Output is always numeric.
-            metric_labels: If True, use "Representation Ratio" as the ratio column
-                name; else use "representation_ratio".
+            metric_labels: If True, use "Odds Ratio" / "OR 95% CI Lower" /
+                "OR 95% CI Upper" as column names; else use the machine-readable
+                "odds_ratio" / "odds_ratio_ci_lower" / "odds_ratio_ci_upper".
+
 
         Returns:
             Numeric DataFrame with MultiIndex rows and columns, or an empty DataFrame
@@ -855,7 +860,9 @@ class ErrorEvaluation:
         if not self.groups:
             return pd.DataFrame()
 
-        rr_col_name = "Representation Ratio" if metric_labels else "representation_ratio"
+        or_col_name = "Odds Ratio" if metric_labels else "odds_ratio"
+        or_ci_lower_name = "OR 95% CI Lower" if metric_labels else "odds_ratio_ci_lower"
+        or_ci_upper_name = "OR 95% CI Upper" if metric_labels else "odds_ratio_ci_upper"
         group_order = [g for g in ("tp", "tn", "fp", "fn") if g in self.groups]
 
         # Use the first group's feature ordering to determine all (feature, level) rows.
@@ -870,8 +877,9 @@ class ErrorEvaluation:
         index_tuples: list[tuple[str, str]] = []
 
         for feature_name, feature_label, level_name in feature_order:
-            # The overall/Overall row has a trivially defined ratio (always 1.0) so we
-            # emit NaN to signal that this cell should not be interpreted as a ratio.
+            # The overall/Overall row has an undefined OR (all rows belong to the
+            # level; no comparator population exists).  Emit NaN to signal that
+            # this cell is not analytically meaningful.
             is_overall_level = (feature_name == "overall" and level_name == "Overall")
 
             # Pull raw support counts from the sidecar populated by evaluate_errors().
@@ -926,15 +934,23 @@ class ErrorEvaluation:
                 row[(group_label, "% group")] = g_pct_group
 
                 if is_overall_level:
-                    row[(group_label, rr_col_name)] = float("nan")
+                    row[(group_label, or_col_name)] = float("nan")
+                    row[(group_label, or_ci_lower_name)] = float("nan")
+                    row[(group_label, or_ci_upper_name)] = float("nan")
                 else:
                     lm = (
                         self.groups[group_col]
                         .features[feature_name]
                         .levels[level_name]
-                        .metrics.get("representation_ratio")
+                        .metrics.get("odds_ratio")
                     )
-                    row[(group_label, rr_col_name)] = lm.score if lm is not None else float("nan")
+                    row[(group_label, or_col_name)] = lm.score if lm is not None else float("nan")
+                    if lm is not None and lm.interval is not None:
+                        row[(group_label, or_ci_lower_name)] = lm.interval[0]
+                        row[(group_label, or_ci_upper_name)] = lm.interval[1]
+                    else:
+                        row[(group_label, or_ci_lower_name)] = float("nan")
+                        row[(group_label, or_ci_upper_name)] = float("nan")
 
             rows.append(row)
             index_tuples.append((feature_label, level_name))
@@ -955,60 +971,63 @@ class ErrorEvaluation:
     ) -> pd.io.formats.style.Styler:
         """Convert error evaluation to a styled pandas DataFrame for Jupyter display.
 
-        Applies tier-based background colouring to the representation-ratio columns
-        of the wide cross-group table returned by to_dataframe().  Count columns
-        (N, % overall, % group) and class-balance columns are not coloured.
+        Applies tier-based background colouring to the odds-ratio point-estimate
+        columns of the wide cross-group table returned by to_dataframe().  Count
+        columns (N, % overall, % group), class-balance columns, and CI bound
+        columns are formatted but not coloured.
 
         Args:
             n_decimals: Decimal places used when formatting float cells.
             metric_labels: Passed through to to_dataframe().
             include_count_metrics: Unused; kept for API consistency with other
                 style_dataframe() methods.
-            low_color: Background colour for low representation tier.
-            medium_color: Background colour for medium representation tier.
-            high_color: Background colour for high representation tier.
+            low_color: Background colour for low odds-ratio tier.
+            medium_color: Background colour for medium odds-ratio tier.
+            high_color: Background colour for high odds-ratio tier.
 
         Returns:
-            A pandas Styler with tier-based colouring applied to representation-ratio
-            columns.  Count and percentage cells are formatted but not coloured.
+            A pandas Styler with tier-based colouring applied to odds-ratio
+            point-estimate columns.  Count, percentage, and CI cells are
+            formatted but not coloured.
         """
         numeric_df = self.to_dataframe(metric_labels=metric_labels)
         if numeric_df.empty:
             return numeric_df.style
 
-        rr_col_name = "Representation Ratio" if metric_labels else "representation_ratio"
+        or_col_name = "Odds Ratio" if metric_labels else "odds_ratio"
         group_order = [g for g in ("tp", "tn", "fp", "fn") if g in self.groups]
 
         # Format each column for display.
         def _fmt(val: Any, col: tuple[str, str]) -> str:
             if pd.isna(val):
-                return "—"
+                return "\u2014"
             section, metric = col
             # Count columns: integer display with thousands separator.
             if metric == "N" or metric in ("N_pos", "N_neg"):
                 return f"{int(val):,}"
-            # Percentage / ratio columns: fixed decimal.
+            # Percentage / ratio / CI columns: fixed decimal.
             return f"{val:.{n_decimals}f}"
 
         display_df = numeric_df.copy().astype(object)
         for col in numeric_df.columns:
             display_df[col] = [_fmt(v, col) for v in numeric_df[col]] # type: ignore
 
-        # Build a style DataFrame for representation-ratio columns only.
+        # Build a style DataFrame for odds-ratio point-estimate columns only.
+        # CI bound columns are left unstyled to avoid misleading visual encoding.
         style_df = pd.DataFrame("", index=display_df.index, columns=display_df.columns)
         for group_col in group_order:
             group_label = group_col.upper()
-            rr_key = (group_label, rr_col_name)
-            if rr_key not in numeric_df.columns:
+            or_key = (group_label, or_col_name)
+            if or_key not in numeric_df.columns:
                 continue
-            rr_values = numeric_df[rr_key]
+            or_values = numeric_df[or_key]
             for idx in numeric_df.index:
-                tier = _get_metric_tier(rr_values.loc[idx], rr_values)
+                tier = _get_metric_tier(or_values.loc[idx], or_values)
                 if tier == "low":
-                    style_df.loc[idx, rr_key] = f"background-color: {low_color}"
+                    style_df.loc[idx, or_key] = f"background-color: {low_color}"
                 elif tier == "medium":
-                    style_df.loc[idx, rr_key] = f"background-color: {medium_color}"
+                    style_df.loc[idx, or_key] = f"background-color: {medium_color}"
                 elif tier == "high":
-                    style_df.loc[idx, rr_key] = f"background-color: {high_color}"
+                    style_df.loc[idx, or_key] = f"background-color: {high_color}"
 
         return display_df.style.apply(lambda x: style_df, axis=None)

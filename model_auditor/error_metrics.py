@@ -1,15 +1,15 @@
 """Error metrics for confusion-matrix group analysis.
 
 Defines the AuditorErrorMetric protocol and built-in implementations.
-Currently provides RepresentationRatio, which quantifies how over- or
-under-represented each feature level is within a given confusion-matrix group
-(TP, TN, FP, or FN) relative to its prevalence in the full dataset.
+Currently provides OddsRatio, which quantifies how over- or under-represented
+each feature level is within a given confusion-matrix group (TP, TN, FP, or FN)
+relative to all other levels combined.
 
 Example::
 
-    from model_auditor.error_metrics import RepresentationRatio
+    from model_auditor.error_metrics import OddsRatio
 
-    # RepresentationRatio is the default metric used by Auditor.evaluate_errors().
+    # OddsRatio is the default metric used by Auditor.evaluate_errors().
     # To implement a custom error metric, follow the AuditorErrorMetric protocol:
 
     class MyErrorMetric:
@@ -66,27 +66,48 @@ class AuditorErrorMetric(Protocol):
         raise NotImplementedError
 
 
-class RepresentationRatio:
-    """Representation ratio: P(level | group) / P(level | full dataset).
+class OddsRatio:
+    """Canonical 2x2 odds ratio: odds(level in group) / odds(non-level in group).
 
-    Quantifies whether a feature level is over- or under-represented in a
-    confusion-matrix group relative to its prevalence in the full dataset.
+    Compares how likely a feature level is to fall in a confusion-matrix group
+    relative to all other levels combined.  Given a 2x2 contingency table:
+
+        +-----------+------------+-------------+
+        |           |  In group  | Not in group|
+        +-----------+------------+-------------+
+        |  Level    |     a      |      b      |
+        |  Not Level|     c      |      d      |
+        +-----------+------------+-------------+
+
+    Where:
+        a = group_count
+        b = full_count - group_count
+        c = group_total - group_count
+        d = (full_total - full_count) - c
+
+    Odds Ratio:
+        OR = (a * d) / (b * c)
 
     Interpretation:
-        - 1.0: the level appears in the group at exactly its baseline rate.
-        - > 1.0: over-represented in the group (more common in errors / correct
-          predictions than in the data as a whole).
-        - < 1.0: under-represented.
+        - OR = 1: level has the same odds of group membership as all others.
+        - OR > 1: level is over-represented in the group.
+        - OR < 1: level is under-represented in the group.
 
-    Undefined cases:
-        - full_count == 0 (level absent from the full dataset): returns NaN.
-          This covers declared-but-unobserved categorical levels.
-        - group_total == 0 (empty confusion group): group rate is treated as
-          0.0, yielding ratio = 0.0 when full_count > 0.
+    Undefined cases (return NaN):
+        - full_count == 0: declared-but-unobserved level; no rows to compare.
+        - full_total - full_count == 0: no comparator population (all rows are
+          this level); the 2x2 table collapses and OR is undefined.
+        - b * c == 0 and a * d == 0: both numerator and denominator are zero;
+          the OR is indeterminate.
+
+    Sparse-table arithmetic (denominator zero, numerator non-zero):
+        - b == 0 (all level rows are in group) → OR = +inf.
+        - c == 0 (no non-level rows in group) and a > 0 → OR = +inf.
+        - a == 0 and b > 0 and c > 0 → OR = 0.0 (level absent from group).
     """
 
-    name: str = "representation_ratio"
-    label: str = "Representation Ratio"
+    name: str = "odds_ratio"
+    label: str = "Odds Ratio"
     ci_eligible: bool = True
 
     def compute(
@@ -96,7 +117,7 @@ class RepresentationRatio:
         full_count: int,
         full_total: int,
     ) -> float:
-        """Compute the representation ratio.
+        """Compute the canonical 2x2 odds ratio.
 
         Args:
             group_count: Rows in the confusion group belonging to this level.
@@ -105,18 +126,28 @@ class RepresentationRatio:
             full_total: Total rows in the full dataset.
 
         Returns:
-            Representation ratio, or NaN if the level is absent from the
-            full dataset (full_count == 0 or full_total == 0).
+            Odds ratio, or NaN when the table is undefined (see class docstring).
         """
-        # The baseline prevalence is undefined when the level has no rows in
-        # the full dataset; the ratio cannot be computed.
-        if full_total == 0 or full_count == 0:
+        # Declared-but-unobserved level: no 2x2 table can be formed.
+        if full_count == 0:
             return float("nan")
 
-        baseline = full_count / full_total
+        # No comparator population: all rows belong to this level.
+        if full_total - full_count == 0:
+            return float("nan")
 
-        # When the confusion group is empty the level has zero representation
-        # in it, so the group rate is 0.
-        group_rate = group_count / group_total if group_total > 0 else 0.0
+        a = group_count                              # level ∩ group
+        b = full_count - group_count                 # level ∩ not-group
+        c = group_total - group_count                # not-level ∩ group
+        d = (full_total - full_count) - c            # not-level ∩ not-group
 
-        return group_rate / baseline
+        numerator = a * d
+        denominator = b * c
+
+        if denominator == 0:
+            # 0/0 is indeterminate; anything/0 is infinite.
+            if numerator == 0:
+                return float("nan")
+            return float("inf")
+
+        return numerator / denominator

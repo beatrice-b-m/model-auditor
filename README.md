@@ -304,15 +304,18 @@ Non-categorical feature columns are unaffected.
 
 Use `evaluate_errors()` to understand which subgroups are over- or
 under-represented within each confusion-matrix group (TP, TN, FP, FN).
-For every feature level the *representation ratio* is computed:
+For every feature level the *canonical 2×2 odds ratio* (OR) is computed:
 
-    ratio = P(level | group) / P(level | full dataset)
+    OR(level, group) = (a × d) / (b × c)
 
-A ratio of 1.0 means proportional representation.  Values above 1.0 indicate
-over-representation in that confusion group; below 1.0 under-representation.
+Where `a = count(level ∩ group)`, `b = count(level ∩ not-group)`,
+`c = count(not-level ∩ group)`, `d = count(not-level ∩ not-group)`.
 
-```python
-# No additional metric setup required — evaluate_errors() uses RepresentationRatio
+OR = 1 means the level has the same odds of appearing in that confusion group
+as all other levels combined.  OR > 1 indicates over-representation;
+OR < 1 under-representation.
+
+# No additional metric setup required — evaluate_errors() uses OddsRatio
 # by default.
 error_results = auditor.evaluate_errors(score_name="risk_score", n_bootstraps=1000)
 
@@ -320,7 +323,8 @@ error_results = auditor.evaluate_errors(score_name="risk_score", n_bootstraps=10
 # Rows: MultiIndex(feature, level)
 # Columns: MultiIndex(section, metric)
 #   Sections: "Class Balance", "Overall", "TP", "TN", "FP", "FN"
-#   Sub-columns per group: N, % overall, % group, representation_ratio
+#   Sub-columns per group: N, % overall, % group, odds_ratio,
+#                          odds_ratio_ci_lower, odds_ratio_ci_upper
 df = error_results.to_dataframe()
 print(df)
 
