@@ -463,14 +463,42 @@ class TestToDataframe:
         assert row[("Class Balance", "N_neg")] == 3
 
     def test_class_balance_pos_pct_female(self):
-        """Female Pos % = 5 / 20 = 0.25."""
+        """Female Pos % = 5 / 8 (fraction of Female rows that are positive)."""
         row = self.df.loc[("gender", "Female")]
-        assert abs(row[("Class Balance", "Pos %")] - 5 / 20) < 1e-10
+        assert abs(row[("Class Balance", "Pos %")] - 5 / 8) < 1e-10
 
     def test_class_balance_neg_pct_female(self):
-        """Female Neg % = 3 / 20 = 0.15."""
+        """Female Neg % = 3 / 8 (fraction of Female rows that are negative)."""
         row = self.df.loc[("gender", "Female")]
-        assert abs(row[("Class Balance", "Neg %")] - 3 / 20) < 1e-10
+        assert abs(row[("Class Balance", "Neg %")] - 3 / 8) < 1e-10
+    def test_class_balance_pct_sum_to_one(self):
+        """Pos % + Neg % must sum to 1.0 for every non-empty row."""
+        for idx in self.df.index:
+            pos = self.df.loc[idx, ("Class Balance", "Pos %")]
+            neg = self.df.loc[idx, ("Class Balance", "Neg %")]
+            if pd.isna(pos) or pd.isna(neg):
+                continue  # skip unobserved levels (no rows)
+            assert abs(pos + neg - 1.0) < 1e-10, (
+                f"Row {idx}: Pos % + Neg % = {pos + neg}, expected 1.0"
+            )
+
+    def test_leading_column_order(self):
+        """Overall section precedes Class Balance in column order."""
+        top_levels = list(dict.fromkeys(self.df.columns.get_level_values(0)))
+        overall_idx = top_levels.index("Overall")
+        cb_idx = top_levels.index("Class Balance")
+        assert overall_idx < cb_idx, (
+            f"Expected 'Overall' before 'Class Balance', got order: {top_levels}"
+        )
+
+    def test_first_two_columns_are_overall(self):
+        """First two leaf columns are ('Overall', 'N') then ('Overall', '% overall')."""
+        cols = list(self.df.columns)
+        assert cols[0] == ("Overall", "N"), f"First column should be ('Overall', 'N'), got {cols[0]}"
+        assert cols[1] == ("Overall", "% overall"), (
+            f"Second column should be ('Overall', '% overall'), got {cols[1]}"
+        )
+
 
     # -- pct_overall uses global N denominator (not per-feature N) -------------
 

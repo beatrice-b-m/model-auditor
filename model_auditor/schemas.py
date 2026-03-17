@@ -831,8 +831,8 @@ class ErrorEvaluation:
         Sections and sub-columns:
           - ("Class Balance", "N_pos") : positives (TP+FN) at this level
           - ("Class Balance", "N_neg") : negatives (TN+FP) at this level
-          - ("Class Balance", "Pos %") : N_pos / global_total_n
-          - ("Class Balance", "Neg %") : N_neg / global_total_n
+          - ("Class Balance", "Pos %") : N_pos / (N_pos + N_neg) per row
+          - ("Class Balance", "Neg %") : N_neg / (N_pos + N_neg) per row
           - ("Overall", "N")          : total rows at this level (TP+TN+FP+FN)
           - ("Overall", "% overall")   : Overall N / global_total_n
           - For each group in TP/TN/FP/FN:
@@ -900,17 +900,19 @@ class ErrorEvaluation:
 
             n_pos = tp_n + fn_n   # true class-positive count
             n_neg = tn_n + fp_n   # true class-negative count
+            overall_n = tp_n + tn_n + fp_n + fn_n
             denom = self.global_total_n if self.global_total_n > 0 else None
+            # cb_denom is the per-row class total; equals overall_n but expresses
+            # intent: Pos%/Neg% are class fractions within this level's rows.
+            cb_denom = n_pos + n_neg
 
             row: dict[tuple[str, str], Any] = {
+                ("Overall", "N"): overall_n,
+                ("Overall", "% overall"): overall_n / denom if denom else float("nan"),
                 ("Class Balance", "N_pos"): n_pos,
                 ("Class Balance", "N_neg"): n_neg,
-                ("Class Balance", "Pos %"): n_pos / denom if denom else float("nan"),
-                ("Class Balance", "Neg %"): n_neg / denom if denom else float("nan"),
-                ("Overall", "N"): tp_n + tn_n + fp_n + fn_n,
-                ("Overall", "% overall"): (
-                    (tp_n + tn_n + fp_n + fn_n) / denom if denom else float("nan")
-                ),
+                ("Class Balance", "Pos %"): n_pos / cb_denom if cb_denom > 0 else float("nan"),
+                ("Class Balance", "Neg %"): n_neg / cb_denom if cb_denom > 0 else float("nan"),
             }
 
             for group_col in group_order:
