@@ -259,6 +259,43 @@ plt.show()
 ```
 
 
+## Score Distribution Plots
+
+Visualize raw score distributions stratified by feature levels — no `evaluate_metrics()` call required:
+
+```python
+import matplotlib
+matplotlib.use("Agg")  # use a non-interactive backend if needed
+
+# Plot score distributions for all registered features
+plots = auditor.plot_score_distributions(score_name="risk_score")
+
+# Each entry: (matplotlib.figure.Figure, numpy.ndarray of Axes)
+fig, axes = plots["age_group"]
+fig.savefig("age_group_distributions.png", dpi=150)
+
+# Limit to a specific subset of features
+plots = auditor.plot_score_distributions(
+    score_name="risk_score",
+    feature_names=["gender", "age_group"],
+)
+
+# Raw counts instead of density
+plots = auditor.plot_score_distributions(
+    score_name="risk_score",
+    density=False,
+)
+
+# Custom binning
+plots = auditor.plot_score_distributions(
+    score_name="risk_score",
+    bins=50,
+)
+```
+
+Each figure contains one histogram subplot per feature level. All subplots share the same x-axis and use identical bin edges, enabling direct visual comparison of score distributions across subgroups. Bins are computed from the entire feature slice rather than per-level, so relative spread and overlap are preserved.
+
+
 ## Controlling Feature Level Order
 
 By default, feature levels appear in the order they were encountered in the
