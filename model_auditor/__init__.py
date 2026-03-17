@@ -16,7 +16,7 @@ Example:
         auditor.add_score(name="prediction_score", threshold=0.5)
         auditor.add_outcome(name="label")
         auditor.set_metrics([Sensitivity(), Specificity(), AUROC()])
-        results = auditor.evaluate(score_name="prediction_score")
+        results = auditor.evaluate_metrics(score_name="prediction_score")
 """
 
 from model_auditor.core import Auditor

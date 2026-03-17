@@ -61,9 +61,7 @@ def _make_auditor(df: pd.DataFrame, metrics=None) -> Auditor:
 
 def _evaluate(include_d: bool = False, n_bootstraps=None, metrics=None):
     df = _make_df(include_d=include_d)
-    return _make_auditor(df, metrics=metrics).evaluate(
-        score_name="score", n_bootstraps=n_bootstraps
-    )
+    return _make_auditor(df, metrics=metrics).evaluate_metrics(score_name="score", n_bootstraps=n_bootstraps)
 
 
 # ---------------------------------------------------------------------------
@@ -261,7 +259,7 @@ class TestNonCategoricalPreservation:
         df = _make_df()
         # Strip categorical dtype → plain object/string column
         df["group"] = df["group"].astype(str)
-        return _make_auditor(df).evaluate(score_name="score", n_bootstraps=None)
+        return _make_auditor(df).evaluate_metrics(score_name="score", n_bootstraps=None)
 
     def test_non_categorical_evaluates_without_error(self):
         """String-typed feature evaluates successfully."""

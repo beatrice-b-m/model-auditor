@@ -54,7 +54,7 @@ auditor.set_metrics([
 ])
 
 # Run evaluation with bootstrap confidence intervals
-results = auditor.evaluate(score_name="risk_score", n_bootstraps=1000)
+results = auditor.evaluate_metrics(score_name="risk_score", n_bootstraps=1000)
 
 # Convert results to a DataFrame
 results_df = results.to_dataframe()
@@ -196,7 +196,7 @@ plotter.set_features(hierarchy)
 For faster evaluation without confidence intervals:
 
 ```python
-results = auditor.evaluate(score_name="risk_score", n_bootstraps=None)
+results = auditor.evaluate_metrics(score_name="risk_score", n_bootstraps=None)
 ```
 
 ## Output Format
@@ -241,7 +241,7 @@ auditor.add_score(name="risk_score", threshold=0.5)
 auditor.add_outcome(name="outcome")
 auditor.set_metrics([Sensitivity(), Specificity()])
 
-results = auditor.evaluate(score_name="risk_score", n_bootstraps=None)
+results = auditor.evaluate_metrics(score_name="risk_score", n_bootstraps=None)
 
 # Rows appear in the declared order: <30, 30-50, 50-70, >70.
 # If no rows belong to a declared category (e.g. '>70' is absent from the
@@ -253,6 +253,35 @@ The same order is preserved in `style_dataframe()` and in the score-level
 `ScoreEvaluation.to_dataframe()` / `ScoreEvaluation.style_dataframe()` exports.
 Non-categorical feature columns are unaffected.
 
+
+
+## Error Analysis
+
+Use `evaluate_errors()` to understand which subgroups are over- or
+under-represented within each confusion-matrix group (TP, TN, FP, FN).
+For every feature level the *representation ratio* is computed:
+
+    ratio = P(level | group) / P(level | full dataset)
+
+A ratio of 1.0 means proportional representation.  Values above 1.0 indicate
+over-representation in that confusion group; below 1.0 under-representation.
+
+```python
+# No additional metric setup required — evaluate_errors() uses RepresentationRatio
+# by default.
+error_results = auditor.evaluate_errors(score_name="risk_score", n_bootstraps=1000)
+
+# error_results.groups is keyed by 'tp', 'tn', 'fp', 'fn'.
+# Each value is a ScoreEvaluation containing per-feature representation ratios.
+
+# Convert to a (group, feature, level) MultiIndex DataFrame:
+df = error_results.to_dataframe()
+print(df)
+
+# Inspect a specific group/feature:
+tp_age = error_results.groups["tp"].features["age_group"]
+print(tp_age.to_dataframe())
+```
 
 ## License
 ## Notebook Styling
