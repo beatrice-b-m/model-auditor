@@ -1043,12 +1043,11 @@ class ErrorEvaluation:
         - Column index: MultiIndex(section, metric)
 
         Sections and sub-columns:
-          - ("Class Balance", "N_pos") : positives (TP+FN) at this level
-          - ("Class Balance", "N_neg") : negatives (TN+FP) at this level
-          - ("Class Balance", "Pos %") : N_pos / (N_pos + N_neg) per row
-          - ("Class Balance", "Neg %") : N_neg / (N_pos + N_neg) per row
           - ("Overall", "N")          : total rows at this level (TP+TN+FP+FN)
           - ("Overall", "% overall")   : Overall N / global_total_n
+          - ("Overall", "N_pos")       : positives (TP+FN) at this level
+          - ("Overall", "N_neg")       : negatives (TN+FP) at this level
+          - ("Overall", "Pos %")       : N_pos / (N_pos + N_neg) per row
           - For each group in TP/TN/FP/FN:
             - (GROUP, "N")                     : rows in this group at this level
             - (GROUP, "% overall")             : group N / global_total_n
@@ -1125,16 +1124,18 @@ class ErrorEvaluation:
             overall_n = tp_n + tn_n + fp_n + fn_n
             denom = self.global_total_n if self.global_total_n > 0 else None
             # cb_denom is the per-row class total; equals overall_n but expresses
-            # intent: Pos%/Neg% are class fractions within this level's rows.
+            # intent: Pos % is a class fraction within this level's rows.
             cb_denom = n_pos + n_neg
 
             row: dict[tuple[str, str], Any] = {
                 ("Overall", "N"): overall_n,
                 ("Overall", "% overall"): overall_n / denom if denom else float("nan"),
-                ("Class Balance", "N_pos"): n_pos,
-                ("Class Balance", "N_neg"): n_neg,
-                ("Class Balance", "Pos %"): n_pos / cb_denom if cb_denom > 0 else float("nan"),
-                ("Class Balance", "Neg %"): n_neg / cb_denom if cb_denom > 0 else float("nan"),
+                # Class-balance sub-columns sit in the Overall section so they stay
+                # co-located with total sample size.  Neg % is omitted because it is
+                # fully determined by Pos % (Neg % = 1 - Pos %).
+                ("Overall", "N_pos"): n_pos,
+                ("Overall", "N_neg"): n_neg,
+                ("Overall", "Pos %"): n_pos / cb_denom if cb_denom > 0 else float("nan"),
             }
 
             for group_col in group_order:
@@ -1185,10 +1186,20 @@ class ErrorEvaluation:
     ) -> pd.io.formats.style.Styler:
         """Convert error evaluation to a styled pandas DataFrame for Jupyter display.
 
-        Applies tier-based background colouring to the odds-ratio point-estimate
-        columns of the wide cross-group table returned by to_dataframe().  Count
-        columns (N, % overall, % group), class-balance columns, and CI bound
-        columns are formatted but not coloured.
+        Applies tier-based background colouring to the odds-ratio columns of the
+        wide cross-group table.  Several key behaviours differ from the raw numeric
+        output of to_dataframe():
+
+        - OR cells display the point estimate with inline CI when available:
+            '1.952 (1.344, 2.753)'  — when CI exists
+            '1.952'                 — when CI is absent (n_bootstraps=None)
+            '\u2014'                     — when OR is NaN (Overall/Overall row)
+        - CI bound columns are omitted from the styled output; they are folded
+          into the OR cell text, making the table narrower and self-contained.
+        - Tier colouring is inverted for FP/FN sections: a high OR in a false
+          group indicates over-representation in errors (worse), so the high-OR
+          cell gets the low (red) colour.  TP/TN sections use the default
+          higher-is-better mapping.
 
         Args:
             n_decimals: Decimal places used when formatting float cells.
@@ -1209,39 +1220,77 @@ class ErrorEvaluation:
             return numeric_df.style
 
         or_col_name = "Odds Ratio" if metric_labels else "odds_ratio"
+        or_ci_lower_name = "OR 95% CI Lower" if metric_labels else "odds_ratio_ci_lower"
+        or_ci_upper_name = "OR 95% CI Upper" if metric_labels else "odds_ratio_ci_upper"
         group_order = [g for g in ("tp", "tn", "fp", "fn") if g in self.groups]
 
-        # Format each column for display.
-        def _fmt(val: Any, col: tuple[str, str]) -> str:
-            if pd.isna(val):
-                return "\u2014"
+        # CI bound columns are folded into the OR display string; drop them from
+        # the visible output so the table stays narrow.
+        ci_col_names = {or_ci_lower_name, or_ci_upper_name}
+        display_cols = [c for c in numeric_df.columns if c[1] not in ci_col_names]
+
+        # Build display DataFrame (string-formatted, no CI bound columns).
+        display_df = pd.DataFrame(index=numeric_df.index, columns=display_cols, dtype=object)
+        for col in display_cols:
             section, metric = col
-            # Count columns: integer display with thousands separator.
-            if metric == "N" or metric in ("N_pos", "N_neg"):
-                return f"{int(val):,}"
-            # Percentage / ratio / CI columns: fixed decimal.
-            return f"{val:.{n_decimals}f}"
+            if metric == or_col_name:
+                # Fold CI bounds inline: 'or (lo, hi)' when available.
+                ci_lower_col = (section, or_ci_lower_name)
+                ci_upper_col = (section, or_ci_upper_name)
+                formatted = []
+                for idx in numeric_df.index:
+                    or_val = numeric_df.loc[idx, col]
+                    if pd.isna(or_val):
+                        formatted.append("\u2014")
+                    else:
+                        lo = numeric_df.loc[idx, ci_lower_col] if ci_lower_col in numeric_df.columns else float("nan")
+                        hi = numeric_df.loc[idx, ci_upper_col] if ci_upper_col in numeric_df.columns else float("nan")
+                        if not pd.isna(lo) and not pd.isna(hi):
+                            formatted.append(
+                                f"{or_val:.{n_decimals}f} ({lo:.{n_decimals}f}, {hi:.{n_decimals}f})"
+                            )
+                        else:
+                            formatted.append(f"{or_val:.{n_decimals}f}")
+                display_df[col] = formatted
+            elif metric in ("N", "N_pos", "N_neg"):
+                # Integer counts: thousands separator, em dash for NaN.
+                display_df[col] = [
+                    "\u2014" if pd.isna(v) else f"{int(v):,}"
+                    for v in numeric_df[col]
+                ]
+            else:
+                # Percentages and ratios: fixed decimal, em dash for NaN.
+                display_df[col] = [
+                    "\u2014" if pd.isna(v) else f"{v:.{n_decimals}f}"
+                    for v in numeric_df[col]
+                ]
 
-        display_df = numeric_df.copy().astype(object)
-        for col in numeric_df.columns:
-            display_df[col] = [_fmt(v, col) for v in numeric_df[col]] # type: ignore
-
-        # Build a style DataFrame for odds-ratio point-estimate columns only.
-        # CI bound columns are left unstyled to avoid misleading visual encoding.
+        # Apply tier colouring to OR columns only.
+        # FP/FN sections use lower_better=True: a higher OR means the subgroup is
+        # over-represented in the error group, which is the worse outcome.
+        #
+        # Build style_df using column-level assignment (df[col] = list) rather than
+        # cell-level .loc assignment to avoid MultiIndex tuple-unpacking issues that
+        # create spurious new columns when the column key is a tuple.
         style_df = pd.DataFrame("", index=display_df.index, columns=display_df.columns)
         for group_col in group_order:
             group_label = group_col.upper()
             or_key = (group_label, or_col_name)
-            if or_key not in numeric_df.columns:
+            if or_key not in display_df.columns:
                 continue
             or_values = numeric_df[or_key]
-            for idx in numeric_df.index:
-                tier = _get_metric_tier(or_values.loc[idx], or_values)
+            lower_better = group_col in ("fp", "fn")
+            css_col = []
+            for idx in display_df.index:
+                tier = _get_metric_tier(or_values.loc[idx], or_values, lower_better=lower_better)
                 if tier == "low":
-                    style_df.loc[idx, or_key] = f"background-color: {low_color}"
+                    css_col.append(f"background-color: {low_color}")
                 elif tier == "medium":
-                    style_df.loc[idx, or_key] = f"background-color: {medium_color}"
+                    css_col.append(f"background-color: {medium_color}")
                 elif tier == "high":
-                    style_df.loc[idx, or_key] = f"background-color: {high_color}"
-
+                    css_col.append(f"background-color: {high_color}")
+                else:
+                    css_col.append("")
+            # Column assignment avoids .loc tuple-unpacking side-effects.
+            style_df[or_key] = css_col
         return display_df.style.apply(lambda x: style_df, axis=None)

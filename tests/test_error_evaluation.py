@@ -398,9 +398,10 @@ class TestToDataframe:
 
     # -- column section presence -----------------------------------------------
 
-    def test_class_balance_section_present(self):
+    def test_class_balance_section_absent(self):
+        """Class Balance is no longer a top-level section; its columns moved to Overall."""
         top_cols = set(self.df.columns.get_level_values(0))
-        assert "Class Balance" in top_cols
+        assert "Class Balance" not in top_cols
 
     def test_overall_section_present(self):
         top_cols = set(self.df.columns.get_level_values(0))
@@ -412,13 +413,10 @@ class TestToDataframe:
 
     # -- column sub-column completeness ----------------------------------------
 
-    def test_class_balance_sub_columns(self):
-        cb_cols = set(self.df["Class Balance"].columns)
-        assert cb_cols == {"N_pos", "N_neg", "Pos %", "Neg %"}
-
     def test_overall_section_sub_columns(self):
+        """Overall section includes N, % overall, and the class-balance sub-columns."""
         overall_cols = set(self.df["Overall"].columns)
-        assert overall_cols == {"N", "% overall"}
+        assert overall_cols == {"N", "% overall", "N_pos", "N_neg", "Pos %"}
 
     def test_group_section_sub_columns_default_names(self):
         for group in ("TP", "TN", "FP", "FN"):
@@ -485,47 +483,26 @@ class TestToDataframe:
                 f"CI upper column for {group} should be all-NaN without bootstraps"
             )
 
-    # -- class balance arithmetic (Female row) ---------------------------------
-
-    def test_class_balance_n_pos_female(self):
-        """Female N_pos = TP_n(4) + FN_n(1) = 5."""
+    def test_overall_n_pos_female(self):
+        """Female N_pos = TP_n(4) + FN_n(1) = 5 (now in Overall section)."""
         row = self.df.loc[("gender", "Female")]
-        assert row[("Class Balance", "N_pos")] == 5
+        assert row[("Overall", "N_pos")] == 5
 
-    def test_class_balance_n_neg_female(self):
-        """Female N_neg = TN_n(2) + FP_n(1) = 3."""
+    def test_overall_n_neg_female(self):
+        """Female N_neg = TN_n(2) + FP_n(1) = 3 (now in Overall section)."""
         row = self.df.loc[("gender", "Female")]
-        assert row[("Class Balance", "N_neg")] == 3
+        assert row[("Overall", "N_neg")] == 3
 
-    def test_class_balance_pos_pct_female(self):
+    def test_overall_pos_pct_female(self):
         """Female Pos % = 5 / 8 (fraction of Female rows that are positive)."""
         row = self.df.loc[("gender", "Female")]
-        assert abs(row[("Class Balance", "Pos %")] - 5 / 8) < 1e-10
+        assert abs(row[("Overall", "Pos %")] - 5 / 8) < 1e-10
 
-    def test_class_balance_neg_pct_female(self):
-        """Female Neg % = 3 / 8 (fraction of Female rows that are negative)."""
-        row = self.df.loc[("gender", "Female")]
-        assert abs(row[("Class Balance", "Neg %")] - 3 / 8) < 1e-10
+    def test_neg_pct_absent(self):
+        """Neg % is redundant (= 1 - Pos %) and must not appear anywhere."""
+        leaf_cols = [col[1] for col in self.df.columns]
+        assert "Neg %" not in leaf_cols
 
-    def test_class_balance_pct_sum_to_one(self):
-        """Pos % + Neg % must sum to 1.0 for every non-empty row."""
-        for idx in self.df.index:
-            pos = self.df.loc[idx, ("Class Balance", "Pos %")]
-            neg = self.df.loc[idx, ("Class Balance", "Neg %")]
-            if pd.isna(pos) or pd.isna(neg):
-                continue  # skip unobserved levels (no rows)
-            assert abs(pos + neg - 1.0) < 1e-10, (
-                f"Row {idx}: Pos % + Neg % = {pos + neg}, expected 1.0"
-            )
-
-    def test_leading_column_order(self):
-        """Overall section precedes Class Balance in column order."""
-        top_levels = list(dict.fromkeys(self.df.columns.get_level_values(0)))
-        overall_idx = top_levels.index("Overall")
-        cb_idx = top_levels.index("Class Balance")
-        assert overall_idx < cb_idx, (
-            f"Expected 'Overall' before 'Class Balance', got order: {top_levels}"
-        )
 
     def test_first_two_columns_are_overall(self):
         """First two leaf columns are ('Overall', 'N') then ('Overall', '% overall')."""
@@ -684,3 +661,168 @@ class TestValidation:
         a = _make_auditor(_make_df())
         result = a.evaluate_errors(score_name="score", threshold=0.6, n_bootstraps=None)
         assert result.threshold == 0.6
+
+
+
+# ---------------------------------------------------------------------------
+# TestStyleDataframe — style_dataframe() rendering and tier behaviour
+# ---------------------------------------------------------------------------
+
+
+def _render_html(styler: "pd.io.formats.style.Styler") -> str:
+    """Render Styler to HTML, compatible with pandas < 1.4 and >= 1.4."""
+    try:
+        return styler.to_html()
+    except AttributeError:
+        return styler.render()  # type: ignore[attr-defined]
+
+
+def _cell_styles(html: str) -> "dict[str, str]":
+    """Parse rendered Styler HTML to {cell_text: css_declaration}.
+
+    Maps the display text of each <td> to the CSS declaration for that cell
+    (empty string when unstyled).  When multiple cells share the same display
+    text the last processed occurrence wins; callers must ensure the values of
+    interest are unique across the table.
+    """
+    import re
+    id_to_css: dict = {}
+    for rule_m in re.finditer(
+        r"((?:#T_\w+_row\d+_col\d+\s*,?\s*)+)\{([^}]+)\}", html
+    ):
+        css = rule_m.group(2).strip()
+        for sel_m in re.finditer(r"T_\w+_row\d+_col\d+", rule_m.group(1)):
+            id_to_css[sel_m.group(0)] = css
+    result: dict = {}
+    for m in re.finditer(
+        r'id="(T_\w+_row\d+_col\d+)"[^>]*>(.*?)</td>', html, re.DOTALL
+    ):
+        cell_id = m.group(1)
+        value = re.sub(r"<[^>]+>", "", m.group(2)).strip()
+        css = id_to_css.get(cell_id, "")
+        result[value] = css
+    return result
+
+
+class TestStyleDataframe:
+    """ErrorEvaluation.style_dataframe() rendering contract.
+
+    Uses the canonical 20-row synthetic dataset (Female / Male / Other / Unknown,
+    threshold=0.5).  OR values are deterministic; see OR derivations in the
+    TestOddsRatioValues comments at the top of this file.
+    """
+
+    # -- OR column formatting ---------------------------------------------------
+
+    def test_or_shows_inline_ci_with_bootstraps(self):
+        """With bootstraps, OR cells show 'value (lo, hi)' inline."""
+        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=100)
+        styler = result.style_dataframe(n_decimals=3)
+        display_df = styler.data
+        for group in ("TP", "TN", "FP", "FN"):
+            for level in ("Female", "Male", "Other"):
+                val = display_df.at[("gender", level), (group, "odds_ratio")]
+                assert "(" in str(val) and "," in str(val), (
+                    f"Expected inline CI for {level}/{group}, got {val!r}"
+                )
+
+    def test_or_shows_value_only_without_bootstraps(self):
+        """Without bootstraps, OR cells show just the numeric value (no parens)."""
+        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        styler = result.style_dataframe(n_decimals=3)
+        display_df = styler.data
+        for group in ("TP", "TN", "FP", "FN"):
+            for level in ("Female", "Male", "Other"):
+                val = display_df.at[("gender", level), (group, "odds_ratio")]
+                assert "(" not in str(val), (
+                    f"Expected no CI parens for {level}/{group} without bootstraps, got {val!r}"
+                )
+                assert val != "\u2014", (
+                    f"{level}/{group} has a defined OR; must not show em dash"
+                )
+
+    def test_nan_or_shows_em_dash(self):
+        """NaN OR values (Overall/Overall row) must render as em dash."""
+        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        styler = result.style_dataframe()
+        display_df = styler.data
+        for group in ("TP", "TN", "FP", "FN"):
+            val = display_df.at[("Overall", "Overall"), (group, "odds_ratio")]
+            assert val == "\u2014", (
+                f"Expected em dash for Overall OR in {group}, got {val!r}"
+            )
+
+    def test_n_decimals_respected_in_or_cell(self):
+        """OR cell text uses the requested decimal precision."""
+        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        styler = result.style_dataframe(n_decimals=2)
+        display_df = styler.data
+        val = display_df.at[("gender", "Female"), ("TP", "odds_ratio")]
+        assert val == "2.00", f"Expected '2.00' for Female/TP OR at n_decimals=2, got {val!r}"
+
+    # -- CI columns absent from styled output -----------------------------------
+
+    def test_ci_columns_absent_from_styled_output(self):
+        """CI bound columns must not appear in the Styler display DataFrame."""
+        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=100)
+        styler = result.style_dataframe()
+        leaf_cols = [col[1] for col in styler.data.columns]
+        assert "odds_ratio_ci_lower" not in leaf_cols, "CI lower must be hidden in styled output"
+        assert "odds_ratio_ci_upper" not in leaf_cols, "CI upper must be hidden in styled output"
+
+    def test_ci_columns_absent_with_metric_labels(self):
+        """CI columns absent even when metric_labels=True swaps column names."""
+        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=100)
+        styler = result.style_dataframe(metric_labels=True)
+        leaf_cols = [col[1] for col in styler.data.columns]
+        assert "OR 95% CI Lower" not in leaf_cols
+        assert "OR 95% CI Upper" not in leaf_cols
+
+    # -- OR column present in styled output ------------------------------------
+
+    def test_or_column_present_in_styled_output(self):
+        """OR column is present in the Styler for every group section."""
+        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        styler = result.style_dataframe()
+        for group in ("TP", "TN", "FP", "FN"):
+            assert (group, "odds_ratio") in styler.data.columns, (
+                f"OR column missing from styled output for group {group}"
+            )
+
+    # -- FP/FN tier inversion ---------------------------------------------------
+
+    def test_tp_highest_or_gets_green(self):
+        """For TP (higher-is-better): the level with the highest OR gets the green tier.
+
+        Female TP OR = 2.0 (highest in TP column) → should be green (#d4edda).
+        This value is unique in the table so the _cell_styles lookup is unambiguous.
+        """
+        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        html = _render_html(result.style_dataframe(n_decimals=3))
+        styles = _cell_styles(html)
+        assert "#d4edda" in styles.get("2.000", ""), (
+            "Female TP OR (highest in column) must receive green background (high tier), "
+            f"got CSS: {styles.get('2.000', '<absent>')}"
+        )
+
+    def test_fp_highest_or_does_not_get_green(self):
+        """For FP (lower-is-better): the level with the highest OR must NOT be green.
+
+        Female and Male FP OR = 11/7 ≈ 1.571 (highest in FP column); with
+        inversion they should receive medium (yellow) tier, not high (green).
+        '1.571' is unique in the display table (no other column produces this value).
+        """
+        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        html = _render_html(result.style_dataframe(n_decimals=3))
+        styles = _cell_styles(html)
+        css = styles.get("1.571", "")
+        assert "#d4edda" not in css, (
+            "Female/Male FP OR (highest in FP column) must NOT be green with inversion, "
+            f"got CSS: {css}"
+        )
+        # Three distinct values [0.0, 1.571, 1.571], percentile for 1.571 = 1/3.
+        # lower_better=True: percentile 1/3 is not < 1/3 but < 2/3 → medium.
+        assert "#fff3cd" in css, (
+            "Female/Male FP OR should be medium (yellow) tier with inversion, "
+            f"got CSS: {css}"
+        )

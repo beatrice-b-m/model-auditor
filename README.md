@@ -352,16 +352,16 @@ OR = 1 means the level has the same odds of appearing in that confusion group
 as all other levels combined.  OR > 1 indicates over-representation;
 OR < 1 under-representation.
 
-# No additional metric setup required — evaluate_errors() uses OddsRatio
-# by default.
+```python
+# No additional metric setup required — evaluate_errors() uses OddsRatio by default.
 error_results = auditor.evaluate_errors(score_name="risk_score", n_bootstraps=1000)
 
 # Convert to a wide analysis-ready DataFrame.
 # Rows: MultiIndex(feature, level)
 # Columns: MultiIndex(section, metric)
-#   Sections: "Class Balance", "Overall", "TP", "TN", "FP", "FN"
-#   Sub-columns per group: N, % overall, % group, odds_ratio,
-#                          odds_ratio_ci_lower, odds_ratio_ci_upper
+#   Overall section: N, % overall, N_pos, N_neg, Pos %
+#   Per group (TP/TN/FP/FN): N, % overall, % group, odds_ratio,
+#                             odds_ratio_ci_lower, odds_ratio_ci_upper
 df = error_results.to_dataframe()
 print(df)
 
@@ -371,6 +371,10 @@ df_labels = error_results.to_dataframe(metric_labels=True)
 # Per-group deep inspection is still available:
 tp_age = error_results.groups["tp"].features["age_group"]
 print(tp_age.to_dataframe())
+
+# Styled wide view: OR cells include inline CI when bootstraps were used,
+# and FP/FN tier colouring is inverted (higher OR = worse in error groups).
+display(error_results.style_dataframe(n_decimals=3, metric_labels=True))
 ```
 
 ## License
