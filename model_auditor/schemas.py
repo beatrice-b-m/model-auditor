@@ -318,8 +318,8 @@ def _format_level_annotation(
 ) -> str:
     """Build annotation text for a single level point.
 
-    Sample size fragment:    ``"{n_level} ({pct_of_overall}%)"``
-    Class balance fragment:  ``"{n_pos_level} ({pct_positive}%)"``
+    Sample size fragment:    ``"N: {n_level} ({pct_of_overall}%)"``
+    Class balance fragment:  ``"N Pos: {n_pos_level} ({pct_positive}%)"``
 
     ``NA`` placeholders are emitted for any value that cannot be computed
     (missing counts or zero denominator).  Returns an empty string when both
@@ -331,11 +331,11 @@ def _format_level_annotation(
         if n_level is not None:
             if n_overall is not None and n_overall > 0:
                 pct = 100.0 * n_level / n_overall
-                fragments.append(f"{n_level} ({pct:.1f}%)")
+                fragments.append(f"N: {n_level} ({pct:.1f}%)")
             else:
-                fragments.append(f"{n_level} (NA)")
+                fragments.append(f"N: {n_level} (NA)")
         else:
-            fragments.append("NA (NA)")
+            fragments.append("N: NA (NA)")
 
     if include_class_balance:
         if n_pos_level is not None:
@@ -344,11 +344,11 @@ def _format_level_annotation(
             )
             if denom is not None and denom > 0:
                 pct = 100.0 * n_pos_level / denom
-                fragments.append(f"{n_pos_level} ({pct:.1f}%)")
+                fragments.append(f"N Pos: {n_pos_level} ({pct:.1f}%)")
             else:
-                fragments.append(f"{n_pos_level} (NA)")
+                fragments.append(f"N Pos: {n_pos_level} (NA)")
         else:
-            fragments.append("NA (NA)")
+            fragments.append("N Pos: NA (NA)")
 
     return "\n".join(fragments)
 
@@ -625,6 +625,31 @@ class FeatureEvaluation:
         )
 
 
+# -- Figure sizing constants for interval plots --------------------------
+# Height scales linearly with the number of plotted levels so every level
+# gets consistent vertical space.  Width is fixed.
+_INTERVAL_PLOT_WIDTH = 8.0
+_INTERVAL_PLOT_HEIGHT_PER_LEVEL = 0.55
+_INTERVAL_PLOT_MIN_HEIGHT = 2.5
+
+
+def _interval_plot_figsize(n_levels: int) -> tuple[float, float]:
+    """Compute figure dimensions for an interval plot.
+
+    Args:
+        n_levels: Number of levels that will be rendered (including an
+            ``Overall`` comparator if present).
+
+    Returns:
+        ``(width, height)`` tuple suitable for ``plt.subplots(figsize=...)``.
+    """
+    height = max(
+        _INTERVAL_PLOT_MIN_HEIGHT,
+        n_levels * _INTERVAL_PLOT_HEIGHT_PER_LEVEL,
+    )
+    return (_INTERVAL_PLOT_WIDTH, height)
+
+
 @dataclass
 class ScoreEvaluation:
     """Container for all evaluation results for a single score.
@@ -761,12 +786,14 @@ class ScoreEvaluation:
                 (metric on x-axis, levels on y-axis).  If ``True``, error
                 bars are vertical (levels on x-axis, metric on y-axis).
             include_sample_size: If ``True`` (default), annotate each level
-                with its sample size as ``"{n} ({pct_of_overall}%)"``
-                (``NA`` placeholders when counts are unavailable).
+                with its sample size as ``"N: {n} ({pct_of_overall}%)"``
+                (``NA`` placeholders when counts are unavailable).  In
+                horizontal mode the annotations are left-aligned at a
+                consistent x-position to the left of the class labels.
             include_class_balance: If ``True`` (default), annotate each
                 level with its positive-class count as
-                ``"{n_pos} ({pct_positive}%)"`` (``NA`` placeholders when
-                counts are unavailable).
+                ``"N Pos: {n_pos} ({pct_positive}%)"`` (``NA`` placeholders
+                when counts are unavailable).
 
         Returns:
             Dictionary mapping feature name to
@@ -873,9 +900,13 @@ class ScoreEvaluation:
                 )
 
             metric_label = _get_metric_display_label(metric_key, feval)
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(
+                figsize=_interval_plot_figsize(len(plot_names))
+            )
 
             if not rotate_plots:
+                import matplotlib.transforms as mtransforms
+
                 # Horizontal: metric value on x-axis, levels on y-axis.
                 y = list(range(len(plot_names)))
                 xerr_low = [s - lo for s, lo in zip(plot_scores, plot_lowers)]
@@ -896,9 +927,17 @@ class ScoreEvaluation:
                 ax.set_title(f"{feval.label}: {metric_label}")
 
                 if include_sample_size or include_class_balance:
-                    for i, (score, ann_leval) in enumerate(
-                        zip(plot_scores, plot_levals)
-                    ):
+                    # Place all annotations at a fixed x in axes coordinates
+                    # (left of the y-axis class labels) with y in data
+                    # coordinates so each annotation aligns with its level.
+                    ann_transform = mtransforms.blended_transform_factory(
+                        ax.transAxes, ax.transData
+                    )
+                    # Negative axes-x places annotations left of the plot
+                    # area, to the left of the y-tick class labels.
+                    ann_x = -0.02
+
+                    for i, ann_leval in enumerate(plot_levals):
                         n_lev, n_pos_lev, n_neg_lev = _extract_level_counts(ann_leval)
                         text = _format_level_annotation(
                             n_lev, n_overall, n_pos_lev, n_neg_lev,
@@ -907,9 +946,9 @@ class ScoreEvaluation:
                         if text:
                             ax.annotate(
                                 text,
-                                xy=(score, y[i]),
-                                xytext=(5, 0),
-                                textcoords="offset points",
+                                xy=(ann_x, y[i]),
+                                xycoords=ann_transform,
+                                ha="right",
                                 va="center",
                                 fontsize=7,
                             )

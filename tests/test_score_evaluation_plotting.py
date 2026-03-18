@@ -27,8 +27,12 @@ from model_auditor.schemas import (
     LevelMetric,
     ScoreEvaluation,
     _get_metric_display_label,
+    _interval_plot_figsize,
     _is_plottable_level,
     _resolve_metric_key,
+    _INTERVAL_PLOT_HEIGHT_PER_LEVEL,
+    _INTERVAL_PLOT_MIN_HEIGHT,
+    _INTERVAL_PLOT_WIDTH,
 )
 
 
@@ -663,31 +667,31 @@ class TestFormatLevelAnnotation:
         assert _format_level_annotation(10, 100, 4, 6, False, False) == ""
 
     def test_sample_size_only(self):
-        assert _format_level_annotation(10, 100, 4, 6, True, False) == "10 (10.0%)"
+        assert _format_level_annotation(10, 100, 4, 6, True, False) == "N: 10 (10.0%)"
 
     def test_class_balance_only(self):
-        assert _format_level_annotation(10, 100, 4, 6, False, True) == "4 (40.0%)"
+        assert _format_level_annotation(10, 100, 4, 6, False, True) == "N Pos: 4 (40.0%)"
 
     def test_both_enabled_newline_joined(self):
-        assert _format_level_annotation(10, 100, 4, 6, True, True) == "10 (10.0%)\n4 (40.0%)"
+        assert _format_level_annotation(10, 100, 4, 6, True, True) == "N: 10 (10.0%)\nN Pos: 4 (40.0%)"
 
     def test_sample_size_none_n_level_gives_na_na(self):
-        assert _format_level_annotation(None, 100, 4, 6, True, False) == "NA (NA)"
+        assert _format_level_annotation(None, 100, 4, 6, True, False) == "N: NA (NA)"
 
     def test_sample_size_none_n_overall_gives_n_na(self):
-        assert _format_level_annotation(10, None, 4, 6, True, False) == "10 (NA)"
+        assert _format_level_annotation(10, None, 4, 6, True, False) == "N: 10 (NA)"
 
     def test_sample_size_zero_n_overall_gives_n_na(self):
-        assert _format_level_annotation(10, 0, 4, 6, True, False) == "10 (NA)"
+        assert _format_level_annotation(10, 0, 4, 6, True, False) == "N: 10 (NA)"
 
     def test_class_balance_none_n_pos_gives_na_na(self):
-        assert _format_level_annotation(10, 100, None, 6, False, True) == "NA (NA)"
+        assert _format_level_annotation(10, 100, None, 6, False, True) == "N Pos: NA (NA)"
 
     def test_class_balance_none_n_neg_gives_n_na(self):
-        assert _format_level_annotation(10, 100, 4, None, False, True) == "4 (NA)"
+        assert _format_level_annotation(10, 100, 4, None, False, True) == "N Pos: 4 (NA)"
 
     def test_class_balance_zero_denom_gives_n_na(self):
-        assert _format_level_annotation(10, 100, 0, 0, False, True) == "0 (NA)"
+        assert _format_level_annotation(10, 100, 0, 0, False, True) == "N Pos: 0 (NA)"
 
 
 # ===========================================================================
@@ -895,7 +899,7 @@ class TestPlotMetricIntervalsAnnotations:
             assert "\n" in t
 
     def test_sample_size_annotation_formatted_correctly_with_count_metrics(self):
-        """n=10, n_overall=20 → '10 (50.0%)' appears as an annotation."""
+        """n=10, n_overall=20 → 'N: 10 (50.0%)' appears as an annotation."""
         overall_leval = _make_level_with_counts(
             "Overall", 0.82, (0.78, 0.86), n=20, n_pos=8, n_neg=12
         )
@@ -919,10 +923,10 @@ class TestPlotMetricIntervalsAnnotations:
         )["sex"]
         texts = _annotation_texts(ax)
         # Each level: n=10, n_overall=20 → 50.0%
-        assert "10 (50.0%)" in texts
+        assert "N: 10 (50.0%)" in texts
 
     def test_class_balance_annotation_formatted_correctly_with_count_metrics(self):
-        """n_pos=4, n_neg=6 → '4 (40.0%)'; n_pos=2, n_neg=8 → '2 (20.0%)'."""
+        """n_pos=4, n_neg=6 → 'N Pos: 4 (40.0%)'; n_pos=2, n_neg=8 → 'N Pos: 2 (20.0%)'."""
         m_leval = _make_level_with_counts("M", 0.85, (0.80, 0.90), n=10, n_pos=4, n_neg=6)
         f_leval = _make_level_with_counts("F", 0.78, (0.72, 0.84), n=10, n_pos=2, n_neg=8)
         results = _make_score_eval(
@@ -934,8 +938,8 @@ class TestPlotMetricIntervalsAnnotations:
             include_class_balance=True,
         )["sex"]
         texts = _annotation_texts(ax)
-        assert any("4 (40.0%)" in t for t in texts)
-        assert any("2 (20.0%)" in t for t in texts)
+        assert any("N Pos: 4 (40.0%)" in t for t in texts)
+        assert any("N Pos: 2 (20.0%)" in t for t in texts)
 
     def test_annotation_sample_size_na_when_n_overall_zero(self):
         """n_overall=0 is a zero denominator; percentage must show NA."""
@@ -959,10 +963,10 @@ class TestPlotMetricIntervalsAnnotations:
         )["sex"]
         texts = _annotation_texts(ax)
         # n=10 is available, but n_overall=0 → NA for %
-        assert any("10 (NA)" in t for t in texts)
+        assert any("N: 10 (NA)" in t for t in texts)
 
     def test_annotation_class_balance_na_when_zero_denom(self):
-        """n_pos=0, n_neg=0 → denominator zero → '0 (NA)'."""
+        """n_pos=0, n_neg=0 → denominator zero → 'N Pos: 0 (NA)'."""
         m_leval = _make_level_with_counts("M", 0.85, (0.80, 0.90), n=10, n_pos=0, n_neg=0)
         results = _make_score_eval(
             {"sex": _make_feature("sex", "Sex", {"M": m_leval})}
@@ -973,7 +977,7 @@ class TestPlotMetricIntervalsAnnotations:
             include_class_balance=True,
         )["sex"]
         texts = _annotation_texts(ax)
-        assert any("0 (NA)" in t for t in texts)
+        assert any("N Pos: 0 (NA)" in t for t in texts)
 
     def test_annotations_also_appear_in_rotated_mode(self):
         """Annotations are rendered regardless of orientation."""
@@ -985,3 +989,204 @@ class TestPlotMetricIntervalsAnnotations:
         )["sex"]
         # sex has two levels (M, F)
         assert len(_annotation_texts(ax)) == 2
+
+
+# ===========================================================================
+# TestIntervalPlotFigsize
+# ===========================================================================
+
+
+class TestIntervalPlotFigsize:
+    """Unit tests for _interval_plot_figsize helper."""
+
+    def test_returns_tuple_of_two_floats(self):
+        w, h = _interval_plot_figsize(5)
+        assert isinstance(w, float)
+        assert isinstance(h, float)
+
+    def test_width_is_constant(self):
+        w1, _ = _interval_plot_figsize(2)
+        w2, _ = _interval_plot_figsize(10)
+        assert w1 == w2 == _INTERVAL_PLOT_WIDTH
+
+    def test_height_scales_with_level_count(self):
+        _, h_small = _interval_plot_figsize(3)
+        _, h_large = _interval_plot_figsize(10)
+        assert h_large > h_small
+
+    def test_height_equals_per_level_times_count_when_above_minimum(self):
+        n = 20  # well above minimum
+        _, h = _interval_plot_figsize(n)
+        assert h == n * _INTERVAL_PLOT_HEIGHT_PER_LEVEL
+
+    def test_height_respects_minimum(self):
+        _, h = _interval_plot_figsize(1)
+        assert h == _INTERVAL_PLOT_MIN_HEIGHT
+
+    def test_zero_levels_returns_minimum_height(self):
+        _, h = _interval_plot_figsize(0)
+        assert h == _INTERVAL_PLOT_MIN_HEIGHT
+
+
+# ===========================================================================
+# TestIntervalPlotFigureScaling
+# ===========================================================================
+
+
+class TestIntervalPlotFigureScaling:
+    """Tests that plot_metric_intervals produces correctly scaled figures."""
+
+    def test_figure_size_scales_with_level_count(self):
+        """More levels → taller figure."""
+        results_small = _make_score_eval(
+            {"sex": _make_feature("sex", "Sex", {
+                "M": _make_level("M", 0.85, (0.80, 0.90)),
+                "F": _make_level("F", 0.78, (0.72, 0.84)),
+            })}
+        )
+        results_large = _make_score_eval(
+            {"race": _make_feature("race", "Race", {
+                name: _make_level(name, 0.80, (0.75, 0.85))
+                for name in ["A", "B", "C", "D", "E", "F", "G", "H"]
+            })}
+        )
+        fig_small, _ = results_small.plot_metric_intervals("sensitivity")["sex"]
+        fig_large, _ = results_large.plot_metric_intervals("sensitivity")["race"]
+        h_small = fig_small.get_size_inches()[1]
+        h_large = fig_large.get_size_inches()[1]
+        assert h_large > h_small
+
+    def test_figure_width_constant_across_features(self):
+        results = _two_feature_score_eval()
+        plots = results.plot_metric_intervals("sensitivity")
+        w_sex = plots["sex"][0].get_size_inches()[0]
+        w_age = plots["age"][0].get_size_inches()[0]
+        assert w_sex == w_age == _INTERVAL_PLOT_WIDTH
+
+    def test_overall_comparator_increases_figure_height(self):
+        """Including Overall adds one effective level to sizing."""
+        # Need enough levels that both with/without are above the minimum
+        # height floor so the +1 level from Overall is observable.
+        level_names = ["A", "B", "C", "D", "E", "F"]
+        levels = {
+            name: _make_level(name, 0.80, (0.75, 0.85)) for name in level_names
+        }
+        overall_leval = _make_level("Overall", 0.82, (0.78, 0.86))
+        results = _make_score_eval({
+            "overall": _make_feature(
+                "overall", "Overall", {"Overall": overall_leval}
+            ),
+            "grp": _make_feature("grp", "Group", levels),
+        })
+        fig_with, _ = results.plot_metric_intervals(
+            "sensitivity", include_overall=True
+        )["grp"]
+        fig_without, _ = results.plot_metric_intervals(
+            "sensitivity", include_overall=False
+        )["grp"]
+        h_with = fig_with.get_size_inches()[1]
+        h_without = fig_without.get_size_inches()[1]
+        assert h_with > h_without
+
+
+# ===========================================================================
+# TestIntervalPlotAnnotationPlacement
+# ===========================================================================
+
+
+class TestIntervalPlotAnnotationPlacement:
+    """Tests that horizontal-mode annotations are left-aligned at consistent x."""
+
+    def _annotated_plot(self):
+        """Return (fig, ax) for a horizontal plot with sample-size annotations."""
+        overall_leval = _make_level_with_counts(
+            "Overall", 0.82, (0.78, 0.86), n=20, n_pos=8, n_neg=12
+        )
+        m_leval = _make_level_with_counts(
+            "M", 0.85, (0.80, 0.90), n=10, n_pos=4, n_neg=6
+        )
+        f_leval = _make_level_with_counts(
+            "F", 0.78, (0.72, 0.84), n=10, n_pos=4, n_neg=6
+        )
+        results = _make_score_eval({
+            "overall": _make_feature(
+                "overall", "Overall", {"Overall": overall_leval}
+            ),
+            "sex": _make_feature(
+                "sex", "Sex", {"M": m_leval, "F": f_leval}
+            ),
+        })
+        fig, ax = results.plot_metric_intervals(
+            "sensitivity",
+            include_overall=True,
+            include_sample_size=True,
+            include_class_balance=True,
+        )["sex"]
+        return fig, ax
+
+    def _get_annotation_objects(self, ax):
+        """Return all Annotation objects from the axes."""
+        from matplotlib.text import Annotation
+        return [c for c in ax.get_children() if isinstance(c, Annotation)]
+
+    def test_all_annotations_share_same_x_position(self):
+        """In horizontal mode, all annotation x-coordinates must be identical."""
+        fig, ax = self._annotated_plot()
+        annotations = self._get_annotation_objects(ax)
+        assert len(annotations) >= 2, "Need at least two annotations to compare"
+        # All annotations use axes coordinates for x via blended transform,
+        # so their xy[0] should all be the same constant.
+        x_positions = [ann.xy[0] for ann in annotations]
+        assert all(x == x_positions[0] for x in x_positions)
+
+    def test_annotations_are_right_aligned(self):
+        """Annotations must use ha='right' to align against the shared left edge."""
+        fig, ax = self._annotated_plot()
+        annotations = self._get_annotation_objects(ax)
+        for ann in annotations:
+            assert ann.get_ha() == "right"
+
+    def test_annotation_x_is_left_of_axes_origin(self):
+        """The fixed x anchor must be \u2264 0 in axes coordinates (left of plot area)."""
+        fig, ax = self._annotated_plot()
+        annotations = self._get_annotation_objects(ax)
+        for ann in annotations:
+            # xy[0] is in axes-x coordinates; \u2264 0 means left of the y-axis
+            assert ann.xy[0] <= 0
+
+    def test_annotation_y_matches_level_data_position(self):
+        """Each annotation y should correspond to a level's integer y-position."""
+        fig, ax = self._annotated_plot()
+        annotations = self._get_annotation_objects(ax)
+        y_positions = sorted(ann.xy[1] for ann in annotations)
+        # With Overall + M + F → 3 levels at y=0,1,2
+        expected = [0.0, 1.0, 2.0]
+        assert y_positions == expected
+
+    def test_rotated_mode_annotations_not_axes_transform(self):
+        """Rotated mode should use offset points, not the blended axes transform."""
+        overall_leval = _make_level_with_counts(
+            "Overall", 0.82, (0.78, 0.86), n=20, n_pos=8, n_neg=12
+        )
+        m_leval = _make_level_with_counts(
+            "M", 0.85, (0.80, 0.90), n=10, n_pos=4, n_neg=6
+        )
+        results = _make_score_eval({
+            "overall": _make_feature(
+                "overall", "Overall", {"Overall": overall_leval}
+            ),
+            "sex": _make_feature("sex", "Sex", {"M": m_leval}),
+        })
+        fig, ax = results.plot_metric_intervals(
+            "sensitivity",
+            rotate_plots=True,
+            include_overall=True,
+            include_sample_size=True,
+            include_class_balance=False,
+        )["sex"]
+        from matplotlib.text import Annotation
+        annotations = [c for c in ax.get_children() if isinstance(c, Annotation)]
+        # Rotated mode uses offset-points text positioning, so
+        # annotations should have textcoords='offset points'.
+        for ann in annotations:
+            assert ann.anncoords == "offset points"
