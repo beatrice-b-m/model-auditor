@@ -105,7 +105,9 @@ class Auditor:
         self.data = data.copy()
 
     def add_feature(
-        self, name: str, label: Optional[str] = None,
+        self,
+        name: str,
+        label: Optional[str] = None,
     ) -> None:
         """
         Method to add a feature to the auditor. Equivalent to a grouping variable in
@@ -196,7 +198,9 @@ class Auditor:
         idx: int = np.argmax(tpr - fpr).astype(int)
         optimal_threshold: float = thresholds[idx]
 
-        warnings.warn(f"Optimal threshold for '{score.name}' found at: {optimal_threshold}")
+        warnings.warn(
+            f"Optimal threshold for '{score.name}' found at: {optimal_threshold}"
+        )
         return optimal_threshold
 
     def set_metrics(self, metrics: list[AuditorMetric]) -> None:
@@ -215,6 +219,7 @@ class Auditor:
         feature_names: Optional[list[str]] = None,
         bins: Union[int, str] = 30,
         density: bool = True,
+        split_classes: bool = True,
     ) -> dict:
         """Visualize score distributions stratified by feature levels.
 
@@ -336,9 +341,11 @@ class Auditor:
             # Shared bin edges — computed once from the full feature slice so
             # every level subplot uses an identical grid.
             bin_edges = np.histogram_bin_edges(
-                feature_slice[score.name].values, bins=bins
+                feature_slice[score.name].values, bins=bins  # type: ignore
             )
 
+            # TODO: if we're splitting classes into separate plots, we need to either plot both levels
+            # on each (similar to a ridge plot), or double our number of plots and treat each as a separate axis
             n_levels = len(levels)
             fig, axes_raw = plt.subplots(
                 n_levels,
@@ -351,9 +358,12 @@ class Auditor:
 
             str_col = feature_slice[feature_col].astype(str)
             for ax, level_name in zip(axes, levels):
-                level_data = feature_slice.loc[
-                    str_col == level_name, score.name
-                ].values
+                # if splitting classes, iterate over pos / neg class groups for this level
+                if split_classes:
+                    # TODO: IMPLEMENT THIS HERE!
+                    pass
+
+                level_data = feature_slice.loc[str_col == level_name, score.name].values
 
                 ax.hist(level_data, bins=bin_edges, density=density, zorder=2)
 
@@ -460,10 +470,18 @@ class Auditor:
         Returns:
             The same DataFrame with tp, tn, fp, fn integer columns added.
         """
-        data["tp"] = ((data["_truth"] == 1.0) & (data["_binary_pred"] == 1.0)).astype(int)
-        data["tn"] = ((data["_truth"] == 0.0) & (data["_binary_pred"] == 0.0)).astype(int)
-        data["fp"] = ((data["_truth"] == 0.0) & (data["_binary_pred"] == 1.0)).astype(int)
-        data["fn"] = ((data["_truth"] == 1.0) & (data["_binary_pred"] == 0.0)).astype(int)
+        data["tp"] = ((data["_truth"] == 1.0) & (data["_binary_pred"] == 1.0)).astype(
+            int
+        )
+        data["tn"] = ((data["_truth"] == 0.0) & (data["_binary_pred"] == 0.0)).astype(
+            int
+        )
+        data["fp"] = ((data["_truth"] == 0.0) & (data["_binary_pred"] == 1.0)).astype(
+            int
+        )
+        data["fn"] = ((data["_truth"] == 1.0) & (data["_binary_pred"] == 0.0)).astype(
+            int
+        )
         return data
 
     # ------------------------------------------------------------------ #
@@ -666,7 +684,9 @@ class Auditor:
                 )
                 group_eval.features[feature.name] = feature_eval
                 # Accumulate per-feature support counts into the error evaluation's sidecar.
-                error_eval.support_data.setdefault(group_col, {})[feature.name] = support
+                error_eval.support_data.setdefault(group_col, {})[
+                    feature.name
+                ] = support
             error_eval.groups[group_col] = group_eval
 
         return error_eval
@@ -832,9 +852,17 @@ class Auditor:
         group_total = len(group_data)
 
         if is_categorical:
-            group_gs = group_data.groupby(feature_col, observed=True).size() if not group_data.empty else pd.Series(dtype=int)
+            group_gs = (
+                group_data.groupby(feature_col, observed=True).size()
+                if not group_data.empty
+                else pd.Series(dtype=int)
+            )
         else:
-            group_gs = group_data.groupby(feature_col).size() if not group_data.empty else pd.Series(dtype=int)
+            group_gs = (
+                group_data.groupby(feature_col).size()
+                if not group_data.empty
+                else pd.Series(dtype=int)
+            )
         group_counts: dict[str, int] = {str(k): int(v) for k, v in group_gs.items()}
 
         # All levels to evaluate: declared order for categorical, observed order otherwise.
@@ -890,13 +918,25 @@ class Auditor:
 
                     if is_categorical:
                         bfgs = boot_full.groupby(feature_col, observed=True).size()
-                        bgGs = boot_group.groupby(feature_col, observed=True).size() if not boot_group.empty else pd.Series(dtype=int)
+                        bgGs = (
+                            boot_group.groupby(feature_col, observed=True).size()
+                            if not boot_group.empty
+                            else pd.Series(dtype=int)
+                        )
                     else:
                         bfgs = boot_full.groupby(feature_col).size()
-                        bgGs = boot_group.groupby(feature_col).size() if not boot_group.empty else pd.Series(dtype=int)
+                        bgGs = (
+                            boot_group.groupby(feature_col).size()
+                            if not boot_group.empty
+                            else pd.Series(dtype=int)
+                        )
 
-                    bfgs_dict: dict[str, int] = {str(k): int(v) for k, v in bfgs.items()}
-                    bgGs_dict: dict[str, int] = {str(k): int(v) for k, v in bgGs.items()}
+                    bfgs_dict: dict[str, int] = {
+                        str(k): int(v) for k, v in bfgs.items()
+                    }
+                    bgGs_dict: dict[str, int] = {
+                        str(k): int(v) for k, v in bgGs.items()
+                    }
 
                     for level_name in valid_levels:
                         bootstrap_results[level_name][i] = metric.compute(
