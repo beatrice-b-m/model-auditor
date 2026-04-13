@@ -19,7 +19,7 @@ pip install model-auditor
   - F-beta Score (configurable beta)
   - TPR, TNR, FPR, FNR
   - Count metrics (N, TP, TN, FP, FN, Positive, Negative)
-- **Threshold Optimization**: Automatic threshold selection using the Youden index
+- **Threshold Optimization**: Optimize thresholds via Youden index or target sensitivity/specificity constraints
 - **Hierarchical Visualization**: Generate data structures for sunburst/treemap plots
 - **Extensible Design**: Protocol-based architecture for custom metrics
 
@@ -63,7 +63,7 @@ print(results_df)
 
 ## Threshold Optimization
 
-Find the optimal decision threshold using the Youden index:
+Use Youden-index optimization when you want a single balanced operating point:
 
 ```python
 auditor = Auditor()
@@ -71,9 +71,42 @@ auditor.add_data(df)
 auditor.add_score(name="risk_score")
 auditor.add_outcome(name="label")
 
-# Find optimal threshold
-optimal_threshold = auditor.optimize_score_threshold(score_name="risk_score")
+youden_threshold = auditor.optimize_score_threshold(score_name="risk_score")
 # Output: Optimal threshold for 'risk_score' found at: 0.423
+```
+
+Use target-based optimization when deployment requires a minimum sensitivity
+or specificity:
+
+```python
+# Highest threshold that still satisfies sensitivity >= 0.70
+sens_threshold = auditor.optimize_score_threshold_for_target(
+    score_name="risk_score",
+    target=0.70,
+    metric="sensitivity",
+)
+
+# Lowest threshold that still satisfies specificity >= 0.90
+spec_threshold = auditor.optimize_score_threshold_for_target(
+    score_name="risk_score",
+    target=0.90,
+    metric="specificity",
+)
+```
+
+If no **finite** threshold can satisfy the requested target, the method raises
+`ValueError` and reports the achievable metric range across finite thresholds:
+
+```python
+try:
+    auditor.optimize_score_threshold_for_target(
+        score_name="risk_score",
+        target=0.95,
+        metric="specificity",
+    )
+except ValueError as exc:
+    print(exc)
+    # No finite threshold for score 'risk_score' can satisfy specificity >= ...
 ```
 
 ## Available Metrics

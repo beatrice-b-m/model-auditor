@@ -5,7 +5,7 @@ across different features and subgroups, with support for bootstrap confidence
 intervals.
 """
 
-from typing import Any, Optional, Type, Union
+from typing import Any, Literal, Optional, Type, Union
 import warnings
 import pandas as pd
 import numpy as np
@@ -163,43 +163,112 @@ class Auditor:
             self.data["_truth"] = self.data[name]
 
     def optimize_score_threshold(self, score_name: str) -> float:
-        """
-        Method to optimize the decision threshold for a score based on the Youden index.
+        """Optimize a score threshold using the Youden index (sensitivity - FPR).
 
         Args:
-            score_name (str): Name of the target score
+            score_name: Name of the target score.
 
         Raises:
-            ValueError: If no scores have been defined with .add_score() first
-            ValueError: If no data has been added with .add_data() first
-            ValueError: If no outcome variable has been defined with .add_outcome() first
+            ValueError: If no scores have been defined with .add_score() first.
+            ValueError: If no data has been added with .add_data() first.
+            ValueError: If no outcome variable has been defined with .add_outcome() first.
 
         Returns:
-            float: Optimal threshold identified
+            Optimal threshold identified by the Youden criterion.
         """
-        if len(self.scores) == 0:
-            raise ValueError("Please define at least one score first")
-        if self.data is None:
-            raise ValueError("Please add data with .add_data() first")
-        elif "_truth" not in self.data.columns.tolist():
-            raise ValueError(
-                "Please define an outcome variable data with .add_outcome() first"
-            )
+        score, fpr, tpr, thresholds = self._prepare_score_roc_curve(
+            score_name=score_name
+        )
 
-        # throws an error if the score has not been defined
-        score: AuditorScore = self.scores[score_name]
-        score_list: list[float] = self.data[score.name].astype(float).tolist()  # type: ignore
-
-        # otherwise the target score will be the single item in the list
-        truth_list: list[float] = self.data["_truth"].astype(float).tolist()  # type: ignore
-
-        # calculate optimal threshold
-        fpr, tpr, thresholds = roc_curve(truth_list, score_list)
         idx: int = np.argmax(tpr - fpr).astype(int)
-        optimal_threshold: float = thresholds[idx]
+        optimal_threshold: float = float(thresholds[idx])
 
         warnings.warn(
             f"Optimal threshold for '{score.name}' found at: {optimal_threshold}"
+        )
+        return optimal_threshold
+
+    def optimize_score_threshold_for_target(
+        self,
+        score_name: str,
+        target: float,
+        metric: Literal["sensitivity", "specificity"] = "sensitivity",
+    ) -> float:
+        """Optimize a score threshold to satisfy a target operating metric.
+
+        Args:
+            score_name: Name of the target score.
+            target: Requested minimum metric value in [0.0, 1.0].
+            metric: Metric constraint to satisfy; one of 'sensitivity' or
+                'specificity'.
+
+        Raises:
+            ValueError: If no scores have been defined with .add_score() first.
+            ValueError: If no data has been added with .add_data() first.
+            ValueError: If no outcome variable has been defined with .add_outcome() first.
+            ValueError: If score_name is not a registered score.
+            ValueError: If target is outside [0.0, 1.0].
+            ValueError: If metric is not 'sensitivity' or 'specificity'.
+            ValueError: If no finite threshold satisfies the requested target.
+
+        Returns:
+            Threshold that satisfies the target constraint with the requested
+            tie-breaking rule.
+        """
+        if metric not in ("sensitivity", "specificity"):
+            raise ValueError(
+                "metric must be either 'sensitivity' or 'specificity'. "
+                f"Received: {metric}"
+            )
+
+        if target < 0.0 or target > 1.0:
+            raise ValueError(
+                f"target must be between 0.0 and 1.0 inclusive. Received: {target}"
+            )
+
+        if len(self.scores) == 0:
+            raise ValueError("Please define at least one score first")
+
+        if score_name not in self.scores:
+            available = ", ".join(self.scores.keys()) or "(none)"
+            raise ValueError(
+                f"Score '{score_name}' not found. Available scores: {available}"
+            )
+
+        score, fpr, tpr, thresholds = self._prepare_score_roc_curve(
+            score_name=score_name,
+            drop_intermediate=False,
+        )
+
+        metric_values = tpr if metric == "sensitivity" else 1.0 - fpr
+        finite_threshold_mask = np.isfinite(thresholds)
+        feasible_indices = np.flatnonzero((metric_values >= target) & finite_threshold_mask)
+
+        if feasible_indices.size == 0:
+            finite_metric_values = metric_values[finite_threshold_mask]
+            if finite_metric_values.size == 0:
+                raise ValueError(
+                    f"No finite threshold is available for score '{score.name}'."
+                )
+
+            min_achievable = float(np.nanmin(finite_metric_values))
+            max_achievable = float(np.nanmax(finite_metric_values))
+            raise ValueError(
+                f"No finite threshold for score '{score.name}' can satisfy "
+                f"{metric} >= {target:.3f}. Achievable {metric} range across "
+                f"finite thresholds is [{min_achievable:.3f}, {max_achievable:.3f}]."
+            )
+
+        selected_idx = (
+            int(feasible_indices[0])
+            if metric == "sensitivity"
+            else int(feasible_indices[-1])
+        )
+        optimal_threshold = float(thresholds[selected_idx])
+
+        warnings.warn(
+            f"Optimal threshold for '{score.name}' satisfying "
+            f"{metric} >= {target:.3f} found at: {optimal_threshold}"
         )
         return optimal_threshold
 
@@ -412,6 +481,48 @@ class Auditor:
             f"Threshold for score '{score.name}' must be defined via "
             "add_score(threshold=...) or passed to the evaluation method."
         )
+
+    def _prepare_score_roc_curve(
+        self,
+        score_name: str,
+        drop_intermediate: bool = True,
+    ) -> tuple[AuditorScore, NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+        """Validate optimization prerequisites and compute ROC arrays for a score.
+
+        Args:
+            score_name: Name of the score to optimize.
+            drop_intermediate: Whether to drop suboptimal thresholds while building
+                the ROC curve.
+
+        Returns:
+            Tuple of (score object, fpr array, tpr array, threshold array).
+
+        Raises:
+            ValueError: If no scores have been defined with .add_score() first.
+            ValueError: If no data has been added with .add_data() first.
+            ValueError: If no outcome variable has been defined with .add_outcome() first.
+            KeyError: If score_name is not found in self.scores.
+        """
+        if len(self.scores) == 0:
+            raise ValueError("Please define at least one score first")
+        if self.data is None:
+            raise ValueError("Please add data with .add_data() first")
+        if "_truth" not in self.data.columns.tolist():
+            raise ValueError(
+                "Please define an outcome variable data with .add_outcome() first"
+            )
+
+        # Keep KeyError behaviour for unknown score names in the Youden optimizer.
+        score: AuditorScore = self.scores[score_name]
+        score_list: list[float] = self.data[score.name].astype(float).tolist()  # type: ignore
+        truth_list: list[float] = self.data["_truth"].astype(float).tolist()  # type: ignore
+
+        fpr, tpr, thresholds = roc_curve(
+            truth_list,
+            score_list,
+            drop_intermediate=drop_intermediate,
+        )
+        return score, fpr, tpr, thresholds
 
     def _collect_inputs(self) -> None:
         """
