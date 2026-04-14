@@ -1011,6 +1011,24 @@ class AuditorFeature:
 
 
 @dataclass
+class ConditionalThreshold:
+    """Conditional score threshold specification based on feature levels.
+
+    Attributes:
+        feature: Feature column name used to select the threshold per row.
+        levels: Mapping of feature level values to numeric thresholds.
+        default: Optional fallback threshold for levels missing from `levels`.
+    """
+
+    feature: str
+    levels: dict[Any, float]
+    default: Optional[float] = None
+
+
+ThresholdSpec = float | ConditionalThreshold
+
+
+@dataclass
 class AuditorScore:
     """Configuration for a prediction score column.
 
@@ -1020,13 +1038,12 @@ class AuditorScore:
     Attributes:
         name: Column name in the DataFrame containing prediction scores.
         label: Display label for the score (defaults to name if None).
-        threshold: Optional threshold for binarizing continuous scores.
+        threshold: Optional scalar or conditional threshold for binarizing scores.
     """
 
     name: str
     label: Optional[str] = None
-    threshold: Optional[float] = None
-
+    threshold: Optional[ThresholdSpec] = None
 
 @dataclass
 class AuditorOutcome:
@@ -1063,7 +1080,7 @@ class ErrorEvaluation:
 
     name: str
     label: str
-    threshold: float
+    threshold: ThresholdSpec
     groups: dict[str, ScoreEvaluation] = field(default_factory=dict)
     global_total_n: int = 0
     # Sidecar support counts: {group_col: {feature_name: {level_name: {"n": int, "pct_overall": float, "pct_group": float}}}}

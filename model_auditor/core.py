@@ -20,10 +20,12 @@ from model_auditor.schemas import (
     AuditorFeature,
     AuditorScore,
     AuditorOutcome,
+    ConditionalThreshold,
     ErrorEvaluation,
     FeatureEvaluation,
     LevelEvaluation,
     ScoreEvaluation,
+    ThresholdSpec,
 )
 from model_auditor.utils import collect_metric_inputs
 
@@ -124,7 +126,7 @@ class Auditor:
         self.features[feature.name] = feature
 
     def add_score(
-        self, name: str, label: Optional[str] = None, threshold: Optional[float] = None
+        self, name: str, label: Optional[str] = None, threshold: Optional[ThresholdSpec] = None
     ) -> None:
         """
         Method to add a score to the auditor. Expects a continuous feature which will
@@ -133,8 +135,8 @@ class Auditor:
         Args:
             name (str): Column name for the score.
             label (Optional[str], optional): Optional label for the score. Defaults to None.
-            threshold (Optional[float], optional): Threshold used to binarize the score column.
-            Defaults to None and can be optimized using the Youden index or updated separately later.
+            threshold (Optional[ThresholdSpec], optional): Scalar threshold or
+            conditional threshold specification used to binarize the score column.
         """
         score = AuditorScore(
             name=name,
@@ -458,29 +460,119 @@ class Auditor:
     # Private helpers                                                      #
     # ------------------------------------------------------------------ #
 
+    def _coerce_threshold_value(self, value: Any, context: str) -> float:
+        """Convert a threshold candidate to a finite floating-point value."""
+        try:
+            threshold_value = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"{context} must be a finite numeric value, got {value!r}."
+            ) from exc
+
+        if not np.isfinite(threshold_value):
+            raise ValueError(
+                f"{context} must be a finite numeric value, got {value!r}."
+            )
+        return threshold_value
+
     def _resolve_threshold(
-        self, score: AuditorScore, threshold: Optional[float]
-    ) -> float:
-        """Resolve the effective threshold for a score.
-
-        Args:
-            score: The AuditorScore containing the optional default threshold.
-            threshold: Override value from the caller; None to use the score default.
-
-        Returns:
-            The resolved threshold value.
-
-        Raises:
-            ValueError: If both the caller argument and the score default are None.
-        """
-        if threshold is not None:
-            return threshold
-        if score.threshold is not None:
-            return score.threshold
-        raise ValueError(
-            f"Threshold for score '{score.name}' must be defined via "
-            "add_score(threshold=...) or passed to the evaluation method."
+        self, score: AuditorScore, threshold: Optional[ThresholdSpec]
+    ) -> ThresholdSpec:
+        """Resolve and validate the effective threshold specification for a score."""
+        resolved_threshold: Optional[ThresholdSpec] = (
+            threshold if threshold is not None else score.threshold
         )
+        if resolved_threshold is None:
+            raise ValueError(
+                f"Threshold for score '{score.name}' must be defined via "
+                "add_score(threshold=...) or passed to the evaluation method."
+            )
+
+        if isinstance(resolved_threshold, ConditionalThreshold):
+            if resolved_threshold.feature == "":
+                raise ValueError(
+                    "Conditional threshold feature name must be a non-empty string."
+                )
+            validated_levels = {
+                level: self._coerce_threshold_value(
+                    value=level_threshold,
+                    context=f"Threshold for level {level!r} in feature '{resolved_threshold.feature}'",
+                )
+                for level, level_threshold in resolved_threshold.levels.items()
+            }
+            validated_default = (
+                None
+                if resolved_threshold.default is None
+                else self._coerce_threshold_value(
+                    value=resolved_threshold.default,
+                    context=f"Default threshold for feature '{resolved_threshold.feature}'",
+                )
+            )
+            return ConditionalThreshold(
+                feature=resolved_threshold.feature,
+                levels=validated_levels,
+                default=validated_default,
+            )
+
+        return self._coerce_threshold_value(
+            value=resolved_threshold,
+            context=f"Threshold for score '{score.name}'",
+        )
+
+    def _build_threshold_series(
+        self, data: pd.DataFrame, threshold: ThresholdSpec
+    ) -> pd.Series:
+        """Build a per-row threshold series from a scalar or conditional spec."""
+        if isinstance(threshold, ConditionalThreshold):
+            feature_name = threshold.feature
+            if feature_name not in data.columns:
+                raise ValueError(
+                    f"Conditional threshold feature '{feature_name}' not found in evaluation data."
+                )
+
+            feature_series = data[feature_name]
+            threshold_series = feature_series.map(threshold.levels)
+            if threshold.default is not None:
+                threshold_series = threshold_series.fillna(threshold.default)
+
+            unresolved_level_mask = feature_series.notna() & threshold_series.isna()
+            if unresolved_level_mask.any():
+                unresolved_levels = (
+                    feature_series.loc[unresolved_level_mask]
+                    .drop_duplicates()
+                    .astype(str)
+                    .tolist()
+                )
+                raise ValueError(
+                    f"Conditional threshold for feature '{feature_name}' is missing "
+                    f"mappings for levels: {unresolved_levels}. Add level thresholds "
+                    "or set a default threshold."
+                )
+
+            unresolved_null_mask = feature_series.isna() & threshold_series.isna()
+            if unresolved_null_mask.any():
+                raise ValueError(
+                    f"Conditional threshold feature '{feature_name}' contains null "
+                    "values. Provide a default threshold to handle null rows."
+                )
+
+            return threshold_series.astype(float)
+
+        scalar_threshold = self._coerce_threshold_value(
+            value=threshold, context="Threshold"
+        )
+        return pd.Series(scalar_threshold, index=data.index, dtype=float)
+
+    def _evaluation_columns(self, threshold: ThresholdSpec) -> list[str]:
+        """Return base evaluation columns, including conditional-threshold feature."""
+        column_list: list[str] = [*self.features.keys(), "_truth"]
+        if (
+            isinstance(threshold, ConditionalThreshold)
+            and threshold.feature not in column_list
+        ):
+            column_list.append(threshold.feature)
+        return column_list
+
 
     def _prepare_score_roc_curve(
         self,
@@ -558,17 +650,26 @@ class Auditor:
 
         return data
 
-    def _binarize(self, score_data: pd.Series, threshold: float) -> pd.Series:
-        """Convert continuous scores to binary predictions using a threshold.
+    def _binarize(
+        self, score_data: pd.Series, threshold: Union[float, pd.Series]
+    ) -> pd.Series:
+        """Convert continuous scores to binary predictions using per-row thresholds."""
+        if isinstance(threshold, pd.Series):
+            threshold_series = threshold.reindex(score_data.index)
+        else:
+            scalar_threshold = self._coerce_threshold_value(
+                value=threshold, context="Threshold"
+            )
+            threshold_series = pd.Series(
+                scalar_threshold, index=score_data.index, dtype=float
+            )
 
-        Args:
-            score_data: Series of continuous score values.
-            threshold: Threshold value; scores >= threshold become 1, else 0.
-
-        Returns:
-            Series of binary predictions (0 or 1).
-        """
-        return (score_data >= threshold).astype(int)
+        if threshold_series.isna().any():
+            raise ValueError(
+                "Threshold resolution produced null values; ensure all rows resolve "
+                "to a finite threshold."
+            )
+        return (score_data >= threshold_series).astype(int)
 
     def _add_confusion_columns(self, data: pd.DataFrame) -> pd.DataFrame:
         """Add tp/tn/fp/fn indicator columns to a DataFrame in-place.
@@ -602,7 +703,7 @@ class Auditor:
     def evaluate_metrics(
         self,
         score_name: str,
-        threshold: Optional[float] = None,
+        threshold: Optional[ThresholdSpec] = None,
         n_bootstraps: Optional[int] = 1000,
     ):
         """Evaluate model performance for a given score across all features.
@@ -612,8 +713,9 @@ class Auditor:
 
         Args:
             score_name: Name of the score column to evaluate.
-            threshold: Decision threshold for binarizing scores. If None, uses
-                the threshold defined in the AuditorScore object.
+            threshold: Scalar threshold or conditional threshold specification for
+                binarizing scores. If None, uses the threshold defined in the
+                AuditorScore object.
             n_bootstraps: Number of bootstrap samples for confidence interval
                 calculation. Set to None to disable CI calculation.
 
@@ -654,12 +756,15 @@ class Auditor:
         self._collect_inputs()
 
         # get the list of columns to retain in the data
-        column_list: list[str] = [*self.features.keys(), "_truth"]
+        column_list = self._evaluation_columns(threshold)
 
         # copy a slice of the dataframe
-        data_slice: pd.DataFrame = self.data.loc[:, column_list]  # type: ignore
+        data_slice: pd.DataFrame = self.data.loc[:, column_list].copy()  # type: ignore
         data_slice["_pred"] = self.data[score.name]
-        data_slice["_binary_pred"] = self._binarize(score_data=data_slice["_pred"], threshold=threshold)  # type: ignore
+        threshold_series = self._build_threshold_series(data=data_slice, threshold=threshold)
+        data_slice["_binary_pred"] = self._binarize(
+            score_data=data_slice["_pred"], threshold=threshold_series
+        )
         data_slice = self._apply_inputs(data=data_slice)
 
         # create an 'Overall' feature which will be used to calculate metrics on the full data
@@ -693,7 +798,7 @@ class Auditor:
     def evaluate_errors(
         self,
         score_name: str,
-        threshold: Optional[float] = None,
+        threshold: Optional[ThresholdSpec] = None,
         n_bootstraps: Optional[int] = 1000,
     ) -> ErrorEvaluation:
         """Analyse feature-level odds of confusion-matrix group membership.
@@ -717,8 +822,9 @@ class Auditor:
 
         Args:
             score_name: Name of the score column to evaluate.
-            threshold: Decision threshold for binarizing scores. If None, uses
-                the threshold defined in the AuditorScore object.
+            threshold: Scalar threshold or conditional threshold specification for
+                binarizing scores. If None, uses the threshold defined in the
+                AuditorScore object.
             n_bootstraps: Number of bootstrap samples for confidence intervals.
                 Set to None to disable CI calculation.
 
@@ -750,11 +856,12 @@ class Auditor:
 
         # Build the analysis slice: feature columns + truth + binarised predictions
         # + all four confusion-matrix indicator columns.
-        column_list: list[str] = [*self.features.keys(), "_truth"]
+        column_list = self._evaluation_columns(threshold)
         data_slice: pd.DataFrame = self.data.loc[:, column_list].copy()  # type: ignore
         data_slice["_pred"] = self.data[score.name]
+        threshold_series = self._build_threshold_series(data=data_slice, threshold=threshold)
         data_slice["_binary_pred"] = self._binarize(
-            score_data=data_slice["_pred"], threshold=threshold
+            score_data=data_slice["_pred"], threshold=threshold_series
         )
         self._add_confusion_columns(data_slice)
 

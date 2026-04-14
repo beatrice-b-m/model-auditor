@@ -23,7 +23,7 @@ import pandas as pd
 import pytest
 
 from model_auditor import Auditor
-from model_auditor.schemas import ErrorEvaluation, ScoreEvaluation
+from model_auditor.schemas import ConditionalThreshold, ErrorEvaluation, ScoreEvaluation
 
 
 # ---------------------------------------------------------------------------
@@ -140,6 +140,29 @@ class TestEvaluateErrorsStructure:
             score_name="score", threshold=0.6, n_bootstraps=None
         )
         assert overridden.threshold == 0.6
+
+    def test_conditional_threshold_changes_confusion_group_support_counts(self):
+        spec = ConditionalThreshold(
+            feature="gender",
+            levels={"Female": 0.75, "Male": 0.95, "Other": 0.05},
+        )
+
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score",
+            threshold=spec,
+            n_bootstraps=None,
+        )
+
+        assert result.threshold == spec
+        support = result.support_data
+        assert support["tp"]["gender"]["Female"]["n"] == 4
+        assert support["tp"]["gender"]["Male"]["n"] == 0
+        assert support["tp"]["gender"]["Other"]["n"] == 2
+        assert support["tn"]["gender"]["Female"]["n"] == 3
+        assert support["tn"]["gender"]["Male"]["n"] == 4
+        assert support["fp"]["gender"]["Other"]["n"] == 2
+        assert support["fn"]["gender"]["Male"]["n"] == 4
+
 
     def test_all_four_groups_present(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)

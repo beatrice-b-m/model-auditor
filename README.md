@@ -19,7 +19,7 @@ pip install model-auditor
   - F-beta Score (configurable beta)
   - TPR, TNR, FPR, FNR
   - Count metrics (N, TP, TN, FP, FN, Positive, Negative)
-- **Threshold Optimization**: Optimize thresholds via Youden index or target sensitivity/specificity constraints
+- **Threshold Controls**: Use scalar or conditional subgroup thresholds, and optimize scalar thresholds via Youden index or target sensitivity/specificity constraints
 - **Hierarchical Visualization**: Generate data structures for sunburst/treemap plots
 - **Extensible Design**: Protocol-based architecture for custom metrics
 
@@ -60,6 +60,38 @@ results = auditor.evaluate_metrics(score_name="risk_score", n_bootstraps=1000)
 results_df = results.to_dataframe()
 print(results_df)
 ```
+
+## Conditional Thresholds by Feature Level
+
+You can define score thresholds that vary by subgroup level using `ConditionalThreshold`.
+This is useful when deployment policy requires different operating points by region,
+cohort, or channel.
+
+```python
+from model_auditor.schemas import ConditionalThreshold
+
+auditor.add_score(
+    name="risk_score",
+    threshold=ConditionalThreshold(
+        feature="region",
+        levels={
+            "North": 0.25,
+            "South": 0.45,
+            "West": 0.70,
+        },
+        default=0.50,  # applied to rows with unmapped or null region values
+    ),
+)
+
+results = auditor.evaluate_metrics(score_name="risk_score", n_bootstraps=None)
+
+# Call-time scalar override still takes precedence when needed.
+override = auditor.evaluate_metrics(score_name="risk_score", threshold=0.55)
+```
+
+If no default is provided, all observed non-null feature levels must be present in
+`levels`; otherwise evaluation raises a descriptive `ValueError`.
+
 
 ## Threshold Optimization
 

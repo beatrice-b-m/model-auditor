@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from model_auditor import Auditor
+from model_auditor.schemas import ConditionalThreshold
 from model_auditor.metrics import (
     F1Score,
     FNR,
@@ -145,6 +146,57 @@ def test_threshold_override_changes_confusion_counts_and_rates(auditor: Auditor)
     assert _metric(result, "overall", "Overall", "n_fn") == 3
     assert _metric(result, "overall", "Overall", "sensitivity") == pytest.approx(2 / 5)
     assert _metric(result, "overall", "Overall", "precision") == pytest.approx(1 / 2)
+
+
+def test_conditional_threshold_by_group_changes_feature_level_metrics(auditor: Auditor):
+    result = auditor.evaluate_metrics(
+        score_name="score",
+        threshold=ConditionalThreshold(
+            feature="group",
+            levels={"A": 0.15, "B": 0.55},
+        ),
+        n_bootstraps=None,
+    )
+
+    assert _metric(result, "overall", "Overall", "n_tp") == 4
+    assert _metric(result, "overall", "Overall", "n_fn") == 1
+    assert _metric(result, "overall", "Overall", "sensitivity") == pytest.approx(4 / 5)
+    assert _metric(result, "group", "A", "n_tp") == 3
+    assert _metric(result, "group", "A", "n_fn") == 0
+    assert _metric(result, "group", "A", "precision") == pytest.approx(3 / 4)
+
+
+def test_call_time_scalar_threshold_overrides_stored_conditional_threshold(
+    auditor: Auditor,
+):
+    auditor.scores["score"].threshold = ConditionalThreshold(
+        feature="group",
+        levels={"A": 0.15, "B": 0.55},
+    )
+
+    result = auditor.evaluate_metrics(
+        score_name="score",
+        threshold=0.7,
+        n_bootstraps=None,
+    )
+
+    assert _metric(result, "overall", "Overall", "n_tp") == 2
+    assert _metric(result, "overall", "Overall", "n_fn") == 3
+    assert _metric(result, "overall", "Overall", "sensitivity") == pytest.approx(2 / 5)
+
+
+def test_conditional_threshold_requires_default_or_all_levels_mapped(auditor: Auditor):
+    with pytest.raises(ValueError, match="missing mappings for levels") as exc_info:
+        auditor.evaluate_metrics(
+            score_name="score",
+            threshold=ConditionalThreshold(
+                feature="group",
+                levels={"A": 0.5},
+            ),
+            n_bootstraps=None,
+        )
+
+    assert "B" in str(exc_info.value)
 
 
 def test_count_metrics_never_populate_confidence_intervals(auditor: Auditor):

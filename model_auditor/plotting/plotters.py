@@ -9,7 +9,7 @@ import warnings
 from typing import Optional, Union, Callable
 import pandas as pd
 
-from model_auditor.schemas import AuditorScore
+from model_auditor.schemas import AuditorScore, ThresholdSpec
 from model_auditor.plotting.schemas import Hierarchy, HLevel, HItem, PlotterData
 
 
@@ -86,7 +86,7 @@ class HierarchyPlotter:
         self.aggregator = method
 
     def set_score(
-        self, name: str, label: Optional[str] = None, threshold: Optional[float] = None
+        self, name: str, label: Optional[str] = None, threshold: Optional[ThresholdSpec] = None
     ) -> None:
         """Sets the score column used by the plotter
 
@@ -94,7 +94,8 @@ class HierarchyPlotter:
             name (str): Name of the score column
             label (Optional[str], optional): Label of the score column. Defaults to None
             (plot will just use the column name).
-            threshold (Optional[float], optional): Threshold to binarize the score column.
+            threshold (Optional[ThresholdSpec], optional): Scalar or conditional
+            threshold specification used to binarize the score column.
             Defaults to None (currently unused).
         """
         self.score = AuditorScore(

@@ -9,11 +9,19 @@ Example:
 
         from model_auditor import Auditor
         from model_auditor.metrics import Sensitivity, Specificity, AUROC
+        from model_auditor.schemas import ConditionalThreshold
 
         auditor = Auditor()
         auditor.add_data(df)
         auditor.add_feature(name="gender")
-        auditor.add_score(name="prediction_score", threshold=0.5)
+        auditor.add_score(
+            name="prediction_score",
+            threshold=ConditionalThreshold(
+                feature="gender",
+                levels={"Female": 0.45, "Male": 0.55},
+                default=0.50,
+            ),
+        )
         auditor.add_outcome(name="label")
         auditor.set_metrics([Sensitivity(), Specificity(), AUROC()])
         results = auditor.evaluate_metrics(score_name="prediction_score")
