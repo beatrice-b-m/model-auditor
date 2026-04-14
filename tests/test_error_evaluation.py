@@ -119,45 +119,62 @@ def _or(group_count: int, group_total: int, full_count: int, full_total: int) ->
 
 
 class TestEvaluateErrorsStructure:
-    """evaluate_errors() returns the expected container structure."""
+    """evaluate_errors() exposes deterministic, truth-checked structure."""
 
     def test_returns_error_evaluation(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
         assert isinstance(result, ErrorEvaluation)
+        assert set(result.groups.keys()) == {"tp", "tn", "fp", "fn"}
 
     def test_name_and_label(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
         assert result.name == "score"
         assert result.label == "score"
+        female_tp = result.groups["tp"].features["gender"].levels["Female"].metrics["odds_ratio"].score
+        assert female_tp == pytest.approx(2.0)
 
     def test_threshold_stored(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
         assert result.threshold == 0.5
+        overridden = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", threshold=0.6, n_bootstraps=None
+        )
+        assert overridden.threshold == 0.6
 
     def test_all_four_groups_present(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
-        assert set(result.groups.keys()) == {"tp", "tn", "fp", "fn"}
+        support = result.support_data
+        assert support["tp"]["gender"]["Female"]["n"] == 4
+        assert support["tp"]["gender"]["Male"]["n"] == 3
+        assert support["tp"]["gender"]["Other"]["n"] == 1
+        assert support["fn"]["gender"]["Female"]["n"] == 1
+        assert support["tn"]["gender"]["Male"]["n"] == 3
 
     def test_each_group_is_score_evaluation(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
         for group_eval in result.groups.values():
             assert isinstance(group_eval, ScoreEvaluation)
+            assert {"gender", "overall"}.issubset(group_eval.features.keys())
 
     def test_gender_feature_present_in_every_group(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        expected_order = ["Female", "Male", "Other", "Unknown"]
         for group_eval in result.groups.values():
-            assert "gender" in group_eval.features
+            assert list(group_eval.features["gender"].levels.keys()) == expected_order
 
     def test_overall_feature_present_in_every_group(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
-        for group_eval in result.groups.values():
-            assert "overall" in group_eval.features
+        for group in ("tp", "tn", "fp", "fn"):
+            overall_or = result.groups[group].features["overall"].levels["Overall"].metrics[
+                "odds_ratio"
+            ].score
+            assert math.isnan(overall_or)
 
     def test_odds_ratio_metric_present_in_levels(self):
         result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
-        gender = result.groups["tp"].features["gender"]
-        for level_eval in gender.levels.values():
-            assert "odds_ratio" in level_eval.metrics
+        tp_gender = result.groups["tp"].features["gender"]
+        assert tp_gender.levels["Female"].metrics["odds_ratio"].score == pytest.approx(2.0)
+        assert tp_gender.levels["Male"].metrics["odds_ratio"].score == pytest.approx(0.84)
 
 
 # ---------------------------------------------------------------------------

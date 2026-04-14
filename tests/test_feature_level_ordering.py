@@ -162,16 +162,16 @@ class TestUnobservedCategoryPlaceholders:
         group_df = df.loc["group"]
         assert "D" in group_df.index
 
-    def test_observed_categories_are_not_nan(self):
-        """Observed categories A, B, C have finite (non-NaN) metric scores."""
+    def test_observed_categories_have_expected_metric_values(self):
+        """Observed categories have exact known metric values."""
         results = _evaluate()
         feature = results.features["group"]
+
+        expected_n = {"A": 5, "B": 5, "C": 5}
         for cat in ("A", "B", "C"):
             level = feature.levels[cat]
-            for name, lm in level.metrics.items():
-                assert not math.isnan(lm.score), (
-                    f"Metric '{name}' for observed '{cat}' should be finite, got {lm.score}"
-                )
+            assert level.metrics["sensitivity"].score == pytest.approx(1.0)
+            assert level.metrics["n"].score == expected_n[cat]
 
     def test_placeholder_metric_set_matches_observed_levels(self):
         """Placeholder 'D' has the same set of metric names as an observed level."""
@@ -197,14 +197,16 @@ class TestAllCategoriesObserved:
         keys = list(results.features["group"].levels.keys())
         assert keys == CATEGORIES
 
-    def test_no_nan_scores_when_all_observed(self):
+    def test_all_observed_levels_have_expected_values(self):
+        """When D is observed, every level has exact expected metric values."""
         results = _evaluate(include_d=True)
         feature = results.features["group"]
+
+        expected_n = {"A": 5, "B": 5, "C": 5, "D": 4}
         for cat in CATEGORIES:
-            for name, lm in feature.levels[cat].metrics.items():
-                assert not math.isnan(lm.score), (
-                    f"Metric '{name}' for observed '{cat}' should not be NaN"
-                )
+            level = feature.levels[cat]
+            assert level.metrics["sensitivity"].score == pytest.approx(1.0)
+            assert level.metrics["n"].score == expected_n[cat]
 
 
 # ---------------------------------------------------------------------------
@@ -278,14 +280,14 @@ class TestNonCategoricalPreservation:
         results = self._results_string_feature()
         assert set(results.features["group"].levels.keys()) == {"A", "B", "C"}
 
-    def test_non_categorical_metrics_are_finite(self):
-        """All metrics for observed non-categorical levels are finite."""
+    def test_non_categorical_metrics_match_expected_values(self):
+        """Non-categorical feature keeps the same deterministic metric values."""
         results = self._results_string_feature()
+        expected_n = {"A": 5, "B": 5, "C": 5}
         for cat in ("A", "B", "C"):
-            for name, lm in results.features["group"].levels[cat].metrics.items():
-                assert not math.isnan(lm.score), (
-                    f"Non-categorical metric '{name}' for '{cat}' must be finite"
-                )
+            level = results.features["group"].levels[cat]
+            assert level.metrics["sensitivity"].score == pytest.approx(1.0)
+            assert level.metrics["n"].score == expected_n[cat]
 
 
 # ---------------------------------------------------------------------------
