@@ -1062,13 +1062,18 @@ class Auditor:
                     point_estimate = float(np.nanmean(bs))
                     lower, upper = np.nanpercentile(bs, [2.5, 97.5])
                     # np.nanpercentile returns NaN when interpolating between
-                    # two inf values (inf − inf = NaN).  Recover the correct
-                    # bound: if the bootstrap tail contains +inf OR values
-                    # (b*c == 0 in that sample), the true CI bound is +inf.
-                    if np.isnan(upper) and np.any(np.isposinf(bs)):
-                        upper = float("inf")
-                    if np.isnan(lower) and np.any(np.isneginf(bs)):
-                        lower = float("-inf")
+                    # infinities (inf - inf = NaN). Recover the bound from the
+                    # observed sign of infinite bootstrap samples.
+                    if np.isnan(lower):
+                        if np.any(np.isneginf(bs)):
+                            lower = float("-inf")
+                        elif np.any(np.isposinf(bs)):
+                            lower = float("inf")
+                    if np.isnan(upper):
+                        if np.any(np.isposinf(bs)):
+                            upper = float("inf")
+                        elif np.any(np.isneginf(bs)):
+                            upper = float("-inf")
                     lm = feature_eval.levels[level_name].metrics[metric.name]
                     lm.score = point_estimate
                     lm.interval = (float(lower), float(upper))

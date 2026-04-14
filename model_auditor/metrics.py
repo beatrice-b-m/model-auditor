@@ -27,11 +27,17 @@ Example:
                 return (data["tp"].sum() + data["tn"].sum()) / len(data)
 """
 
-from typing import Protocol, Union, Optional
+from typing import Protocol, Union
 import pandas as pd
 import numpy as np
 from sklearn.metrics import average_precision_score, roc_auc_score
 
+
+def _safe_ratio(numerator: float, denominator: float) -> float:
+    """Return a stable ratio, treating zero denominator as 0.0."""
+    if denominator == 0:
+        return 0.0
+    return float(numerator / denominator)
 
 class AuditorMetric(Protocol):
     """Protocol defining the interface for auditor metrics.
@@ -72,19 +78,18 @@ class Sensitivity(AuditorMetric):
     inputs: list[str] = ["tp", "fn"]
     ci_eligible: bool = True
 
-    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
+    def data_call(self, data: pd.DataFrame) -> float:
         """Calculate sensitivity from the data.
 
         Args:
             data: DataFrame with 'tp' and 'fn' columns.
-            eps: Small constant to avoid division by zero.
 
         Returns:
             Sensitivity value between 0 and 1.
         """
         n_tp: int = data["tp"].sum()
         n_fn: int = data["fn"].sum()
-        return n_tp / (n_tp + n_fn + eps)
+        return _safe_ratio(n_tp, n_tp + n_fn)
 
 
 class Specificity(AuditorMetric):
@@ -98,19 +103,18 @@ class Specificity(AuditorMetric):
     inputs: list[str] = ["tn", "fp"]
     ci_eligible: bool = True
 
-    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
+    def data_call(self, data: pd.DataFrame) -> float:
         """Calculate specificity from the data.
 
         Args:
             data: DataFrame with 'tn' and 'fp' columns.
-            eps: Small constant to avoid division by zero.
 
         Returns:
             Specificity value between 0 and 1.
         """
         n_tn: int = data["tn"].sum()
         n_fp: int = data["fp"].sum()
-        return n_tn / (n_tn + n_fp + eps)
+        return _safe_ratio(n_tn, n_tn + n_fp)
 
 
 class Precision(AuditorMetric):
@@ -124,19 +128,18 @@ class Precision(AuditorMetric):
     inputs: list[str] = ["tp", "fp"]
     ci_eligible: bool = True
 
-    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
+    def data_call(self, data: pd.DataFrame) -> float:
         """Calculate precision from the data.
 
         Args:
             data: DataFrame with 'tp' and 'fp' columns.
-            eps: Small constant to avoid division by zero.
 
         Returns:
             Precision value between 0 and 1.
         """
         n_tp: int = data["tp"].sum()
         n_fp: int = data["fp"].sum()
-        return n_tp / (n_tp + n_fp + eps)
+        return _safe_ratio(n_tp, n_tp + n_fp)
 
 
 class Recall(AuditorMetric):
@@ -149,19 +152,18 @@ class Recall(AuditorMetric):
     inputs: list[str] = ["tp", "fn"]
     ci_eligible: bool = True
 
-    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
+    def data_call(self, data: pd.DataFrame) -> float:
         """Calculate recall from the data.
 
         Args:
             data: DataFrame with 'tp' and 'fn' columns.
-            eps: Small constant to avoid division by zero.
 
         Returns:
             Recall value between 0 and 1.
         """
         n_tp: int = data["tp"].sum()
         n_fn: int = data["fn"].sum()
-        return n_tp / (n_tp + n_fn + eps)
+        return _safe_ratio(n_tp, n_tp + n_fn)
 
 
 class F1Score(AuditorMetric):
@@ -175,12 +177,11 @@ class F1Score(AuditorMetric):
     inputs: list[str] = ["tp", "fp", "fn"]
     ci_eligible: bool = True
 
-    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
+    def data_call(self, data: pd.DataFrame) -> float:
         """Calculate F1 score from the data.
 
         Args:
             data: DataFrame with 'tp', 'fp', and 'fn' columns.
-            eps: Small constant to avoid division by zero.
 
         Returns:
             F1 score value between 0 and 1.
@@ -188,7 +189,7 @@ class F1Score(AuditorMetric):
         # Recalculate to avoid dependency on ordering of metrics
         precision = Precision().data_call(data)
         recall = Recall().data_call(data)
-        return 2 * (precision * recall) / (precision + recall + eps)
+        return _safe_ratio(2 * (precision * recall), precision + recall)
 
 
 class AUROC(AuditorMetric):
@@ -255,12 +256,11 @@ class MatthewsCorrelationCoefficient(AuditorMetric):
     inputs: list[str] = ["tp", "tn", "fp", "fn"]
     ci_eligible: bool = True
 
-    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
+    def data_call(self, data: pd.DataFrame) -> float:
         """Calculate MCC from the data.
 
         Args:
             data: DataFrame with 'tp', 'tn', 'fp', and 'fn' columns.
-            eps: Small constant to avoid division by zero.
 
         Returns:
             MCC value between -1 and 1.
@@ -275,7 +275,7 @@ class MatthewsCorrelationCoefficient(AuditorMetric):
 
         if denominator == 0:
             return 0.0
-        return numerator / (denominator + eps)
+        return float(numerator / denominator)
 
 
 class FBetaScore(AuditorMetric):
@@ -313,10 +313,10 @@ class FBetaScore(AuditorMetric):
         recall = Recall().data_call(data)
         beta_sq = self.beta**2
 
-        if precision + recall == 0:
-            return 0.0
-
-        return (1 + beta_sq) * (precision * recall) / ((beta_sq * precision) + recall)
+        return _safe_ratio(
+            (1 + beta_sq) * (precision * recall),
+            (beta_sq * precision) + recall,
+        )
 
 
 class TPR(Sensitivity):
@@ -344,19 +344,18 @@ class FPR(AuditorMetric):
     inputs: list[str] = ["fp", "tn"]
     ci_eligible: bool = True
 
-    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
+    def data_call(self, data: pd.DataFrame) -> float:
         """Calculate FPR from the data.
 
         Args:
             data: DataFrame with 'fp' and 'tn' columns.
-            eps: Small constant to avoid division by zero.
 
         Returns:
             FPR value between 0 and 1.
         """
         n_fp: int = data["fp"].sum()
         n_tn: int = data["tn"].sum()
-        return n_fp / (n_fp + n_tn + eps)
+        return _safe_ratio(n_fp, n_fp + n_tn)
 
 
 class FNR(AuditorMetric):
@@ -370,19 +369,18 @@ class FNR(AuditorMetric):
     inputs: list[str] = ["fn", "tp"]
     ci_eligible: bool = True
 
-    def data_call(self, data: pd.DataFrame, eps: float = 1e-8) -> float:
+    def data_call(self, data: pd.DataFrame) -> float:
         """Calculate FNR from the data.
 
         Args:
             data: DataFrame with 'fn' and 'tp' columns.
-            eps: Small constant to avoid division by zero.
 
         Returns:
             FNR value between 0 and 1.
         """
         n_fn: int = data["fn"].sum()
         n_tp: int = data["tp"].sum()
-        return n_fn / (n_fn + n_tp + eps)
+        return _safe_ratio(n_fn, n_fn + n_tp)
 
 
 class nData(AuditorMetric):
