@@ -31,7 +31,7 @@ The `plotting` extra installs Matplotlib and Plotly; `styling` installs Jinja2. 
 | --- | --- |
 | `core.py` | Public `Auditor` API, configuration, shared input preparation, orchestration |
 | `_thresholds.py` | Scalar/conditional threshold validation and binary predictions |
-| `_evaluation.py` | Subgroup aggregation, category ordering, bootstrap calculations |
+| `_evaluation.py`, `_comparisons.py` | Subgroup aggregation, support, interval policies, shared-resample contrasts |
 | `metrics.py`, `error_metrics.py` | Metric protocols and numerical definitions |
 | `metric_inputs.py`, `utils.py` | Vectorized confusion indicators and input discovery |
 | `schemas.py` | Configuration/result dataclasses and DataFrame exports; public presentation methods delegate |
@@ -47,15 +47,21 @@ Keep numerical evaluation independent of rendering. Internal helpers receive dat
 - `add_data` copies the caller's DataFrame. Evaluations use private slices. Replacing data requires registering the outcome again.
 - Predictions use `score >= threshold`. Call-time thresholds override the configured scalar or `ConditionalThreshold`. Missing conditional levels require a default; null levels also require a default.
 - Evaluation rejects empty data, missing/nonbinary truth, nonfinite scores, duplicate metric names, reserved feature names, and invalid bootstrap counts instead of silently producing misleading results.
-- Noncategorical evaluation levels are sorted after string conversion. Categorical levels follow declared order, including unobserved NaN placeholders. Distribution plots retain first-appearance order for noncategorical levels and omit unobserved categories.
+- Ambiguous string representations of distinct subgroup values are rejected. Missing-feature policy is explicit (`exclude`, `include`, or `error`); exclusions are recorded. Noncategorical evaluation levels are sorted after string conversion. Categorical levels follow declared order, including unobserved NaN placeholders. Distribution plots retain first-appearance order for noncategorical levels and omit unobserved categories.
 - A metric implements `name`, `label`, `inputs`, `ci_eligible`, and `data_call(data)`. Available input columns are `_truth`, `_pred`, `_binary_pred`, and the discovered confusion indicators. Names must be unique. Built-in indicator transforms are vectorized; `row_call` remains available for individual rows and custom implementations.
-- Bootstrap resampling uses pandas sampling and NumPy's global random state. Metric point estimates come from the original sample. Error-analysis point estimates currently use the bootstrap mean when intervals are enabled, including infinite odds ratios from sparse tables. Changing these statistical conventions requires a separate, explicit API decision.
-- Metric DataFrame exports contain formatted strings; error exports contain numeric values and MultiIndex columns. Preserve these contracts unless introducing an explicit alternative. Styling tiers currently infer count/direction metadata from metric names or labels.
+- Point estimates always use the original sample, including enrichment ORs. Undefined ratios return NaN. IID auto inference uses Wilson binomial-rate intervals (or opt-in Clopper-Pearson) and conditional exact OR intervals; other metrics/designs use diagnosed percentile resampling. Degenerate or insufficient bootstrap distributions do not receive intervals. Local random generators, confidence level, resampling unit, and missingness are configured by `InferenceConfig`.
+- Legacy metric DataFrame exports remain formatted strings and error exports numeric/MultiIndex. `to_numeric_dataframe()` adds unrounded long-form results, support, interval diagnostics and provenance. Tables are neutral by default; optional metric ranks use explicit direction metadata within each feature. Enrichment ORs have no performance coloring.
 - `split_classes=True` now overlays histograms using a configured binary outcome. The default is `False`, preserving the previous combined histogram output; the old `True` default was an unimplemented no-op.
-- Youden optimization selects a finite observed threshold, so its output can be passed directly to evaluation. Interval plots skip nonfinite/reversed bounds and can render a point estimate outside its percentile interval.
+- Youden selects a finite observed threshold; target optimization also considers a finite all-negative endpoint when representable. Both require both truth classes and explicitly identify tuning-data performance. Interval plots identify undrawn/undefined levels and can render point estimates outside percentile intervals.
 - Hierarchy custom aggregators receive a whole group DataFrame; string aggregators operate on the score Series.
 
-Add tests for externally observable behavior, mathematical edge cases, and regressions. Compare metric results against hand-computed values or an independent implementation. Avoid tests that merely restate private implementation steps. For bootstrap equivalence, seed NumPy immediately before each calculation or supply controlled resamples in tests.
+Add tests for externally observable behavior, mathematical edge cases, and regressions. Compare metric results against hand-computed values or an independent implementation. Avoid tests that merely restate private implementation steps. Use an explicit local seed for reproducibility. Tests must distinguish formula correctness from interval coverage; `validation/coverage.py` is an opt-in simulation report with Monte Carlo error, interval width and failure rates.
+
+## Statistical scope
+
+The core evaluates fixed binary predictions: ranking, decisions, probability accuracy/calibration, and paired model or reference-group contrasts. Inference is pointwise and conditional on supplied predictions and policies. Cluster resampling changes the sampling unit, not the row-weighted estimand. No training/refitting uncertainty, selection correction, simultaneous testing, survey weights, temporal blocks, multiclass, survival, or causal fairness claims are implied. Reject or document unsupported designs rather than silently treating them as IID.
+
+Changes in this statistical revision intentionally replace zero-denominator zeros, bootstrap-mean ORs, global RNG behavior, and default performance coloring. Preserve public aliases and positional arguments, but update regression tests for these authorized contract changes. `n_bootstraps=None` disables all intervals; positive counts request intervals, with analytic methods avoiding unnecessary resampling. Release these changes with migration notes.
 
 ## Documentation and releases
 

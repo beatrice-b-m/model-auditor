@@ -1,6 +1,6 @@
 # Model Auditor
 
-Audit binary-classification performance across subgroups with stratified metrics, bootstrap confidence intervals, configurable thresholds, error analysis, and visualizations.
+Evaluate fixed binary-model predictions across subgroups: discrimination, decision performance, probability calibration, and paired comparisons, with explicit statistical assumptions and reproducible results.
 
 [Documentation](https://model-auditor-docs.beatricebm.workers.dev) · [PyPI](https://pypi.org/project/model-auditor/) · [Issues](https://github.com/beatrice-b-m/model-auditor/issues)
 
@@ -23,7 +23,7 @@ pip install 'model-auditor[plotting,styling]'
 ```python
 import pandas as pd
 
-from model_auditor import Auditor
+from model_auditor import Auditor, InferenceConfig
 from model_auditor.metrics import AUROC, Sensitivity, Specificity, nData
 
 # Replace this small example with your own observations.
@@ -39,11 +39,17 @@ auditor.add_score(name="risk_score", threshold=0.5)
 auditor.add_outcome(name="outcome")
 auditor.set_metrics([nData(), Sensitivity(), Specificity(), AUROC()])
 
-results = auditor.evaluate_metrics("risk_score", n_bootstraps=None)
-print(results.to_dataframe(metric_labels=True))
+results = auditor.evaluate_metrics(
+    "risk_score", inference=InferenceConfig(random_state=42), cohort="held-out"
+)
+print(results.to_numeric_dataframe())
 ```
 
-Set `n_bootstraps=1000` to estimate 95% confidence intervals for eligible metrics; count metrics do not receive intervals. Results include an overall baseline and each configured subgroup.
+Results include original-sample estimates, denominators, exclusions, and interval diagnostics. Undefined metrics are NaN. IID rates use approximate Wilson intervals (`rate_interval="exact"` selects conservative binomial intervals); enrichment ORs use conditional exact intervals. Other metrics use diagnosed bootstrap intervals. Set `n_bootstraps=None` for descriptive estimates only.
+
+Use `compare_scores()` for paired models, `compare_groups()` for reference-group metric contrasts, `evaluate_calibration()` for probability diagnostics, and `add_intersection()` for joint subgroups. `InferenceConfig(resampling="cluster", cluster="patient_id", random_state=42)` resamples whole subjects while retaining row-weighted estimates.
+
+Intervals are pointwise and condition on fixed predictions and thresholds. Select models/thresholds on separate data; repeated observations require an appropriate sampling unit. Enrichment odds ratios describe confusion-group membership, not class-conditional error-rate disparities or causal fairness. Multiclass, survival, survey-weighted inference, and model-refitting validation are outside this package's current scope.
 
 ## Learn more
 
