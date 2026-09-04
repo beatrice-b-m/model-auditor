@@ -17,3 +17,5 @@ Example:
 """
 
 from model_auditor.plotting.plotters import HierarchyPlotter
+
+__all__ = ["HierarchyPlotter"]

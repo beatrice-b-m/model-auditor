@@ -5,8 +5,8 @@ visualizations, including the plotter data container and hierarchy
 definitions.
 """
 
-from typing import Optional
 from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass
@@ -23,13 +23,21 @@ class PlotterData:
         values: Numeric values (typically counts) for sizing nodes.
         colors: Optional color values for coloring nodes.
     """
+
     labels: list = field(default_factory=list)
     ids: list = field(default_factory=list)
     parents: list = field(default_factory=list)
     values: list = field(default_factory=list)
     colors: list = field(default_factory=list)
 
-    def add(self, label: str, node_id: str, parent: str, value: int, color: Optional[float] = None) -> None:
+    def add(
+        self,
+        label: str,
+        node_id: str,
+        parent: str,
+        value: int,
+        color: Optional[float] = None,
+    ) -> None:
         """Add a node to the plotter data.
 
         Args:

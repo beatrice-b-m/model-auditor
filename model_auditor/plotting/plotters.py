@@ -6,11 +6,12 @@ data.
 """
 
 import warnings
-from typing import Optional, Union, Callable
+from typing import Callable, Optional, Union
+
 import pandas as pd
 
+from model_auditor.plotting.schemas import Hierarchy, HItem, HLevel, PlotterData
 from model_auditor.schemas import AuditorScore, ThresholdSpec
-from model_auditor.plotting.schemas import Hierarchy, HLevel, HItem, PlotterData
 
 
 class HierarchyPlotter:
@@ -25,7 +26,6 @@ class HierarchyPlotter:
         data: DataFrame containing the source data.
         aggregator: Method for aggregating score values (string or callable).
         score: AuditorScore defining the score column.
-        outcome: Optional AuditorOutcome for outcome-based analysis.
 
     Example:
         >>> plotter = HierarchyPlotter()
@@ -34,9 +34,10 @@ class HierarchyPlotter:
         >>> plotter.set_score(name="score_column")
         >>> plot_data = plotter.compile(container="Root")
     """
+
     def __init__(self) -> None:
         """Initialize the HierarchyPlotter with default settings."""
-        self.features: Optional[Hierarchy] = None  # type: ignore
+        self.features: Optional[Hierarchy] = None
         self.data: Optional[pd.DataFrame] = None
         self.aggregator: Union[str, Callable] = "median"
 
@@ -81,12 +82,15 @@ class HierarchyPlotter:
         Args:
             method (Union[str, Callable]): Expects a string corresponding to a
             predefined aggregator for the .agg() pandas method, or a function
-            that takes the score column as a series and outputs some float
+            that takes each group as a DataFrame and returns a numeric value
         """
         self.aggregator = method
 
     def set_score(
-        self, name: str, label: Optional[str] = None, threshold: Optional[ThresholdSpec] = None
+        self,
+        name: str,
+        label: Optional[str] = None,
+        threshold: Optional[ThresholdSpec] = None,
     ) -> None:
         """Sets the score column used by the plotter
 
@@ -113,7 +117,7 @@ class HierarchyPlotter:
             ValueError: If a score has not been set with .set_score() first
 
         Returns:
-            PlotterData: Returns the formatted plotter data TODO: wrap this internally
+            PlotterData: Parallel arrays for hierarchical plotting.
         """
         if self.features is None:
             raise ValueError("Please set features with .set_features() first")
@@ -123,8 +127,8 @@ class HierarchyPlotter:
 
         if self.score is not None:
             if isinstance(self.aggregator, str):
-                container_agg: float = (
-                    datasource[self.score.name].agg(self.aggregator).item()
+                container_agg: float = float(
+                    datasource[self.score.name].agg(self.aggregator)
                 )
             else:
                 container_agg: float = self.aggregator(datasource)
@@ -146,7 +150,6 @@ class HierarchyPlotter:
                 value=len(datasource),
             )
 
-
         return self._recursive_record(
             data=data, datasource=datasource, parent_id=container, idx=0
         )
@@ -165,6 +168,9 @@ class HierarchyPlotter:
         Returns:
             Updated PlotterData with nodes for current and child levels.
         """
+        assert self.features is not None  # validated by compile()
+        if idx >= len(self.features.levels):
+            return data
         level: HLevel = self.features.levels[idx]
         # init a list to track valid features for this level
         level_features: list[HItem] = []
@@ -174,7 +180,7 @@ class HierarchyPlotter:
                 level_features.append(item)
 
             # otherwise, include it if the feature query evaluates to true for the *entire* datasource
-            elif all(datasource.eval(item.query).tolist()): # type: ignore
+            elif all(datasource.eval(item.query).tolist()):  # type: ignore
                 level_features.append(item)
 
         # if this level has only 1 valid item, consider it the feature
@@ -183,17 +189,16 @@ class HierarchyPlotter:
 
         # otherwise, if this level has >1 valid item, concatenate them into a temp derived feature
         elif len(level_features) > 1:
-            datasource.loc[:, '_temp_feature'] = (
-                datasource[[i.name for i in level_features]]
-                    .apply(lambda row: " & ".join(row.values.astype(str)), axis=1)
-            )
+            datasource.loc[:, "_temp_feature"] = datasource[
+                [i.name for i in level_features]
+            ].apply(lambda row: " & ".join(row.values.astype(str)), axis=1)
 
             feature = HItem(name="_temp_feature")
 
         # if this level has 0 valid items, return
         else:
             return data
-            
+
         count_dict: dict[str, int] = (
             datasource.groupby(feature.name, as_index=True, observed=False)
             .size()
@@ -205,22 +210,22 @@ class HierarchyPlotter:
             if not isinstance(self.score, AuditorScore):
                 raise TypeError(f"Expected AuditorScore, got {type(self.score)}")
 
-
             if isinstance(self.aggregator, str):
                 # built-in aggregators
                 agg_dict: dict[str, float] = (
-                    datasource.groupby(feature.name, as_index=True, observed=False)[self.score.name]
+                    datasource.groupby(feature.name, as_index=True, observed=False)[
+                        self.score.name
+                    ]
                     .agg(self.aggregator)
                     .to_dict()
                 )
 
             else:
                 # custom aggregators (pass entire df here instead of just the score series)
-                agg_dict: dict = (
-                    datasource.groupby(feature.name, as_index=True, observed=False)
-                    .apply(self.aggregator)
-                    .to_dict()
-                )
+                agg_dict = {
+                    key: self.aggregator(group)
+                    for key, group in datasource.groupby(feature.name, observed=False)
+                }
 
         # extract the count dict keys to get the levels for the current feature
         feature_levels: list[str] = list(count_dict.keys())
@@ -241,7 +246,7 @@ class HierarchyPlotter:
                     value=count_dict[feature_level],
                     color=agg_dict[feature_level],
                 )
-                
+
             else:
                 data.add(
                     label=feature_level,
@@ -254,7 +259,9 @@ class HierarchyPlotter:
             if idx < (len(self.features.levels) - 1):
                 data = self._recursive_record(
                     data=data,
-                    datasource=datasource.loc[datasource[feature.name] == feature_level, :].copy(),
+                    datasource=datasource.loc[
+                        datasource[feature.name] == feature_level, :
+                    ].copy(),
                     parent_id=id_dict[feature_level],
                     idx=idx + 1,
                 )
