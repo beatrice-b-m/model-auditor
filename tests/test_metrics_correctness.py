@@ -10,17 +10,17 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 from model_auditor.metrics import (
     AUPRC,
     AUROC,
-    F1Score,
-    FBetaScore,
     FNR,
     FPR,
+    TNR,
+    TPR,
+    F1Score,
+    FBetaScore,
     MatthewsCorrelationCoefficient,
     Precision,
     Recall,
     Sensitivity,
     Specificity,
-    TNR,
-    TPR,
     nData,
     nFN,
     nFP,
@@ -29,7 +29,6 @@ from model_auditor.metrics import (
     nTN,
     nTP,
 )
-
 
 TRUTH = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0], dtype=float)
 PRED_BINARY = np.array([1, 1, 1, 0, 0, 1, 0, 0, 0, 0], dtype=float)
@@ -57,19 +56,24 @@ def confusion_df() -> pd.DataFrame:
     )
 
 
-def test_confusion_rate_and_count_metrics_match_known_values(confusion_df: pd.DataFrame):
+def test_confusion_rate_and_count_metrics_match_known_values(
+    confusion_df: pd.DataFrame,
+):
     expected = {
         "sensitivity": TP / (TP + FN),
         "specificity": TN / (TN + FP),
         "precision": TP / (TP + FP),
         "recall": TP / (TP + FN),
         "f1": 2 * TP / ((2 * TP) + FP + FN),
-        "f0_5": (1 + 0.5**2) * ((TP / (TP + FP)) * (TP / (TP + FN))) / ((0.5**2 * (TP / (TP + FP))) + (TP / (TP + FN))),
+        "f0_5": (1 + 0.5**2)
+        * ((TP / (TP + FP)) * (TP / (TP + FN)))
+        / ((0.5**2 * (TP / (TP + FP))) + (TP / (TP + FN))),
         "fpr": FP / (FP + TN),
         "fnr": FN / (FN + TP),
         "tpr": TP / (TP + FN),
         "tnr": TN / (TN + FP),
-        "mcc": ((TP * TN) - (FP * FN)) / math.sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)),
+        "mcc": ((TP * TN) - (FP * FN))
+        / math.sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)),
         "n": N,
         "n_tp": TP,
         "n_tn": TN,
@@ -129,7 +133,10 @@ def test_auroc_returns_nan_for_single_class_truth():
         (Precision(), pd.DataFrame({"tp": [0, 0], "fp": [0, 0]})),
         (Recall(), pd.DataFrame({"tp": [0, 0], "fn": [0, 0]})),
         (F1Score(), pd.DataFrame({"tp": [0, 0], "fp": [0, 0], "fn": [0, 0]})),
-        (FBetaScore(beta=2.0), pd.DataFrame({"tp": [0, 0], "fp": [0, 0], "fn": [0, 0]})),
+        (
+            FBetaScore(beta=2.0),
+            pd.DataFrame({"tp": [0, 0], "fp": [0, 0], "fn": [0, 0]}),
+        ),
         (FPR(), pd.DataFrame({"fp": [0, 0], "tn": [0, 0]})),
         (FNR(), pd.DataFrame({"fn": [0, 0], "tp": [0, 0]})),
         (
@@ -140,3 +147,12 @@ def test_auroc_returns_nan_for_single_class_truth():
 )
 def test_zero_denominator_cases_return_zero(metric, data: pd.DataFrame):
     assert metric.data_call(data) == 0.0
+
+
+def test_mcc_avoids_integer_overflow_for_large_counts():
+    # A balanced classifier with 80% accuracy has MCC = 0.6. The fourth-order
+    # denominator product overflows int64 before taking the square root.
+    data = pd.DataFrame(
+        {"tp": [80_000], "tn": [80_000], "fp": [20_000], "fn": [20_000]}
+    )
+    assert MatthewsCorrelationCoefficient().data_call(data) == pytest.approx(0.6)
