@@ -108,6 +108,8 @@ def _extract_level_counts(
     """
 
     def _count(key: str) -> Optional[int]:
+        if key in leval.support:
+            return leval.support[key]
         lm = leval.metrics.get(key)
         if lm is not None and not pd.isna(lm.score):
             return int(lm.score)
@@ -305,12 +307,32 @@ def plot_metric_intervals(
                 plot_uppers.append(upper)
                 plot_levals.append(leval)
 
+        omitted = []
+        candidates = list(feval.levels.items())
+        if include_overall and overall_leval is not None:
+            candidates.insert(0, ("Overall", overall_leval))
+        for name, level in candidates:
+            lm = level.metrics.get(metric_key)
+            if lm is not None and not _is_plottable_level(lm):
+                reason = (
+                    lm.interval_status
+                    if lm.interval is None
+                    else "unbounded or invalid interval"
+                )
+                omitted.append(f"{name}: {reason}")
         if not plot_names:
-            raise ValueError(
-                f"Feature {fname!r}: no levels have plottable CI data for "
-                f"metric {metric!r}. Ensure n_bootstraps was set during "
-                f"evaluation and the metric is CI-eligible."
+            fig, ax = plt.subplots()
+            ax.axis("off")
+            ax.set_title(f"{feval.label}: {metric_key}")
+            ax.text(
+                0,
+                1,
+                "No estimable intervals\n" + "\n".join(omitted),
+                va="top",
+                transform=ax.transAxes,
             )
+            plots[fname] = (fig, ax)
+            continue
 
         metric_label = _get_metric_display_label(metric_key, feval)
         fig, ax = plt.subplots(figsize=_interval_plot_figsize(len(plot_names)))
@@ -420,7 +442,11 @@ def plot_metric_intervals(
                             fontsize=7,
                         )
 
-        fig.tight_layout()
+        if omitted:
+            fig.text(
+                0.01, 0.01, "Not drawn: " + "; ".join(omitted), fontsize=8, wrap=True
+            )
+        fig.tight_layout(rect=(0, 0.08 if omitted else 0, 1, 1))
         plots[fname] = (fig, ax)
 
     return plots

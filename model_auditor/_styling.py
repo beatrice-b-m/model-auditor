@@ -122,6 +122,10 @@ def _tier_styles(
     count = values.count()
     if not count:
         return [""] * len(values)
+    if values.nunique() == 1:
+        return [
+            "" if pd.isna(v) else f"background-color: {medium_color}" for v in values
+        ]
     percentiles = (values.rank(method="min") - 1) / count
     low, high = (high_color, low_color) if lower_better else (low_color, high_color)
     return [
@@ -140,6 +144,8 @@ def _apply_tier_styling(
     low_color: str = "#f8d7da",
     medium_color: str = "#fff3cd",
     high_color: str = "#d4edda",
+    rank: bool = False,
+    directions: dict[str, str | None] | None = None,
 ) -> pd.io.formats.style.Styler:
     """Apply tier-based coloring to a DataFrame.
 
@@ -155,6 +161,9 @@ def _apply_tier_styling(
     Returns:
         A pandas Styler object with tier-based coloring applied.
     """
+    if not rank:
+        return display_df.style
+
     # Initialize style matrix with all empty strings
     style_df = pd.DataFrame("", index=display_df.index, columns=display_df.columns)
 
@@ -170,11 +179,23 @@ def _apply_tier_styling(
         numeric_values = numeric_df[metric_name]
 
         # Determine if this is a lower-is-better metric
-        lower_better = _is_lower_better_metric(metric_name)
+        direction = (directions or {}).get(metric_name)
+        if direction not in {"higher", "lower"}:
+            continue
+        lower_better = direction == "lower"
 
-        style_df[metric_name] = _tier_styles(
-            numeric_values, lower_better, low_color, medium_color, high_color
-        )
+        if isinstance(numeric_values.index, pd.MultiIndex):
+            # Rank within a feature, never against unrelated grouping variables.
+            styles = numeric_values.groupby(level=0, sort=False).transform(
+                lambda values: _tier_styles(
+                    values, lower_better, low_color, medium_color, high_color
+                )
+            )
+            style_df[metric_name] = styles
+        else:
+            style_df[metric_name] = _tier_styles(
+                numeric_values, lower_better, low_color, medium_color, high_color
+            )
 
     # Create and return the Styler
     return display_df.style.apply(lambda x: style_df, axis=None)
@@ -209,7 +230,6 @@ def style_dataframe(
     or_ci_upper_name = (
         f"OR {confidence:g}% CI Upper" if metric_labels else "odds_ratio_ci_upper"
     )
-    group_order = [g for g in ("tp", "tn", "fp", "fn") if g in evaluation.groups]
 
     # CI bound columns are folded into the OR display string; drop them from
     # the visible output so the table stays narrow.
@@ -218,7 +238,9 @@ def style_dataframe(
 
     # Build display DataFrame (string-formatted, no CI bound columns).
     display_df = pd.DataFrame(
-        index=numeric_df.index, columns=display_cols, dtype=object
+        index=numeric_df.index,
+        columns=pd.MultiIndex.from_tuples(display_cols),
+        dtype=object,
     )
     for col in display_cols:
         section, metric = col
@@ -261,22 +283,4 @@ def style_dataframe(
                 for v in numeric_df[col]
             ]
 
-    # Apply tier colouring to OR columns only.
-    # FP/FN sections use lower_better=True: a higher OR means the subgroup is
-    # over-represented in the error group, which is the worse outcome.
-    #
-    # Build style_df using column-level assignment (df[col] = list) rather than
-    # cell-level .loc assignment to avoid MultiIndex tuple-unpacking issues that
-    # create spurious new columns when the column key is a tuple.
-    style_df = pd.DataFrame("", index=display_df.index, columns=display_df.columns)
-    for group_col in group_order:
-        group_label = group_col.upper()
-        or_key = (group_label, or_col_name)
-        if or_key not in display_df.columns:
-            continue
-        or_values = numeric_df[or_key]
-        lower_better = group_col in ("fp", "fn")
-        style_df[or_key] = _tier_styles(
-            or_values, lower_better, low_color, medium_color, high_color
-        )
-    return display_df.style.apply(lambda x: style_df, axis=None)
+    return display_df.style

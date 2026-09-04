@@ -390,8 +390,8 @@ class TestPlotMetricIntervalsErrors:
         msg = str(exc_info.value)
         assert "sensitivity" in msg
 
-    def test_all_levels_no_ci_raises_value_error(self):
-        """When every level in a feature lacks CI data, raise rather than plot empty."""
+    def test_all_levels_no_ci_are_named_in_placeholder_plot(self):
+        """Groups without estimable intervals remain explicitly visible."""
         feval = _make_feature(
             "sex",
             "Sex",
@@ -401,11 +401,13 @@ class TestPlotMetricIntervalsErrors:
             },
         )
         results = _make_score_eval({"sex": feval})
-        with pytest.raises(ValueError, match="no levels have plottable CI data"):
-            results.plot_metric_intervals("sensitivity")
+        plots = results.plot_metric_intervals("sensitivity")
+        text = " ".join(t.get_text() for t in plots["sex"][1].texts)
+        assert "No estimable intervals" in text
+        assert all(name in text for name in ["M", "F"])
 
-    def test_all_levels_nan_score_raises_value_error(self):
-        """All-NaN scores (all-placeholder feature) must raise, not produce an empty plot."""
+    def test_all_levels_nan_score_are_named_in_placeholder_plot(self):
+        """All-NaN scores retain their labels and diagnostic text."""
         feval = _make_feature(
             "grp",
             "Group",
@@ -415,23 +417,25 @@ class TestPlotMetricIntervalsErrors:
             },
         )
         results = _make_score_eval({"grp": feval})
-        with pytest.raises(ValueError, match="no levels have plottable CI data"):
-            results.plot_metric_intervals("sensitivity")
+        plots = results.plot_metric_intervals("sensitivity")
+        text = " ".join(t.get_text() for t in plots["grp"][1].texts)
+        assert "No estimable intervals" in text
+        assert all(name in text for name in ["A", "B"])
 
     def test_no_plottable_ci_error_message_names_feature(self):
-        """ValueError for no CI data must mention the offending feature name."""
+        """The placeholder plot identifies the feature and affected level."""
         feval = _make_feature(
             "diagnosis",
             "Diagnosis",
             {"pos": _make_level("pos", 0.9, None)},
         )
         results = _make_score_eval({"diagnosis": feval})
-        with pytest.raises(ValueError) as exc_info:
-            results.plot_metric_intervals("sensitivity")
-        assert "diagnosis" in str(exc_info.value)
+        plots = results.plot_metric_intervals("sensitivity")
+        assert "Diagnosis" in plots["diagnosis"][1].get_title()
+        assert "pos" in plots["diagnosis"][1].texts[0].get_text()
 
     def test_first_valid_feature_success_second_no_ci_raises(self):
-        """Error from a later feature must still raise after earlier features succeed."""
+        """A feature without CIs does not prevent rendering other features."""
         results = _make_score_eval(
             {
                 "sex": _make_feature(
@@ -446,8 +450,9 @@ class TestPlotMetricIntervalsErrors:
                 ),
             }
         )
-        with pytest.raises(ValueError, match="no levels have plottable CI data"):
-            results.plot_metric_intervals("sensitivity")
+        plots = results.plot_metric_intervals("sensitivity")
+        assert set(plots) == {"sex", "age"}
+        assert "Y" in plots["age"][1].texts[0].get_text()
 
 
 # ===========================================================================

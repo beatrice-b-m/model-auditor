@@ -928,42 +928,6 @@ class TestStyleDataframe:
 
     # -- FP/FN tier inversion ---------------------------------------------------
 
-    def test_tp_highest_or_gets_green(self):
-        """For TP (higher-is-better): the level with the highest OR gets the green tier.
-
-        Female TP OR = 2.0 (highest in TP column) → should be green (#d4edda).
-        This value is unique in the table so the _cell_styles lookup is unambiguous.
-        """
-        result = _make_auditor(_make_df()).evaluate_errors(
-            score_name="score", n_bootstraps=None
-        )
-        html = _render_html(result.style_dataframe(n_decimals=3))
-        styles = _cell_styles(html)
-        assert "#d4edda" in styles.get("2.000", ""), (
-            "Female TP OR (highest in column) must receive green background (high tier), "
-            f"got CSS: {styles.get('2.000', '<absent>')}"
-        )
-
-    def test_fp_highest_or_does_not_get_green(self):
-        """For FP (lower-is-better): the level with the highest OR must NOT be green.
-
-        Female and Male FP OR = 11/7 ≈ 1.571 (highest in FP column); with
-        inversion they should receive medium (yellow) tier, not high (green).
-        '1.571' is unique in the display table (no other column produces this value).
-        """
-        result = _make_auditor(_make_df()).evaluate_errors(
-            score_name="score", n_bootstraps=None
-        )
-        html = _render_html(result.style_dataframe(n_decimals=3))
-        styles = _cell_styles(html)
-        css = styles.get("1.571", "")
-        assert "#d4edda" not in css, (
-            "Female/Male FP OR (highest in FP column) must NOT be green with inversion, "
-            f"got CSS: {css}"
-        )
-        # Three distinct values [0.0, 1.571, 1.571], percentile for 1.571 = 1/3.
-        # lower_better=True: percentile 1/3 is not < 1/3 but < 2/3 → medium.
-        assert "#fff3cd" in css, (
-            "Female/Male FP OR should be medium (yellow) tier with inversion, "
-            f"got CSS: {css}"
-        )
+    def test_enrichment_has_no_performance_colors(self):
+        result = _make_auditor(_make_df()).evaluate_errors("score", n_bootstraps=None)
+        assert "background-color" not in _render_html(result.style_dataframe())

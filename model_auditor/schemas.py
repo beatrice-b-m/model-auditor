@@ -174,10 +174,12 @@ class LevelEvaluation:
         low_color: str = "#f8d7da",
         medium_color: str = "#fff3cd",
         high_color: str = "#d4edda",
+        rank: bool = False,
     ) -> pd.io.formats.style.Styler:
         """Convert level evaluation to a styled pandas DataFrame for Jupyter display.
 
-        Styles cells based on relative performance tiers within each metric column.
+        Neutral by default. Set rank=True for descriptive within-feature ranks;
+        colors do not express significance, equivalence, or practical importance.
 
         Args:
             n_decimals: Number of decimal places for formatting scores.
@@ -213,6 +215,11 @@ class LevelEvaluation:
             low_color=low_color,
             medium_color=medium_color,
             high_color=high_color,
+            rank=rank,
+            directions={
+                m.label if metric_labels else m.name: m.direction
+                for m in self.metrics.values()
+            },
         )
 
 
@@ -304,10 +311,12 @@ class FeatureEvaluation:
         low_color: str = "#f8d7da",
         medium_color: str = "#fff3cd",
         high_color: str = "#d4edda",
+        rank: bool = False,
     ) -> pd.io.formats.style.Styler:
         """Convert feature evaluation to a styled pandas DataFrame for Jupyter display.
 
-        Styles cells based on relative performance tiers within each metric column.
+        Neutral by default. Set rank=True for descriptive within-feature ranks;
+        colors do not express significance, equivalence, or practical importance.
 
         Args:
             n_decimals: Number of decimal places for formatting scores.
@@ -348,6 +357,12 @@ class FeatureEvaluation:
             low_color=low_color,
             medium_color=medium_color,
             high_color=high_color,
+            rank=rank,
+            directions={
+                m.label if metric_labels else m.name: m.direction
+                for level in self.levels.values()
+                for m in level.metrics.values()
+            },
         )
 
 
@@ -444,10 +459,12 @@ class ScoreEvaluation:
         low_color: str = "#f8d7da",
         medium_color: str = "#fff3cd",
         high_color: str = "#d4edda",
+        rank: bool = False,
     ) -> pd.io.formats.style.Styler:
         """Convert score evaluation to a styled pandas DataFrame for Jupyter display.
 
-        Styles cells based on relative performance tiers within each metric column.
+        Neutral by default. Set rank=True for descriptive within-feature ranks;
+        colors do not express significance, equivalence, or practical importance.
 
         Args:
             n_decimals: Number of decimal places for formatting scores.
@@ -489,6 +506,13 @@ class ScoreEvaluation:
             low_color=low_color,
             medium_color=medium_color,
             high_color=high_color,
+            rank=rank,
+            directions={
+                m.label if metric_labels else m.name: m.direction
+                for feature in self.features.values()
+                for level in feature.levels.values()
+                for m in level.metrics.values()
+            },
         )
 
     def plot_metric_intervals(
@@ -841,7 +865,7 @@ class ErrorEvaluation:
     ) -> pd.io.formats.style.Styler:
         """Convert error evaluation to a styled pandas DataFrame for Jupyter display.
 
-        Applies tier-based background colouring to the odds-ratio columns of the
+        Uses neutral formatting for enrichment odds ratios in the
         wide cross-group table.  Several key behaviours differ from the raw numeric
         output of to_dataframe():
 
@@ -851,10 +875,7 @@ class ErrorEvaluation:
             '\u2014'                     — when OR is NaN (Overall/Overall row)
         - CI bound columns are omitted from the styled output; they are folded
           into the OR cell text, making the table narrower and self-contained.
-        - Tier colouring is inverted for FP/FN sections: a high OR in a false
-          group indicates over-representation in errors (worse), so the high-OR
-          cell gets the low (red) colour.  TP/TN sections use the default
-          higher-is-better mapping.
+        - Enrichment has no universal better/worse direction; cells are neutral.
 
         Args:
             n_decimals: Decimal places used when formatting float cells.
@@ -866,9 +887,8 @@ class ErrorEvaluation:
             high_color: Background colour for high odds-ratio tier.
 
         Returns:
-            A pandas Styler with tier-based colouring applied to odds-ratio
-            point-estimate columns.  Count, percentage, and CI cells are
-            formatted but not coloured.
+            A neutrally formatted pandas Styler. Enrichment has no universal
+            performance direction.
         """
         from model_auditor._styling import style_dataframe
 

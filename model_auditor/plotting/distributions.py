@@ -71,6 +71,9 @@ def plot_score_distributions(
     plots: dict[str, tuple] = {}
 
     for fname in selected_features:
+        from model_auditor._evaluation import _prepare_feature_data
+
+        _prepare_feature_data(auditor.data, fname)
         feature = auditor.features[fname]
         feature_label = feature.label if feature.label is not None else feature.name
         feature_col = feature.name
@@ -139,6 +142,23 @@ def plot_score_distributions(
                     level_rows[score.name], bins=bin_edges, density=density, zorder=2
                 )
 
+            positive_n = (
+                int((level_rows["_truth"] == 1).sum())
+                if "_truth" in level_rows
+                else None
+            )
+            counts = f"N={len(level_rows)}" + (
+                f", positive={positive_n}" if positive_n is not None else ""
+            )
+            ax.text(
+                0.99,
+                0.95,
+                counts,
+                ha="right",
+                va="top",
+                transform=ax.transAxes,
+                fontsize=8,
+            )
             # Style: grid behind bars, no y-ticks, level label at left,
             # minimal spine set.
             ax.xaxis.grid(True, zorder=0)
@@ -151,7 +171,16 @@ def plot_score_distributions(
 
         axes[-1].set_xlabel(score_label)
         fig.suptitle(f"{feature_label}: {score_label}")
-        fig.tight_layout()
+        normalization = (
+            "Density normalized within each class"
+            if density and split_classes
+            else "Density normalized within each level"
+            if density
+            else "Counts; panel vertical scales differ"
+        )
+        excluded = len(auditor.data) - len(feature_slice)
+        fig.text(0.01, 0.01, f"{normalization}; excluded rows: {excluded}", fontsize=8)
+        fig.tight_layout(rect=(0, 0.04, 1, 1))
 
         plots[fname] = (fig, axes)
 

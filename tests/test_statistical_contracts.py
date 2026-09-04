@@ -247,6 +247,12 @@ def test_new_rate_and_parameter_validation():
             FBetaScore(value)
 
 
+def test_neutral_default_and_unknown_custom_direction():
+    a = make_auditor(pd.DataFrame({"y": [1, 0], "s": [0.9, 0.1]}))
+    result = a.evaluate_metrics("s", n_bootstraps=None)
+    assert "background-color" not in result.style_dataframe().to_html()
+
+
 def test_intersections_preserve_missingness_and_component_boundaries():
     df = pd.DataFrame(
         {
@@ -321,6 +327,19 @@ def test_explicit_stratification_and_degeneracy_diagnostics():
     assert m.interval is None and m.interval_status == "degenerate_distribution"
 
 
+def test_error_confidence_labels_follow_configuration():
+    df = pd.DataFrame(
+        {"g": ["A", "A", "B", "B"], "y": [0] * 4, "s": [0.9, 0.1, 0.9, 0.1]}
+    )
+    result = make_auditor(df).evaluate_errors(
+        "s", inference=InferenceConfig(confidence_level=0.9)
+    )
+    assert ("FP", "OR 90% CI Lower") in result.to_dataframe(metric_labels=True)
+    styled = result.style_dataframe(metric_labels=True).data
+    assert ("FP", "OR 90% CI Lower") not in styled
+    assert "(" in styled.loc[("g", "A"), ("FP", "Odds Ratio")]
+
+
 def test_bootstrap_option_retains_sparse_point_estimate_and_exposes_failures():
     df = pd.DataFrame(
         {"g": ["A", "A", "B", "B"], "y": [0] * 4, "s": [0.9, 0.1, 0.9, 0.1]}
@@ -351,6 +370,23 @@ def test_custom_error_metric_is_available_in_generic_export():
         (frame.feature == "g") & (frame.level == "A") & (frame.confusion_group == "fp")
     ].iloc[0]
     assert row.score == "s" and row.metric == "group_fraction" and row.estimate == 0.5
+
+
+def test_perfect_rank_ties_receive_neutral_color_when_ranking_is_requested():
+    from model_auditor.schemas import FeatureEvaluation, LevelEvaluation, LevelMetric
+
+    result = FeatureEvaluation("g", "g")
+    for name in ["A", "B", "C"]:
+        result.levels[name] = LevelEvaluation(
+            name,
+            metrics={
+                "sensitivity": LevelMetric(
+                    "sensitivity", "Sensitivity", 1.0, direction="higher"
+                )
+            },
+        )
+    html = result.style_dataframe(rank=True).to_html()
+    assert "#fff3cd" in html and "#f8d7da" not in html and "#d4edda" not in html
 
 
 def test_exact_binomial_option_handles_all_successes():

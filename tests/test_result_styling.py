@@ -86,7 +86,10 @@ def _make_feature(metric_name: str, scores: dict[str, float]) -> FeatureEvaluati
     for level_name, score in scores.items():
         level = LevelEvaluation(name=level_name)
         level.metrics[metric_name] = LevelMetric(
-            name=metric_name, label=metric_name.upper(), score=score
+            name=metric_name,
+            label=metric_name.upper(),
+            score=score,
+            direction="lower" if metric_name in {"fpr", "fnr"} else "higher",
         )
         feature.levels[level_name] = level
     return feature
@@ -216,7 +219,9 @@ class TestStylingCSS:
     def test_count_only_no_styling_by_default(self):
         """A feature with only count metric produces NO background-color by default."""
         feature = _make_feature("N", {"a": 100.0, "b": 200.0, "c": 300.0})
-        html = _render_html(feature.style_dataframe(include_count_metrics=False))
+        html = _render_html(
+            feature.style_dataframe(rank=True, include_count_metrics=False)
+        )
         assert "background-color" not in html, (
             "count-only column should have no background-color by default"
         )
@@ -224,7 +229,9 @@ class TestStylingCSS:
     def test_count_styled_when_flag_set(self):
         """With include_count_metrics=True, count column receives background-color."""
         feature = _make_feature("N", {"a": 100.0, "b": 200.0, "c": 300.0})
-        html = _render_html(feature.style_dataframe(include_count_metrics=True))
+        html = _render_html(
+            feature.style_dataframe(rank=True, include_count_metrics=True)
+        )
         assert "background-color" in html, (
             "count column should be styled when include_count_metrics=True"
         )
@@ -234,7 +241,9 @@ class TestStylingCSS:
     def test_fpr_styled_by_default(self):
         """fpr is a performance metric and must be styled even with include_count_metrics=False."""
         feature = _make_feature("fpr", {"best": 0.10, "mid": 0.50, "worst": 0.90})
-        html = _render_html(feature.style_dataframe(include_count_metrics=False))
+        html = _render_html(
+            feature.style_dataframe(rank=True, include_count_metrics=False)
+        )
         assert "background-color" in html, (
             "fpr should be styled by default (not a count metric)"
         )
@@ -242,19 +251,25 @@ class TestStylingCSS:
     def test_fnr_styled_by_default(self):
         """fnr is a performance metric and must be styled by default."""
         feature = _make_feature("fnr", {"best": 0.10, "mid": 0.50, "worst": 0.90})
-        html = _render_html(feature.style_dataframe(include_count_metrics=False))
+        html = _render_html(
+            feature.style_dataframe(rank=True, include_count_metrics=False)
+        )
         assert "background-color" in html
 
     def test_tpr_styled_by_default(self):
         """tpr is a performance metric and must be styled by default."""
         feature = _make_feature("tpr", {"low": 0.70, "mid": 0.80, "high": 0.90})
-        html = _render_html(feature.style_dataframe(include_count_metrics=False))
+        html = _render_html(
+            feature.style_dataframe(rank=True, include_count_metrics=False)
+        )
         assert "background-color" in html
 
     def test_tnr_styled_by_default(self):
         """tnr is a performance metric and must be styled by default."""
         feature = _make_feature("tnr", {"low": 0.70, "mid": 0.80, "high": 0.90})
-        html = _render_html(feature.style_dataframe(include_count_metrics=False))
+        html = _render_html(
+            feature.style_dataframe(rank=True, include_count_metrics=False)
+        )
         assert "background-color" in html
 
     # -- lower-is-better inversion ------------------------------------------
@@ -262,7 +277,9 @@ class TestStylingCSS:
     def test_fpr_lower_better_inversion(self):
         """Low fpr (good performance) → high tier (green); high fpr (bad) → low tier (red)."""
         feature = _make_feature("fpr", {"best": 0.10, "mid": 0.50, "worst": 0.90})
-        styler = feature.style_dataframe()
+        styler = feature.style_dataframe(
+            rank=True,
+        )
         html = _render_html(styler)
         cells = _parse_cell_styles(html)
 
@@ -276,7 +293,11 @@ class TestStylingCSS:
     def test_fnr_lower_better_inversion(self):
         """Low fnr (good performance) → high tier (green); high fnr (bad) → low tier (red)."""
         feature = _make_feature("fnr", {"best": 0.10, "mid": 0.50, "worst": 0.90})
-        html = _render_html(feature.style_dataframe())
+        html = _render_html(
+            feature.style_dataframe(
+                rank=True,
+            )
+        )
         cells = _parse_cell_styles(html)
 
         assert HIGH_COLOR in cells.get("0.100", ""), (
@@ -289,7 +310,11 @@ class TestStylingCSS:
     def test_accuracy_higher_better_normal(self):
         """High accuracy → high tier (green); low accuracy → low tier (red)."""
         feature = _make_feature("accuracy", {"low": 0.70, "mid": 0.80, "high": 0.90})
-        html = _render_html(feature.style_dataframe())
+        html = _render_html(
+            feature.style_dataframe(
+                rank=True,
+            )
+        )
         cells = _parse_cell_styles(html)
 
         assert HIGH_COLOR in cells.get("0.900", ""), (
@@ -311,12 +336,16 @@ class TestStylingCSS:
             ("c", 0.90, 300),
         ]:
             level = LevelEvaluation(name=level_name)
-            level.metrics["fpr"] = LevelMetric(name="fpr", label="FPR", score=fpr_val)
-            level.metrics["N"] = LevelMetric(name="N", label="N", score=n_val)
+            level.metrics["fpr"] = LevelMetric(
+                name="fpr", label="FPR", score=fpr_val, direction="lower"
+            )
+            level.metrics["N"] = LevelMetric(
+                name="N", label="N", score=n_val, direction="higher"
+            )
             feature.levels[level_name] = level
 
         html_default = _render_html(
-            feature.style_dataframe(include_count_metrics=False)
+            feature.style_dataframe(rank=True, include_count_metrics=False)
         )
         # fpr column is styled → background-color must appear
         assert "background-color" in html_default
@@ -338,12 +367,16 @@ class TestStylingCSS:
             ("c", 0.90, 300),
         ]:
             level = LevelEvaluation(name=level_name)
-            level.metrics["fpr"] = LevelMetric(name="fpr", label="FPR", score=fpr_val)
-            level.metrics["N"] = LevelMetric(name="N", label="N", score=n_val)
+            level.metrics["fpr"] = LevelMetric(
+                name="fpr", label="FPR", score=fpr_val, direction="lower"
+            )
+            level.metrics["N"] = LevelMetric(
+                name="N", label="N", score=n_val, direction="higher"
+            )
             feature.levels[level_name] = level
 
         cells = _parse_cell_styles(
-            _render_html(feature.style_dataframe(include_count_metrics=True))
+            _render_html(feature.style_dataframe(rank=True, include_count_metrics=True))
         )
         # At least one N cell should have a background-color
         n_styled = [cells.get(k, "") for k in ("100", "200", "300")]
@@ -356,7 +389,11 @@ class TestStylingCSS:
     def test_tie_stability_all_equal_values(self):
         """All levels with same metric value must not crash, and all get the same tier."""
         feature = _make_feature("accuracy", {"a": 0.85, "b": 0.85, "c": 0.85})
-        html = _render_html(feature.style_dataframe())
+        html = _render_html(
+            feature.style_dataframe(
+                rank=True,
+            )
+        )
         # Three rows all display "0.850".  The dict will have one entry (last wins).
         # What matters: no exception and the result is a non-empty string.
         assert isinstance(html, str)
@@ -364,13 +401,21 @@ class TestStylingCSS:
     def test_single_level_does_not_crash(self):
         """Single-row feature (nothing to rank against) must not crash."""
         feature = _make_feature("accuracy", {"only_level": 0.85})
-        html = _render_html(feature.style_dataframe())
+        html = _render_html(
+            feature.style_dataframe(
+                rank=True,
+            )
+        )
         assert isinstance(html, str)
 
     def test_all_nan_does_not_crash(self):
         """All-NaN values in a column must not crash and produce no coloring."""
         feature = _make_feature("accuracy", {"a": float("nan"), "b": float("nan")})
-        html = _render_html(feature.style_dataframe())
+        html = _render_html(
+            feature.style_dataframe(
+                rank=True,
+            )
+        )
         assert isinstance(html, str)
 
     # -- custom colors -------------------------------------------------------
@@ -380,6 +425,7 @@ class TestStylingCSS:
         feature = _make_feature("accuracy", {"low": 0.70, "mid": 0.80, "high": 0.90})
         html = _render_html(
             feature.style_dataframe(
+                rank=True,
                 low_color="#aa0000",
                 medium_color="#aaaa00",
                 high_color="#00aa00",
@@ -391,16 +437,22 @@ class TestStylingCSS:
     # -- ScoreEvaluation end-to-end -----------------------------------------
 
     def test_score_evaluation_fpr_styled(self):
-        """ScoreEvaluation.style_dataframe() correctly styles fpr by default."""
+        """ScoreEvaluation.style_dataframe(rank=True, ) correctly styles fpr by default."""
         score = ScoreEvaluation(name="risk_score", label="Risk Score")
         feature = FeatureEvaluation(name="gender", label="Gender")
         for level_name, fpr_val in [("male", 0.10), ("female", 0.40)]:
             level = LevelEvaluation(name=level_name)
-            level.metrics["fpr"] = LevelMetric(name="fpr", label="FPR", score=fpr_val)
+            level.metrics["fpr"] = LevelMetric(
+                name="fpr", label="FPR", score=fpr_val, direction="lower"
+            )
             feature.levels[level_name] = level
         score.features["gender"] = feature
 
-        html = _render_html(score.style_dataframe())
+        html = _render_html(
+            score.style_dataframe(
+                rank=True,
+            )
+        )
         assert "background-color" in html
 
     def test_score_evaluation_count_excluded_by_default(self):
@@ -409,11 +461,15 @@ class TestStylingCSS:
         feature = FeatureEvaluation(name="gender", label="Gender")
         for level_name, n_val in [("male", 100.0), ("female", 120.0)]:
             level = LevelEvaluation(name=level_name)
-            level.metrics["N"] = LevelMetric(name="N", label="N", score=n_val)
+            level.metrics["N"] = LevelMetric(
+                name="N", label="N", score=n_val, direction="higher"
+            )
             feature.levels[level_name] = level
         score.features["gender"] = feature
 
-        html = _render_html(score.style_dataframe(include_count_metrics=False))
+        html = _render_html(
+            score.style_dataframe(rank=True, include_count_metrics=False)
+        )
         assert "background-color" not in html
 
 
@@ -423,14 +479,16 @@ class TestStylingCSS:
 
 
 class TestLevelEvaluationStyling:
-    """Tests for LevelEvaluation.style_dataframe()."""
+    """Tests for LevelEvaluation.style_dataframe(rank=True, )."""
 
     def test_returns_styler_object(self):
         level = LevelEvaluation(name="test_level")
         level.metrics["accuracy"] = LevelMetric(
             name="accuracy", label="Accuracy", score=0.85
         )
-        result = level.style_dataframe()
+        result = level.style_dataframe(
+            rank=True,
+        )
         assert isinstance(result, pd.io.formats.style.Styler)
 
     def test_metric_labels_parameter(self):
@@ -439,8 +497,8 @@ class TestLevelEvaluationStyling:
         level.metrics["accuracy"] = LevelMetric(
             name="accuracy", label="Accuracy", score=0.85
         )
-        styler_name = level.style_dataframe(metric_labels=False)
-        styler_label = level.style_dataframe(metric_labels=True)
+        styler_name = level.style_dataframe(rank=True, metric_labels=False)
+        styler_label = level.style_dataframe(rank=True, metric_labels=True)
         assert "accuracy" in styler_name.columns
         assert "Accuracy" in styler_label.columns
 
@@ -450,7 +508,11 @@ class TestLevelEvaluationStyling:
         level.metrics["accuracy"] = LevelMetric(
             name="accuracy", label="Accuracy", score=0.85, interval=(0.80, 0.90)
         )
-        html = _render_html(level.style_dataframe())
+        html = _render_html(
+            level.style_dataframe(
+                rank=True,
+            )
+        )
         assert "0.800" in html and "0.900" in html
 
 
@@ -460,7 +522,7 @@ class TestLevelEvaluationStyling:
 
 
 class TestFeatureEvaluationStyling:
-    """Tests for FeatureEvaluation.style_dataframe()."""
+    """Tests for FeatureEvaluation.style_dataframe(rank=True, )."""
 
     def test_returns_styler_object(self):
         feature = FeatureEvaluation(name="gender", label="Gender")
@@ -470,12 +532,21 @@ class TestFeatureEvaluationStyling:
                 name="accuracy", label="Accuracy", score=score
             )
             feature.levels[level_name] = level
-        assert isinstance(feature.style_dataframe(), pd.io.formats.style.Styler)
+        assert isinstance(
+            feature.style_dataframe(
+                rank=True,
+            ),
+            pd.io.formats.style.Styler,
+        )
 
     def test_relative_ranking_across_levels(self):
         """Three levels with distinct accuracy produce all three tiers."""
         feature = _make_feature("accuracy", {"low": 0.70, "mid": 0.80, "high": 0.90})
-        html = _render_html(feature.style_dataframe())
+        html = _render_html(
+            feature.style_dataframe(
+                rank=True,
+            )
+        )
         assert HIGH_COLOR in html
         assert MED_COLOR in html
         assert LOW_COLOR in html
@@ -487,7 +558,7 @@ class TestFeatureEvaluationStyling:
 
 
 class TestScoreEvaluationStyling:
-    """Tests for ScoreEvaluation.style_dataframe()."""
+    """Tests for ScoreEvaluation.style_dataframe(rank=True, )."""
 
     def test_returns_styler_object(self):
         score = ScoreEvaluation(name="risk_score", label="Risk Score")
@@ -498,7 +569,12 @@ class TestScoreEvaluationStyling:
         )
         feature.levels["male"] = level
         score.features["gender"] = feature
-        assert isinstance(score.style_dataframe(), pd.io.formats.style.Styler)
+        assert isinstance(
+            score.style_dataframe(
+                rank=True,
+            ),
+            pd.io.formats.style.Styler,
+        )
 
     def test_multiple_features_styled(self):
         """Styling spans all features/levels in a ScoreEvaluation."""
@@ -511,7 +587,11 @@ class TestScoreEvaluationStyling:
             )
             feature.levels["grp"] = level
             score.features[feat_name] = feature
-        html = _render_html(score.style_dataframe())
+        html = _render_html(
+            score.style_dataframe(
+                rank=True,
+            )
+        )
         assert isinstance(html, str)
 
 
