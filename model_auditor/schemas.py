@@ -8,11 +8,65 @@ associated metrics at various levels of aggregation.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union
 
+import numpy as np
 import pandas as pd
 
 from model_auditor._styling import _apply_tier_styling
+
+
+@dataclass(frozen=True)
+class InferenceConfig:
+    """Inference for fixed binary predictions, with pointwise intervals.
+
+    ``auto`` uses Wilson intervals for IID binomial rates and conditional exact
+    intervals for IID odds ratios; other statistics use percentile resampling.
+    Set rate_interval="exact" for conservative Clopper-Pearson binomial intervals
+    instead of approximate Wilson coverage, especially with very small counts.
+    Cluster resampling preserves whole subjects, with row-weighted estimates.
+    Stratification conditions on observed class counts. Neither design refits
+    models or corrects data-driven threshold/subgroup selection. A seed creates
+    a local generator; NumPy's global random state is never consumed.
+    """
+
+    confidence_level: float = 0.95
+    method: Literal["auto", "bootstrap"] = "auto"
+    rate_interval: Literal["wilson", "exact"] = "wilson"
+    resampling: Literal["iid", "stratified", "cluster"] = "iid"
+    cluster: Optional[str] = None
+    random_state: Optional[int] = None
+    missing: Literal["exclude", "include", "error"] = "exclude"
+    min_valid_fraction: float = 0.95
+    min_resamples: int = 100
+
+    def __post_init__(self) -> None:
+        if not np.isfinite(self.confidence_level) or not 0 < self.confidence_level < 1:
+            raise ValueError("confidence_level must be between 0 and 1.")
+        if self.rate_interval not in {"wilson", "exact"}:
+            raise ValueError("rate_interval must be wilson or exact.")
+        if self.method not in {"auto", "bootstrap"}:
+            raise ValueError("method must be auto or bootstrap.")
+        if self.resampling not in {"iid", "stratified", "cluster"}:
+            raise ValueError("resampling must be iid, stratified, or cluster.")
+        if (self.resampling == "cluster") != (self.cluster is not None):
+            raise ValueError("Supply cluster only with cluster resampling.")
+        if self.missing not in {"exclude", "include", "error"}:
+            raise ValueError("missing must be exclude, include, or error.")
+        if not 0 < self.min_valid_fraction <= 1:
+            raise ValueError("min_valid_fraction must be in (0, 1].")
+        if (
+            isinstance(self.min_resamples, bool)
+            or not isinstance(self.min_resamples, int)
+            or self.min_resamples < 2
+        ):
+            raise ValueError("min_resamples must be an integer >= 2.")
+        if self.random_state is not None and (
+            isinstance(self.random_state, bool)
+            or not isinstance(self.random_state, int)
+            or self.random_state < 0
+        ):
+            raise ValueError("random_state must be a nonnegative integer or None.")
 
 
 @dataclass
@@ -32,6 +86,15 @@ class LevelMetric:
     label: str
     score: Union[float, int]
     interval: Optional[tuple[float, float]] = None
+    status: str = "ok"
+    interval_status: str = "not_requested"
+    interval_method: Optional[str] = None
+    denominator: Optional[int] = None
+    valid_resamples: int = 0
+    requested_resamples: int = 0
+    nonfinite_resamples: int = 0
+    direction: Optional[str] = None
+    parameters: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -48,6 +111,7 @@ class LevelEvaluation:
 
     name: str
     metrics: dict[str, LevelMetric] = field(default_factory=dict)
+    support: dict[str, int] = field(default_factory=dict)
 
     def update(self, metric_name: str, metric_label: str, metric_score: float) -> None:
         """Add or update a metric for this level.
@@ -168,6 +232,8 @@ class FeatureEvaluation:
     name: str
     label: str
     levels: dict[str, LevelEvaluation] = field(default_factory=dict)
+    excluded_n: int = 0
+    total_n: int = 0
 
     def update(
         self, metric_name: str, metric_label: str, data: dict[str, float]
@@ -301,6 +367,50 @@ class ScoreEvaluation:
     name: str
     label: str
     features: dict[str, FeatureEvaluation] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_numeric_dataframe(self) -> pd.DataFrame:
+        """Unrounded long-form results, support, diagnostics, and stable IDs.
+
+        Evaluation provenance is copied into ``frame.attrs["metadata"]``.
+        Intervals are pointwise, conditional on the supplied predictions.
+        """
+        from copy import deepcopy
+
+        rows = []
+        for feature in self.features.values():
+            for level in feature.levels.values():
+                for metric in level.metrics.values():
+                    rows.append(
+                        {
+                            "score": self.name,
+                            "feature": feature.name,
+                            "level": level.name,
+                            "metric": metric.name,
+                            "estimate": metric.score,
+                            "lower": metric.interval[0]
+                            if metric.interval
+                            else float("nan"),
+                            "upper": metric.interval[1]
+                            if metric.interval
+                            else float("nan"),
+                            "status": metric.status,
+                            "interval_status": metric.interval_status,
+                            "interval_method": metric.interval_method,
+                            "denominator": metric.denominator,
+                            "requested_resamples": metric.requested_resamples,
+                            "valid_resamples": metric.valid_resamples,
+                            "nonfinite_resamples": metric.nonfinite_resamples,
+                            "direction": metric.direction,
+                            "parameters": deepcopy(metric.parameters),
+                            "excluded_n": feature.excluded_n,
+                            "total_n": feature.total_n,
+                            **level.support,
+                        }
+                    )
+        frame = pd.DataFrame(rows)
+        frame.attrs["metadata"] = deepcopy(self.metadata)
+        return frame
 
     def to_dataframe(
         self, n_decimals: int = 3, add_index: bool = False, metric_labels: bool = False
@@ -403,7 +513,8 @@ class ScoreEvaluation:
         rendered as its own subplot.
 
         Levels without plottable CI data (nonfinite score, missing interval,
-        nonfinite bounds, or reversed bounds) are silently excluded from that feature's plot.
+        nonfinite bounds, or reversed bounds) are explicitly listed with their
+        status rather than silently disappearing.
 
         Args:
             metric: Metric to plot.  Matched first by exact name, then by
@@ -437,9 +548,8 @@ class ScoreEvaluation:
             ImportError: If matplotlib is not installed.
             ValueError: If ``self.features`` is empty, ``feature_names``
                 contains unknown names, no plottable features remain after
-                filtering ``"overall"``, the metric is not found in any
-                selected feature, or a selected feature has no levels with
-                plottable CI data.
+                filtering ``"overall"``, or the metric is not found in any
+                selected feature.
         """
         from model_auditor.plotting.intervals import plot_metric_intervals
 
@@ -543,11 +653,26 @@ class ErrorEvaluation:
     threshold: ThresholdSpec
     groups: dict[str, ScoreEvaluation] = field(default_factory=dict)
     global_total_n: int = 0
+    metadata: dict[str, Any] = field(default_factory=dict)
     # Sidecar support counts: {group_col: {feature_name: {level_name: {"n": int, "pct_overall": float, "pct_group": float}}}}
     # Used by to_dataframe() to compute class balance, overall N, and %-of-group metrics.
     support_data: dict[str, dict[str, dict[str, dict[str, float]]]] = field(
         default_factory=dict
     )
+
+    def to_numeric_dataframe(self) -> pd.DataFrame:
+        """Long-form enrichment estimates and diagnostics; not error-rate contrasts."""
+        from copy import deepcopy
+
+        frames = []
+        for group, evaluation in self.groups.items():
+            frame = evaluation.to_numeric_dataframe()
+            frame["score"] = self.name
+            frame["confusion_group"] = group
+            frames.append(frame)
+        result = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        result.attrs["metadata"] = deepcopy(self.metadata)
+        return result
 
     def to_dataframe(
         self, n_decimals: int = 3, metric_labels: bool = False
@@ -569,18 +694,19 @@ class ErrorEvaluation:
           - For each group in TP/TN/FP/FN:
             - (GROUP, "N")                     : rows in this group at this level
             - (GROUP, "% overall")             : group N / global_total_n
-            - (GROUP, "% group")              : group N / total rows in that group
+            - (GROUP, "% group")              : group N / retained rows in that group
+                                                after the feature missingness policy
             - (GROUP, or_col_name)            : odds ratio (NaN for overall/Overall
                                                row — OR is undefined when all rows
                                                belong to the level)
-            - (GROUP, or_ci_lower_name)       : bootstrap 95% CI lower bound for OR
-            - (GROUP, or_ci_upper_name)       : bootstrap 95% CI upper bound for OR
+            - (GROUP, or_ci_lower_name)       : CI lower bound for OR (see metadata for level/method)
+            - (GROUP, or_ci_upper_name)       : CI upper bound for OR
                                                (NaN when n_bootstraps was None)
 
         Args:
             n_decimals: Ignored; kept for API compatibility. Output is always numeric.
-            metric_labels: If True, use "Odds Ratio" / "OR 95% CI Lower" /
-                "OR 95% CI Upper" as column names; else use the machine-readable
+            metric_labels: If True, use "Odds Ratio" and CI labels containing
+                the configured confidence level; else use the machine-readable
                 "odds_ratio" / "odds_ratio_ci_lower" / "odds_ratio_ci_upper".
 
 
@@ -592,8 +718,15 @@ class ErrorEvaluation:
             return pd.DataFrame()
 
         or_col_name = "Odds Ratio" if metric_labels else "odds_ratio"
-        or_ci_lower_name = "OR 95% CI Lower" if metric_labels else "odds_ratio_ci_lower"
-        or_ci_upper_name = "OR 95% CI Upper" if metric_labels else "odds_ratio_ci_upper"
+        confidence = 100 * self.metadata.get("inference", {}).get(
+            "confidence_level", 0.95
+        )
+        or_ci_lower_name = (
+            f"OR {confidence:g}% CI Lower" if metric_labels else "odds_ratio_ci_lower"
+        )
+        or_ci_upper_name = (
+            f"OR {confidence:g}% CI Upper" if metric_labels else "odds_ratio_ci_upper"
+        )
         group_order = [g for g in ("tp", "tn", "fp", "fn") if g in self.groups]
 
         # Use the first group's feature ordering to determine all (feature, level) rows.

@@ -1,25 +1,55 @@
-"""Subgroup aggregation and bootstrap calculations, independent of Auditor state."""
+"""Binary subgroup estimates and inference, independent of Auditor state."""
 
+from copy import deepcopy
 from typing import Optional
 
 import numpy as np
 import pandas as pd
-from numpy.typing import NDArray
+from scipy.stats import binomtest, norm
+from scipy.stats.contingency import odds_ratio
 
-from model_auditor.error_metrics import AuditorErrorMetric
+from model_auditor.error_metrics import AuditorErrorMetric, OddsRatio
 from model_auditor.metrics import AuditorMetric
-from model_auditor.schemas import AuditorFeature, FeatureEvaluation, LevelEvaluation
+from model_auditor.schemas import (
+    AuditorFeature,
+    FeatureEvaluation,
+    InferenceConfig,
+    LevelEvaluation,
+    LevelMetric,
+)
 
 
 def _prepare_feature_data(
-    data: pd.DataFrame, feature: str
+    data: pd.DataFrame, feature: str, missing: str = "exclude"
 ) -> tuple[pd.DataFrame, list[str] | None]:
-    """Drop null levels and retain declared categorical order and placeholders."""
-    categories = None
-    if isinstance(data[feature].dtype, pd.CategoricalDtype):
-        categories = [str(value) for value in data[feature].cat.categories]
+    """Preserve declared order and reject ambiguous display identities."""
+    values = data[feature]
+    categorical = isinstance(values.dtype, pd.CategoricalDtype)
+    identities = list(
+        values.cat.categories if categorical else values.dropna().unique()
+    )
+    labels = [str(value) for value in identities]
+    if len(set(labels)) != len(labels):
+        raise ValueError(
+            f"Feature {feature!r} has distinct values with the same string label; rename the levels before evaluation."
+        )
+    if values.isna().any() and missing == "error":
+        raise ValueError(f"Feature {feature!r} contains missing values.")
+    categories = labels if categorical else None
+    if missing == "include" and values.isna().any():
+        if "(Missing)" in labels:
+            raise ValueError(
+                f"Feature {feature!r} already contains the reserved missing label '(Missing)'."
+            )
+        result = data.copy()
+        result[feature] = (
+            values.astype(object).where(values.notna(), "(Missing)").astype(str)
+        )
+        if categories is not None:
+            categories = [*categories, "(Missing)"]
+        return result, categories
     result = data.dropna(subset=[feature]).copy()
-    if categories is None:
+    if not categorical:
         result[feature] = result[feature].astype(str)
     return result, categories
 
@@ -32,7 +62,6 @@ def _level_counts(data: pd.DataFrame, feature: str) -> dict[str, int]:
 
 
 def validate_n_bootstraps(n_bootstraps: int | None) -> None:
-    """Require a positive integer or the explicit no-bootstrap sentinel."""
     if n_bootstraps is not None and (
         isinstance(n_bootstraps, (bool, np.bool_))
         or not isinstance(n_bootstraps, (int, np.integer))
@@ -41,58 +70,187 @@ def validate_n_bootstraps(n_bootstraps: int | None) -> None:
         raise ValueError("n_bootstraps must be a positive integer or None.")
 
 
+def support_counts(data: pd.DataFrame) -> dict[str, int]:
+    result = {
+        "n": len(data),
+        "n_pos": int((data["_truth"] == 1).sum()),
+        "n_neg": int((data["_truth"] == 0).sum()),
+    }
+    if "_binary_pred" in data and data["_binary_pred"].notna().all():
+        result.update(
+            n_pred_pos=int((data["_binary_pred"] == 1).sum()),
+            n_pred_neg=int((data["_binary_pred"] == 0).sum()),
+        )
+    return result
+
+
+def binomial_counts(
+    metric: AuditorMetric, data: pd.DataFrame
+) -> tuple[int, int] | None:
+    columns = getattr(metric, "binomial_columns", None)
+    if columns is not None:
+        successes = int(data[columns[0]].sum())
+        return successes, successes + int(data[columns[1]].sum())
+    indicator = getattr(metric, "binomial_indicator", None)
+    if indicator is not None:
+        return int(data[indicator].sum()), len(data)
+    return None
+
+
+def wilson_interval(
+    successes: int, total: int, confidence_level: float
+) -> tuple[float, float]:
+    """Wilson score interval for independent Bernoulli observations."""
+    if total == 0:
+        return float("nan"), float("nan")
+    z = norm.ppf((1 + confidence_level) / 2)
+    p = successes / total
+    denominator = 1 + z * z / total
+    center = (p + z * z / (2 * total)) / denominator
+    radius = (
+        z * np.sqrt(p * (1 - p) / total + z * z / (4 * total * total)) / denominator
+    )
+    return float(max(0, center - radius)), float(min(1, center + radius))
+
+
+def resample(
+    data: pd.DataFrame, config: InferenceConfig, rng: np.random.Generator
+) -> pd.DataFrame:
+    """Draw shared row indices, whole clusters, or truth-stratified observations."""
+    if config.resampling == "cluster":
+        if config.cluster not in data or data[config.cluster].isna().any():
+            raise ValueError("Cluster IDs must exist and have no missing values.")
+        groups = list(
+            data.groupby(config.cluster, sort=False, observed=True).indices.values()
+        )
+        indices = np.concatenate(
+            [groups[i] for i in rng.integers(len(groups), size=len(groups))]
+        )
+    elif config.resampling == "stratified":
+        groups = data.groupby("_truth", sort=False).indices.values()
+        indices = np.concatenate(
+            [rng.choice(group, size=len(group), replace=True) for group in groups]
+        )
+    else:
+        indices = rng.integers(len(data), size=len(data))
+    return data.iloc[indices].copy()
+
+
+def bootstrap_summary(
+    result: LevelMetric,
+    samples: np.ndarray,
+    config: InferenceConfig,
+    *,
+    allow_degenerate: bool = False,
+) -> None:
+    """Retain estimates and explicitly diagnose unusable bootstrap distributions."""
+    result.interval_method = f"{config.resampling}_percentile"
+    result.requested_resamples = len(samples)
+    finite = samples[np.isfinite(samples)]
+    result.valid_resamples = len(finite)
+    result.nonfinite_resamples = len(samples) - len(finite)
+    if len(finite) < config.min_resamples:
+        result.interval_status = "insufficient_resamples"
+    elif len(finite) / len(samples) < config.min_valid_fraction:
+        result.interval_status = "too_many_invalid_resamples"
+    elif np.ptp(finite) == 0 and not allow_degenerate:
+        result.interval_status = "degenerate_distribution"
+    else:
+        alpha = (1 - config.confidence_level) / 2
+        lower, upper = np.quantile(finite, [alpha, 1 - alpha])
+        result.interval = float(lower), float(upper)
+        result.interval_status = (
+            "ok" if len(finite) == len(samples) else "conditional_on_valid_resamples"
+        )
+
+
+def evaluate_level(
+    metrics: list[AuditorMetric],
+    data: pd.DataFrame,
+    name: str,
+    n_bootstraps: int | None,
+    config: InferenceConfig,
+) -> LevelEvaluation:
+    level = LevelEvaluation(name=name, support=support_counts(data))
+    if config.cluster is not None:
+        level.support["n_clusters"] = data[config.cluster].nunique()
+    bootstrap_metrics = []
+    for metric in metrics:
+        score = metric.data_call(data) if len(data) else float("nan")
+        level.update(metric.name, metric.label, score)
+        result = level.metrics[metric.name]
+        result.direction = getattr(metric, "direction", None)
+        result.parameters = deepcopy(getattr(metric, "parameters", {}))
+        counts = binomial_counts(metric, data)
+        result.denominator = counts[1] if counts is not None else None
+        if not np.isfinite(score):
+            result.status = "undefined" if np.isnan(score) else "unbounded"
+            result.interval_status = "undefined_estimate"
+            continue
+        if n_bootstraps is None or not metric.ci_eligible:
+            continue
+        if (
+            counts is not None
+            and config.method == "auto"
+            and config.resampling == "iid"
+        ):
+            if config.rate_interval == "exact":
+                ci = binomtest(*counts).proportion_ci(
+                    confidence_level=config.confidence_level, method="exact"
+                )
+                result.interval = float(ci.low), float(ci.high)
+                result.interval_method = "clopper_pearson"
+            else:
+                result.interval = wilson_interval(*counts, config.confidence_level)
+                result.interval_method = "wilson"
+            result.interval_status = "ok"
+        else:
+            bootstrap_metrics.append(metric)
+    if bootstrap_metrics:
+        if config.resampling == "cluster" and data[config.cluster].nunique() < 2:
+            for metric in bootstrap_metrics:
+                level.metrics[metric.name].interval_status = "insufficient_clusters"
+            return level
+        rng = np.random.default_rng(config.random_state)
+        samples = {metric.name: [] for metric in bootstrap_metrics}
+        for _ in range(n_bootstraps):
+            boot = resample(data, config, rng)
+            for metric in bootstrap_metrics:
+                samples[metric.name].append(metric.data_call(boot))
+        for metric in bootstrap_metrics:
+            bootstrap_summary(
+                level.metrics[metric.name], np.asarray(samples[metric.name]), config
+            )
+    return level
+
+
 def evaluate_feature(
     metrics: list[AuditorMetric],
     data: pd.DataFrame,
     feature: AuditorFeature,
     n_bootstraps: Optional[int],
+    inference: InferenceConfig | None = None,
 ) -> FeatureEvaluation:
-    """Evaluate all metrics for a single feature across its levels.
-
-    When the feature column carries a categorical dtype, levels are ordered
-    according to the declared category order.  Categories present in the
-    declaration but absent in the data appear as placeholder rows whose
-    metric scores are NaN.
-
-    Args:
-        data: DataFrame containing the evaluation data with metric input columns.
-        feature: The feature to stratify evaluation by.
-        n_bootstraps: Number of bootstrap samples for CI calculation, or None.
-
-    Returns:
-        FeatureEvaluation containing metrics for each level of the feature.
-    """
-    feature_data, declared_categories = _prepare_feature_data(data, feature.name)
-    feature_eval = FeatureEvaluation(
+    config = inference or InferenceConfig()
+    feature_data, categories = _prepare_feature_data(data, feature.name, config.missing)
+    result = FeatureEvaluation(
         name=feature.name,
-        label=feature.label if feature.label is not None else feature.name,
+        label=feature.label or feature.name,
+        excluded_n=len(data) - len(feature_data),
+        total_n=len(data),
     )
-
-    # Iterate each group once, retaining its feature column for custom metrics.
-    # Unlike GroupBy.apply, this is stable across pandas versions and handles
-    # an all-null feature without inventing metric rows from an empty DataFrame.
-    for level_name, level_data in feature_data.groupby(feature.name, observed=True):
-        level_eval = LevelEvaluation(name=str(level_name))
-        for metric in metrics:
-            level_eval.update(metric.name, metric.label, metric.data_call(level_data))
-        if n_bootstraps is not None:
-            level_eval.update_intervals(
-                evaluate_confidence_interval(metrics, level_data, n_bootstraps)
-            )
-        feature_eval.levels[str(level_name)] = level_eval
-
-    if declared_categories is not None:
-        ordered_levels = {}
-        for category in declared_categories:
-            level = feature_eval.levels.get(category)
-            if level is None:
-                level = LevelEvaluation(name=category)
-                for metric in metrics:
-                    level.update(metric.name, metric.label, float("nan"))
-            ordered_levels[category] = level
-        feature_eval.levels = ordered_levels
-
-    return feature_eval
+    for name, group in feature_data.groupby(feature.name, observed=True):
+        result.levels[str(name)] = evaluate_level(
+            metrics, group, str(name), n_bootstraps, config
+        )
+    if categories is not None:
+        result.levels = {
+            name: result.levels[name]
+            if name in result.levels
+            else evaluate_level(metrics, feature_data.iloc[:0], name, None, config)
+            for name in categories
+        }
+    return result
 
 
 def evaluate_error_feature(
@@ -102,177 +260,118 @@ def evaluate_error_feature(
     metric: AuditorErrorMetric,
     n_bootstraps: Optional[int],
     global_total_n: int,
+    inference: InferenceConfig | None = None,
 ) -> tuple[FeatureEvaluation, dict[str, dict[str, float]]]:
-    """Compute odds ratios for one feature within one confusion-matrix group.
+    """Confusion-membership enrichment versus rest, not conditional error rates.
 
-    Calculates the canonical 2x2 odds ratio for each feature level versus all
-    other levels combined, then optionally runs bootstrap resampling to derive
-    confidence intervals and replace the point estimate with the bootstrap mean.
-
-    Categorical dtype is honoured: declared-but-unobserved categories appear
-    as NaN placeholder rows (same behaviour as _evaluate_feature).
-
-    Args:
-        data: Full data slice including confusion indicator columns.
-        group_col: Column name of the confusion indicator ('tp', 'tn', etc.).
-        feature: The feature whose levels are being analysed.
-        metric: Error metric to compute (e.g. OddsRatio).
-        n_bootstraps: Bootstrap iterations, or None to skip.
-        global_total_n: Total rows in the full data slice; used as the
-            denominator for pct_overall in the returned support counts.
-
-    Returns:
-        Two-tuple (feature_eval, support) where support maps each level name to
-        {"n": int, "pct_overall": float, "pct_group": float}.
+    Point estimates always use the original table. IID auto inference uses a
+    conditional exact interval for the population OR with the sample OR as the
+    reported point estimate. Other designs use diagnosed percentile resampling.
     """
-    feature_col = feature.name
-
-    full_data, declared_categories = _prepare_feature_data(data, feature_col)
-    full_total = len(full_data)
-    full_counts = _level_counts(full_data, feature_col)
-    group_data = full_data[full_data[group_col] == 1]
-    group_total = len(group_data)
-    group_counts = _level_counts(group_data, feature_col)
-    all_levels = (
-        declared_categories if declared_categories is not None else list(full_counts)
+    config = inference or InferenceConfig()
+    full, categories = _prepare_feature_data(data, feature.name, config.missing)
+    full_counts = _level_counts(full, feature.name)
+    group = full[full[group_col] == 1]
+    group_counts = _level_counts(group, feature.name)
+    levels = categories if categories is not None else list(full_counts)
+    result = FeatureEvaluation(
+        feature.name,
+        feature.label or feature.name,
+        excluded_n=len(data) - len(full),
+        total_n=len(data),
     )
-
-    feature_eval = FeatureEvaluation(
-        name=feature.name,
-        label=feature.label if feature.label is not None else feature.name,
-    )
-
-    # Point estimates (raw ratio, or bootstrap mean if bootstraps requested).
-    level_scores: dict[str, float] = {}
-    for level_name in all_levels:
-        full_count = full_counts.get(level_name, 0)
-        group_count = group_counts.get(level_name, 0)
-        level_scores[level_name] = metric.compute(
-            group_count=group_count,
-            group_total=group_total,
-            full_count=full_count,
-            full_total=full_total,
+    support = {}
+    for name in levels:
+        count, group_count = full_counts.get(name, 0), group_counts.get(name, 0)
+        estimate = metric.compute(group_count, len(group), count, len(full))
+        result.update(metric.name, metric.label, {name: estimate})
+        level = result.levels[name]
+        level.support = support_counts(full.loc[full[feature.name].astype(str) == name])
+        lm = level.metrics[metric.name]
+        lm.status = (
+            "undefined"
+            if np.isnan(estimate)
+            else "unbounded"
+            if np.isinf(estimate)
+            else "ok"
         )
-
-    for level_name in all_levels:
-        feature_eval.update(
-            metric_name=metric.name,
-            metric_label=metric.label,
-            data={level_name: level_scores[level_name]},
-        )
-
-    # Bootstrap: replaces point estimates with bootstrap mean and adds CI.
-    # Levels with an undefined baseline (NaN score) are excluded — they cannot
-    # yield a meaningful CI and the NaN placeholder should be preserved.
-    if n_bootstraps is not None and metric.ci_eligible:
-        valid_levels = [
-            level for level in all_levels if not np.isnan(level_scores[level])
-        ]
-
-        if valid_levels:
-            bootstrap_results: dict[str, NDArray[np.float64]] = {
-                level: np.empty(n_bootstraps, dtype=np.float64)
-                for level in valid_levels
-            }
-            n = len(data)  # resample from the full slice (all confusion groups)
-
-            for i in range(n_bootstraps):
-                boot = data.sample(n, replace=True)
-                boot_full, _ = _prepare_feature_data(boot, feature_col)
-                boot_full_total = len(boot_full)
-                boot_group = boot_full[boot_full[group_col] == 1]
-                boot_group_total = len(boot_group)
-                full_bootstrap_counts = _level_counts(boot_full, feature_col)
-                group_bootstrap_counts = _level_counts(boot_group, feature_col)
-
-                for level_name in valid_levels:
-                    bootstrap_results[level_name][i] = metric.compute(
-                        group_count=group_bootstrap_counts.get(level_name, 0),
-                        group_total=boot_group_total,
-                        full_count=full_bootstrap_counts.get(level_name, 0),
-                        full_total=boot_full_total,
-                    )
-
-            for level_name in valid_levels:
-                bs = bootstrap_results[level_name]
-                if np.isnan(bs).all():
-                    point_estimate = lower = upper = float("nan")
-                else:
-                    # Infinite sparse-table ORs are valid. Their percentile
-                    # interpolation is repaired below; suppress only the known
-                    # invalid arithmetic from that interpolation.
-                    point_estimate = float(np.nanmean(bs))
-                    with np.errstate(invalid="ignore"):
-                        lower, upper = np.nanpercentile(bs, [2.5, 97.5])
-                # np.nanpercentile returns NaN when interpolating between
-                # infinities (inf - inf = NaN). Recover the bound from the
-                # observed sign of infinite bootstrap samples.
-                if np.isnan(lower):
-                    if np.any(np.isneginf(bs)):
-                        lower = float("-inf")
-                    elif np.any(np.isposinf(bs)):
-                        lower = float("inf")
-                if np.isnan(upper):
-                    if np.any(np.isposinf(bs)):
-                        upper = float("inf")
-                    elif np.any(np.isneginf(bs)):
-                        upper = float("-inf")
-                lm = feature_eval.levels[level_name].metrics[metric.name]
-                lm.score = point_estimate
-                lm.interval = (float(lower), float(upper))
-
-    # Build sidecar support counts per level for the wide-format DataFrame export.
-    # These are derived from the same full_data / group_data counts already computed above.
-    # For categorical placeholders (levels in declared_categories but absent from full_counts),
-    # all counts are zero.
-    support: dict[str, dict[str, float]] = {}
-    for level_name in all_levels:
-        g_n = group_counts.get(level_name, 0)
-        g_pct_overall = g_n / global_total_n if global_total_n > 0 else float("nan")
-        g_pct_group = g_n / group_total if group_total > 0 else 0.0
-        support[level_name] = {
-            "n": g_n,
-            "pct_overall": g_pct_overall,
-            "pct_group": g_pct_group,
+        lm.direction = "none"
+        support[name] = {
+            "n": group_count,
+            "pct_overall": group_count / global_total_n
+            if global_total_n
+            else float("nan"),
+            "pct_group": group_count / len(group) if len(group) else float("nan"),
         }
-
-    return feature_eval, support
+        if np.isnan(estimate):
+            lm.interval_status = "undefined_estimate"
+        elif (
+            n_bootstraps is not None
+            and metric.ci_eligible
+            and config.method == "auto"
+            and config.resampling == "iid"
+            and type(metric) is OddsRatio
+        ):
+            a, b = group_count, count - group_count
+            c = len(group) - group_count
+            d = len(full) - count - c
+            ci = odds_ratio([[a, b], [c, d]], kind="conditional").confidence_interval(
+                confidence_level=config.confidence_level
+            )
+            lm.interval = float(ci.low), float(ci.high)
+            lm.interval_method = "conditional_exact"
+            lm.interval_status = "ok"
+    pending = [
+        name
+        for name in levels
+        if n_bootstraps is not None
+        and metric.ci_eligible
+        and result.levels[name].metrics[metric.name].interval_status == "not_requested"
+    ]
+    if pending:
+        if config.resampling == "cluster" and full[config.cluster].nunique() < 2:
+            for name in pending:
+                result.levels[name].metrics[
+                    metric.name
+                ].interval_status = "insufficient_clusters"
+            return result, support
+        samples = {name: [] for name in pending}
+        rng = np.random.default_rng(config.random_state)
+        for _ in range(n_bootstraps):
+            boot = resample(full, config, rng)
+            boot_group = boot[boot[group_col] == 1]
+            counts, group_counts = (
+                _level_counts(boot, feature.name),
+                _level_counts(boot_group, feature.name),
+            )
+            for name in pending:
+                samples[name].append(
+                    metric.compute(
+                        group_counts.get(name, 0),
+                        len(boot_group),
+                        counts.get(name, 0),
+                        len(boot),
+                    )
+                )
+        for name in pending:
+            bootstrap_summary(
+                result.levels[name].metrics[metric.name],
+                np.asarray(samples[name]),
+                config,
+            )
+    return result, support
 
 
 def evaluate_confidence_interval(
     metrics: list[AuditorMetric], data: pd.DataFrame, n_bootstraps: int
 ) -> dict[str, tuple[float, float]]:
-    """Calculate bootstrap confidence intervals for all CI-eligible metrics.
-
-    Uses bootstrap resampling to estimate 95% confidence intervals for
-    metrics that have ci_eligible=True.
-
-    Args:
-        data: DataFrame containing the data for a single feature level.
-        n_bootstraps: Number of bootstrap samples to draw.
-
-    Returns:
-        Dictionary mapping metric names to (lower, upper) confidence bounds.
-    """
+    """Compatibility helper using the default metric-specific inference policy."""
     validate_n_bootstraps(n_bootstraps)
-    eligible_metrics = [metric for metric in metrics if metric.ci_eligible]
-    if not eligible_metrics:
-        return {}
-
-    bootstrap_results = {
-        metric.name: np.empty(n_bootstraps, dtype=np.float64)
-        for metric in eligible_metrics
+    level = evaluate_level(metrics, data, "", n_bootstraps, InferenceConfig())
+    return {
+        name: metric.interval
+        if metric.interval is not None
+        else (float("nan"), float("nan"))
+        for name, metric in level.metrics.items()
+        if next(m for m in metrics if m.name == name).ci_eligible
     }
-    for i in range(n_bootstraps):
-        boot_data = data.sample(len(data), replace=True)
-        for metric in eligible_metrics:
-            bootstrap_results[metric.name][i] = metric.data_call(boot_data)
-
-    intervals = {}
-    for name, samples in bootstrap_results.items():
-        if np.isnan(samples).all():
-            intervals[name] = (float("nan"), float("nan"))
-        else:
-            lower, upper = np.nanpercentile(samples, [2.5, 97.5])
-            intervals[name] = (float(lower), float(upper))
-    return intervals

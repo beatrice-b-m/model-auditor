@@ -103,22 +103,18 @@ class TestOptimizeScoreThresholdForTarget:
                 metric="sensitivity",
             )
 
-    def test_infeasible_finite_threshold_raises_with_achievable_range(self):
+    def test_finite_all_negative_endpoint_is_available(self):
         auditor = _make_auditor(INFEASIBLE_SPECIFICITY_DF)
-
-        with pytest.raises(
-            ValueError,
-            match=(
-                r"No finite threshold for score 'risk_score' can satisfy "
-                r"specificity >= 0\.750\. Achievable specificity range across "
-                r"finite thresholds is \[0\.000, 0\.500\]\."
-            ),
-        ):
-            auditor.optimize_score_threshold_for_target(
-                score_name="risk_score",
-                target=0.75,
-                metric="specificity",
+        with pytest.warns(UserWarning):
+            threshold = auditor.optimize_score_threshold_for_target(
+                "risk_score", 1.0, "specificity"
             )
+        assert np.isfinite(threshold)
+        assert threshold > INFEASIBLE_SPECIFICITY_DF["risk_score"].max()
+        result = auditor.evaluate_metrics(
+            "risk_score", threshold=threshold, n_bootstraps=None
+        )
+        assert _overall_metric(result, "specificity") == 1.0
 
     def test_selected_threshold_meets_target_in_evaluation(self):
         auditor = _make_auditor(BASE_DF)

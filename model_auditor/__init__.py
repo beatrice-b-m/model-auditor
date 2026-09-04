@@ -28,5 +28,6 @@ Example:
 """
 
 from model_auditor.core import Auditor
+from model_auditor.schemas import InferenceConfig
 
-__all__ = ["Auditor"]
+__all__ = ["Auditor", "InferenceConfig"]

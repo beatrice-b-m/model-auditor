@@ -2,7 +2,6 @@
 
 import math
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -24,34 +23,14 @@ def bootstrap_df() -> pd.DataFrame:
     )
 
 
-def _bootstrap_oracle(
-    data: pd.DataFrame, metric: Sensitivity, n_bootstraps: int
-) -> tuple[float, float]:
-    n = len(data)
-    scores = np.empty(n_bootstraps, dtype=float)
-    for i in range(n_bootstraps):
-        boot = data.sample(n, replace=True)
-        scores[i] = metric.data_call(boot)
-    lower, upper = np.nanpercentile(scores, [2.5, 97.5])
-    return float(lower), float(upper)
-
-
-def test_private_ci_computation_matches_seeded_oracle_exactly(
-    bootstrap_df: pd.DataFrame,
-):
+def test_independent_sensitivity_uses_wilson_interval(bootstrap_df):
     auditor = Auditor(metrics=[Sensitivity(), nData()])
-    n_bootstraps = 64
-
-    np.random.seed(12345)
-    expected = _bootstrap_oracle(bootstrap_df, Sensitivity(), n_bootstraps)
-
-    np.random.seed(12345)
-    actual = auditor._evaluate_confidence_interval(
-        bootstrap_df, n_bootstraps=n_bootstraps
+    actual = auditor._evaluate_confidence_interval(bootstrap_df, n_bootstraps=64)
+    # Wilson 95% interval for two successes among four positives.
+    assert set(actual) == {"sensitivity"}
+    assert actual["sensitivity"] == pytest.approx(
+        (0.15003898915214947, 0.8499610108478506)
     )
-
-    assert set(actual.keys()) == {"sensitivity"}
-    assert actual["sensitivity"] == pytest.approx(expected)
 
 
 def test_evaluate_metrics_ci_rules_for_eligible_and_ineligible_metrics():

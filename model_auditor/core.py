@@ -6,6 +6,9 @@ intervals.
 """
 
 import warnings
+from copy import deepcopy
+from dataclasses import asdict
+from importlib.metadata import version
 from typing import Any, Literal, Optional, Type, Union
 
 import numpy as np
@@ -25,7 +28,7 @@ from model_auditor._thresholds import (
     build_threshold_series,
     resolve_threshold,
 )
-from model_auditor.error_metrics import OddsRatio
+from model_auditor.error_metrics import AuditorErrorMetric, OddsRatio
 from model_auditor.metric_inputs import (
     AuditorMetricInput,
     FalseNegatives,
@@ -41,6 +44,7 @@ from model_auditor.schemas import (
     ConditionalThreshold,
     ErrorEvaluation,
     FeatureEvaluation,
+    InferenceConfig,
     ScoreEvaluation,
     ThresholdSpec,
 )
@@ -103,6 +107,7 @@ class Auditor:
                 self.add_score(**vars(score))
 
         # initialize outcome
+        self.outcome: Optional[AuditorOutcome] = None
         if outcome is not None:
             self.add_outcome(**vars(outcome))
 
@@ -122,6 +127,7 @@ class Auditor:
             data (pd.DataFrame): Full dataframe which will be subset for subgroup evaluation
         """
         self.data = data.copy()
+        self.outcome = None
 
     def add_feature(
         self,
@@ -192,6 +198,7 @@ class Auditor:
         if self.data is None:
             raise ValueError("Please add data with .add_data() first")
 
+        self.outcome = AuditorOutcome(name, deepcopy(mapping))
         if mapping is not None:
             self.data["_truth"] = self.data[name].map(mapping)
         else:
@@ -212,11 +219,54 @@ class Auditor:
             )
         self.metrics = list(metrics)
 
+    def _requires_threshold(self) -> bool:
+        return any(
+            set(metric.inputs) & {"_binary_pred", "tp", "tn", "fp", "fn"}
+            for metric in self.metrics
+        )
+
+    def _metadata(
+        self,
+        score_name: str,
+        threshold: Optional[ThresholdSpec],
+        n_bootstraps: Optional[int],
+        inference: InferenceConfig,
+        cohort: Optional[str],
+    ) -> dict[str, Any]:
+        outcome = getattr(self, "outcome", None)
+        return deepcopy(
+            {
+                "package_version": version("model-auditor"),
+                "metrics": [
+                    {
+                        "name": metric.name,
+                        "label": metric.label,
+                        "parameters": getattr(metric, "parameters", {}),
+                    }
+                    for metric in self.metrics
+                ],
+                "score": score_name,
+                "threshold": asdict(threshold)
+                if isinstance(threshold, ConditionalThreshold)
+                else threshold,
+                "outcome": asdict(outcome) if outcome else None,
+                "cohort": cohort,
+                "n_bootstraps": n_bootstraps,
+                "inference": asdict(inference),
+                "interval_scope": "pointwise",
+                "estimand": "row_weighted_fixed_binary_predictions",
+                "selection_adjusted": False,
+            }
+        )
+
     def evaluate_metrics(
         self,
         score_name: str,
         threshold: Optional[ThresholdSpec] = None,
         n_bootstraps: Optional[int] = 1000,
+        *,
+        inference: Optional[InferenceConfig] = None,
+        cohort: Optional[str] = None,
     ) -> ScoreEvaluation:
         """Evaluate model performance for a given score across all features.
 
@@ -231,6 +281,11 @@ class Auditor:
             n_bootstraps: Number of bootstrap samples for confidence interval
                 calculation. Set to None to disable CI calculation.
 
+            inference: Interval method, confidence level, seed, resampling unit,
+                and missing-feature policy. Intervals are pointwise and condition
+                on fixed predictions and thresholds; no selection correction.
+            cohort: Optional evaluation-cohort identifier saved with provenance.
+
         Returns:
             ScoreEvaluation object containing metrics for all features and levels.
 
@@ -239,14 +294,19 @@ class Auditor:
             ValueError: If no outcome has been defined with .add_outcome() first.
             ValueError: If no metrics have been defined with .set_metrics() first.
             ValueError: If score_name is not found in the registered scores.
-            ValueError: If threshold is None and not defined in the score object.
+            ValueError: If a required decision threshold is not configured.
         """
         if not self.metrics:
             raise ValueError(
                 "Please define at least one metric with .set_metrics() first"
             )
+        inference = inference or InferenceConfig()
         score, threshold, data_slice, eval_features = self._prepare_evaluation(
-            score_name, threshold, n_bootstraps
+            score_name,
+            threshold,
+            n_bootstraps,
+            inference=inference,
+            require_threshold=self._requires_threshold(),
         )
         self._collect_inputs()
         data_slice = self._apply_inputs(data_slice)
@@ -254,6 +314,9 @@ class Auditor:
         score_eval: ScoreEvaluation = ScoreEvaluation(
             name=score.name,
             label=score.label if score.label is not None else score.name,
+        )
+        score_eval.metadata = self._metadata(
+            score_name, threshold, n_bootstraps, inference, cohort
         )
         with tqdm(
             eval_features.values(), position=0, leave=True, desc="Features"
@@ -267,6 +330,7 @@ class Auditor:
                     data=data_slice,
                     feature=feature,
                     n_bootstraps=n_bootstraps,
+                    inference=inference,
                 )
                 score_eval.features[feature.name] = feature_eval
 
@@ -277,6 +341,10 @@ class Auditor:
         score_name: str,
         threshold: Optional[ThresholdSpec] = None,
         n_bootstraps: Optional[int] = 1000,
+        *,
+        inference: Optional[InferenceConfig] = None,
+        cohort: Optional[str] = None,
+        error_metric: Optional[AuditorErrorMetric] = None,
     ) -> ErrorEvaluation:
         """Analyse feature-level odds of confusion-matrix group membership.
 
@@ -293,9 +361,10 @@ class Auditor:
         all others combined.  OR > 1 means over-represented; OR < 1 means
         under-represented.
 
-        With bootstrap resampling enabled (n_bootstraps is not None), the stored
-        point estimate is the bootstrap mean OR and the confidence interval
-        spans the 2.5th–97.5th percentiles of the bootstrap distribution.
+        With intervals enabled (n_bootstraps is not None), the stored
+        point estimate remains the original-table OR. IID auto inference uses a
+        conditional exact interval; other designs use diagnosed resampling.
+        Membership enrichment is not a class-conditional error-rate comparison.
 
         Args:
             score_name: Name of the score column to evaluate.
@@ -305,6 +374,14 @@ class Auditor:
             n_bootstraps: Number of bootstrap samples for confidence intervals.
                 Set to None to disable CI calculation.
 
+            inference: Interval method, confidence level, seed, resampling unit,
+                and missing-feature policy. Intervals are pointwise and condition
+                on fixed predictions and thresholds; no selection correction.
+            cohort: Optional evaluation-cohort identifier saved with provenance.
+            error_metric: Optional custom count-based enrichment metric. Use
+                to_numeric_dataframe() for generic exports; the legacy wide
+                export is specific to OddsRatio.
+
         Returns:
             ErrorEvaluation containing one ScoreEvaluation per confusion group.
 
@@ -312,10 +389,11 @@ class Auditor:
             ValueError: If no data has been added with .add_data() first.
             ValueError: If no outcome has been defined with .add_outcome() first.
             ValueError: If score_name is not found in the registered scores.
-            ValueError: If threshold is None and not defined in the score object.
+            ValueError: If a required decision threshold is not configured.
         """
+        inference = inference or InferenceConfig()
         score, threshold, data_slice, eval_features = self._prepare_evaluation(
-            score_name, threshold, n_bootstraps
+            score_name, threshold, n_bootstraps, inference=inference
         )
         self._add_confusion_columns(data_slice)
 
@@ -326,17 +404,24 @@ class Auditor:
             threshold=threshold,
         )
 
+        error_eval.metadata = self._metadata(
+            score_name, threshold, n_bootstraps, inference, cohort
+        )
+        error_eval.metadata["estimand"] = "confusion_membership_enrichment_vs_rest"
+
         # Global dataset size used as the denominator for all % overall calculations.
         # Computed from the full data slice, before any per-feature dropna.
         global_total_n = len(data_slice)
         error_eval.global_total_n = global_total_n
 
-        metric = OddsRatio()
+        metric = error_metric if error_metric is not None else OddsRatio()
+        error_eval.metadata["error_metric"] = metric.name
 
         for group_col in ("tp", "tn", "fp", "fn"):
             group_eval = ScoreEvaluation(
                 name=group_col,
                 label=group_col.upper(),
+                metadata=deepcopy(error_eval.metadata),
             )
             for feature in eval_features.values():
                 feature_eval, support = evaluate_error_feature(
@@ -345,6 +430,7 @@ class Auditor:
                     feature=feature,
                     metric=metric,
                     n_bootstraps=n_bootstraps,
+                    inference=inference,
                     global_total_n=global_total_n,
                 )
                 group_eval.features[feature.name] = feature_eval
@@ -385,7 +471,8 @@ class Auditor:
         optimal_threshold: float = float(thresholds[idx])
 
         warnings.warn(
-            f"Optimal threshold for '{score.name}' found at: {optimal_threshold}",
+            f"Optimal threshold for '{score.name}' found at: {optimal_threshold}. "
+            "Selected on these data; evaluate on an independent cohort. Youden maximizes balanced accuracy, not general decision utility.",
             stacklevel=2,
         )
         return optimal_threshold
@@ -442,6 +529,11 @@ class Auditor:
             drop_intermediate=False,
         )
 
+        # sklearn's infinity endpoint represents predicting every case negative.
+        with np.errstate(over="ignore"):
+            above_max = np.nextafter(float(self.data[score.name].max()), np.inf)
+        if np.isfinite(above_max):
+            thresholds[0] = above_max
         metric_values = tpr if metric == "sensitivity" else 1.0 - fpr
         finite_threshold_mask = np.isfinite(thresholds)
         feasible_indices = np.flatnonzero(
@@ -472,7 +564,8 @@ class Auditor:
 
         warnings.warn(
             f"Optimal threshold for '{score.name}' satisfying "
-            f"{metric} >= {target:.3f} found at: {optimal_threshold}"
+            f"{metric} >= {target:.3f} found at: {optimal_threshold}. "
+            "This is an empirical tuning constraint, not a population guarantee; evaluate on an independent cohort."
         )
         return optimal_threshold
 
@@ -536,7 +629,7 @@ class Auditor:
             self, score_name, feature_names, bins, density, split_classes
         )
 
-    def _evaluation_columns(self, threshold: ThresholdSpec) -> list[str]:
+    def _evaluation_columns(self, threshold: Optional[ThresholdSpec]) -> list[str]:
         """Return base evaluation columns, including conditional-threshold feature."""
         column_list: list[str] = [*self.features.keys(), "_truth"]
         if (
@@ -580,8 +673,13 @@ class Auditor:
 
         # Keep KeyError behaviour for unknown score names in the Youden optimizer.
         score: AuditorScore = self.scores[score_name]
-        score_list: list[float] = self.data[score.name].astype(float).tolist()  # type: ignore
-        truth_list: list[float] = self.data["_truth"].astype(float).tolist()  # type: ignore
+        _, _, data, _ = self._prepare_evaluation(
+            score_name, None, None, require_threshold=False
+        )
+        if data["_truth"].nunique() != 2:
+            raise ValueError("Threshold optimization requires both outcome classes.")
+        score_list = data["_pred"].to_numpy(dtype=float)
+        truth_list = data["_truth"].to_numpy(dtype=float)
 
         fpr, tpr, thresholds = roc_curve(
             truth_list,
@@ -605,6 +703,12 @@ class Auditor:
         self._inputs: list[Type[AuditorMetricInput]] = list()
         for input_name in sorted(inputs_set):
             if input_name not in {"_truth", "_pred", "_binary_pred"}:
+                if (
+                    input_name not in inputs_dict
+                    and self.data is not None
+                    and input_name in self.data
+                ):
+                    continue
                 if input_name not in inputs_dict:
                     raise ValueError(f"Unknown metric input {input_name!r}.")
                 self._inputs.append(inputs_dict[input_name])
@@ -651,12 +755,17 @@ class Auditor:
         score_name: str,
         threshold: Optional[ThresholdSpec],
         n_bootstraps: Optional[int],
-    ) -> tuple[AuditorScore, ThresholdSpec, pd.DataFrame, dict[str, AuditorFeature]]:
+        *,
+        inference: Optional[InferenceConfig] = None,
+        require_threshold: bool = True,
+    ) -> tuple[
+        AuditorScore, Optional[ThresholdSpec], pd.DataFrame, dict[str, AuditorFeature]
+    ]:
         """Validate evaluation inputs and prepare a private slice for either analysis."""
         validate_n_bootstraps(n_bootstraps)
         if self.data is None:
             raise ValueError("Please add data with .add_data() first")
-        if "_truth" not in self.data.columns:
+        if self.outcome is None or "_truth" not in self.data.columns:
             raise ValueError(
                 "Please define an outcome variable with .add_outcome() first"
             )
@@ -668,8 +777,34 @@ class Auditor:
         if not self.data.columns.is_unique:
             raise ValueError("Evaluation data must have unique column names.")
         score = self.scores[score_name]
-        threshold = resolve_threshold(score, threshold)
+        if require_threshold or threshold is not None or score.threshold is not None:
+            threshold = resolve_threshold(score, threshold)
         columns = self._evaluation_columns(threshold)
+        if inference is not None and inference.cluster is not None:
+            if inference.cluster in {
+                "_truth",
+                "_pred",
+                "_binary_pred",
+                "overall",
+                "tp",
+                "tn",
+                "fp",
+                "fn",
+            }:
+                raise ValueError(
+                    "Cluster column cannot be a reserved evaluation column."
+                )
+            if inference.cluster not in columns:
+                columns.append(inference.cluster)
+        for metric in self.metrics:
+            for name in metric.inputs:
+                if (
+                    name in self.data
+                    and name
+                    not in {"_truth", "_pred", "_binary_pred", "tp", "tn", "fp", "fn"}
+                    and name not in columns
+                ):
+                    columns.append(name)
         missing = [name for name in [*columns, score.name] if name not in self.data]
         if missing:
             raise ValueError(f"Evaluation columns not found in data: {missing!r}")
@@ -690,9 +825,17 @@ class Auditor:
             )
         data = self.data.loc[:, columns].copy()
         data["_pred"] = scores
-        data["_binary_pred"] = binarize(
-            data["_pred"], build_threshold_series(data, threshold)
+        data["_binary_pred"] = (
+            binarize(data["_pred"], build_threshold_series(data, threshold))
+            if threshold is not None
+            else np.nan
         )
+        if (
+            inference is not None
+            and inference.cluster is not None
+            and data[inference.cluster].isna().any()
+        ):
+            raise ValueError("Cluster IDs must have no missing values.")
         data["overall"] = "Overall"
         features = {
             "overall": AuditorFeature(name="overall", label="Overall"),

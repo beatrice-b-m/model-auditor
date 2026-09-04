@@ -35,9 +35,9 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 
 
 def _safe_ratio(numerator: float, denominator: float) -> float:
-    """Return a stable ratio, treating zero denominator as 0.0."""
+    """Return a stable ratio, returning NaN when the denominator is zero."""
     if denominator == 0:
-        return 0.0
+        return float("nan")
     return float(numerator / denominator)
 
 
@@ -77,6 +77,8 @@ class Sensitivity(AuditorMetric):
     correctly identified.
     """
 
+    binomial_columns = ("tp", "fn")
+    direction = "higher"
     name: str = "sensitivity"
     label: str = "Sensitivity"
     inputs: list[str] = ["tp", "fn"]
@@ -103,6 +105,8 @@ class Specificity(AuditorMetric):
     correctly identified.
     """
 
+    binomial_columns = ("tn", "fp")
+    direction = "higher"
     name: str = "specificity"
     label: str = "Specificity"
     inputs: list[str] = ["tn", "fp"]
@@ -129,6 +133,8 @@ class Precision(AuditorMetric):
     that are correct.
     """
 
+    binomial_columns = ("tp", "fp")
+    direction = "higher"
     name: str = "precision"
     label: str = "Precision"
     inputs: list[str] = ["tp", "fp"]
@@ -154,6 +160,7 @@ class Recall(Sensitivity):
     Calculates TP / (TP + FN), identical to Sensitivity.
     """
 
+    direction = "higher"
     name: str = "recall"
     label: str = "Recall"
 
@@ -165,6 +172,7 @@ class F1Score(AuditorMetric):
     2 * (precision * recall) / (precision + recall).
     """
 
+    direction = "higher"
     name: str = "f1"
     label: str = "F1 Score"
     inputs: list[str] = ["tp", "fp", "fn"]
@@ -192,6 +200,7 @@ class AUROC(AuditorMetric):
     predictions and binary ground truth.
     """
 
+    direction = "higher"
     name: str = "auroc"
     label: str = "AUROC"
     inputs: list[str] = ["_truth", "_pred"]
@@ -215,12 +224,14 @@ class AUROC(AuditorMetric):
 
 
 class AUPRC(AuditorMetric):
-    """Area Under the Precision-Recall Curve metric.
+    """Compatibility name for non-interpolated average precision (not trapezoidal area).
 
     Uses sklearn's average_precision_score to compute AUPRC from
     continuous predictions and binary ground truth.
     """
 
+    direction = "higher"
+    parameters = {"integration": "average_precision"}
     name: str = "auprc"
     label: str = "AUPRC"
     inputs: list[str] = ["_truth", "_pred"]
@@ -235,6 +246,8 @@ class AUPRC(AuditorMetric):
         Returns:
             AUPRC value between 0 and 1, or NaN if calculation fails.
         """
+        if data["_truth"].sum() == 0:
+            return float("nan")
         try:
             return float(average_precision_score(data["_truth"], data["_pred"]))
         except ValueError:
@@ -246,9 +259,10 @@ class MatthewsCorrelationCoefficient(AuditorMetric):
 
     A balanced measure that accounts for all four confusion matrix values.
     Returns values between -1 (total disagreement) and +1 (perfect prediction),
-    with 0 indicating random prediction.
+    with 0 indicating zero measured correlation, not proof of randomness.
     """
 
+    direction = "higher"
     name: str = "mcc"
     label: str = "Matthews Correlation Coefficient"
     inputs: list[str] = ["tp", "tn", "fp", "fn"]
@@ -272,7 +286,7 @@ class MatthewsCorrelationCoefficient(AuditorMetric):
         denominator = np.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
 
         if denominator == 0:
-            return 0.0
+            return float("nan")
         return float(numerator / denominator)
 
 
@@ -284,6 +298,7 @@ class FBetaScore(AuditorMetric):
     recall higher.
     """
 
+    direction = "higher"
     name: str = "fbeta"
     label: str = "F-beta Score"
     inputs: list[str] = ["tp", "fp", "fn"]
@@ -295,9 +310,12 @@ class FBetaScore(AuditorMetric):
         Args:
             beta: Weight of recall vs precision. Default is 1.0 (F1 score).
         """
-        self.beta = beta
-        self.name = f"f{beta:.1f}".replace(".", "_")  # e.g., "f0_5" or "f2_0"
-        self.label = f"F{beta:.1f} Score"
+        if not np.isfinite(beta) or beta <= 0:
+            raise ValueError("beta must be finite and positive.")
+        self.beta = float(beta)
+        self.parameters = {"beta": self.beta}
+        self.name = f"f{self.beta}".replace(".", "_")
+        self.label = f"F{self.beta} Score"
 
     def data_call(self, data: pd.DataFrame) -> float:
         """Calculate F-beta score from the data.
@@ -318,6 +336,7 @@ class FBetaScore(AuditorMetric):
 class TPR(Sensitivity):
     """True Positive Rate metric (alias for Sensitivity)."""
 
+    direction = "higher"
     name: str = "tpr"
     label: str = "TPR"
 
@@ -325,6 +344,7 @@ class TPR(Sensitivity):
 class TNR(Specificity):
     """True Negative Rate metric (alias for Specificity)."""
 
+    direction = "higher"
     name: str = "tnr"
     label: str = "TNR"
 
@@ -336,6 +356,8 @@ class FPR(AuditorMetric):
     incorrectly identified as positive.
     """
 
+    binomial_columns = ("fp", "tn")
+    direction = "lower"
     name: str = "fpr"
     label: str = "FPR"
     inputs: list[str] = ["fp", "tn"]
@@ -362,6 +384,8 @@ class FNR(AuditorMetric):
     incorrectly identified as negative.
     """
 
+    binomial_columns = ("fn", "tp")
+    direction = "lower"
     name: str = "fnr"
     label: str = "FNR"
     inputs: list[str] = ["fn", "tp"]
@@ -387,6 +411,7 @@ class nData(AuditorMetric):
     Returns the number of rows in the data subset.
     """
 
+    direction = "none"
     name: str = "n"
     label: str = "N"
     inputs: list[str] = []
@@ -410,6 +435,7 @@ class nTP(AuditorMetric):
     Returns the total number of true positives in the data subset.
     """
 
+    direction = "none"
     name: str = "n_tp"
     label: str = "TP"
     inputs: list[str] = ["tp"]
@@ -433,6 +459,7 @@ class nTN(AuditorMetric):
     Returns the total number of true negatives in the data subset.
     """
 
+    direction = "none"
     name: str = "n_tn"
     label: str = "TN"
     inputs: list[str] = ["tn"]
@@ -456,6 +483,7 @@ class nFP(AuditorMetric):
     Returns the total number of false positives in the data subset.
     """
 
+    direction = "none"
     name: str = "n_fp"
     label: str = "FP"
     inputs: list[str] = ["fp"]
@@ -479,6 +507,7 @@ class nFN(AuditorMetric):
     Returns the total number of false negatives in the data subset.
     """
 
+    direction = "none"
     name: str = "n_fn"
     label: str = "FN"
     inputs: list[str] = ["fn"]
@@ -502,6 +531,7 @@ class nPositive(AuditorMetric):
     Returns the number of actual positive cases in the ground truth.
     """
 
+    direction = "none"
     name: str = "n_pos"
     label: str = "Pos."
     inputs: list[str] = ["_truth"]
@@ -525,6 +555,7 @@ class nNegative(AuditorMetric):
     Returns the number of actual negative cases in the ground truth.
     """
 
+    direction = "none"
     name: str = "n_neg"
     label: str = "Neg."
     inputs: list[str] = ["_truth"]

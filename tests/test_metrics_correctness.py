@@ -145,8 +145,8 @@ def test_auroc_returns_nan_for_single_class_truth():
         ),
     ],
 )
-def test_zero_denominator_cases_return_zero(metric, data: pd.DataFrame):
-    assert metric.data_call(data) == 0.0
+def test_zero_denominator_cases_are_undefined(metric, data: pd.DataFrame):
+    assert math.isnan(metric.data_call(data))
 
 
 def test_mcc_avoids_integer_overflow_for_large_counts():

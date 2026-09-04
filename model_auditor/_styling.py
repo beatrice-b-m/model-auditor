@@ -200,8 +200,15 @@ def style_dataframe(
         return numeric_df.style
 
     or_col_name = "Odds Ratio" if metric_labels else "odds_ratio"
-    or_ci_lower_name = "OR 95% CI Lower" if metric_labels else "odds_ratio_ci_lower"
-    or_ci_upper_name = "OR 95% CI Upper" if metric_labels else "odds_ratio_ci_upper"
+    confidence = 100 * evaluation.metadata.get("inference", {}).get(
+        "confidence_level", 0.95
+    )
+    or_ci_lower_name = (
+        f"OR {confidence:g}% CI Lower" if metric_labels else "odds_ratio_ci_lower"
+    )
+    or_ci_upper_name = (
+        f"OR {confidence:g}% CI Upper" if metric_labels else "odds_ratio_ci_upper"
+    )
     group_order = [g for g in ("tp", "tn", "fp", "fn") if g in evaluation.groups]
 
     # CI bound columns are folded into the OR display string; drop them from
