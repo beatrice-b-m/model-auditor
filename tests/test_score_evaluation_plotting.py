@@ -10,8 +10,6 @@ Coverage:
 - End-to-end integration via a full Auditor + bootstrap evaluation.
 """
 
-import math
-
 import matplotlib
 
 matplotlib.use("Agg")  # non-interactive backend; must precede any plt import
@@ -20,21 +18,25 @@ import matplotlib.axes
 import matplotlib.figure
 import matplotlib.pyplot as plt
 import pytest
+from matplotlib.text import Annotation
 
+from model_auditor.plotting.intervals import (
+    _INTERVAL_PLOT_HEIGHT_PER_LEVEL,
+    _INTERVAL_PLOT_MIN_HEIGHT,
+    _INTERVAL_PLOT_WIDTH,
+    _extract_level_counts,
+    _format_level_annotation,
+    _get_metric_display_label,
+    _interval_plot_figsize,
+    _is_plottable_level,
+    _resolve_metric_key,
+)
 from model_auditor.schemas import (
     FeatureEvaluation,
     LevelEvaluation,
     LevelMetric,
     ScoreEvaluation,
-    _get_metric_display_label,
-    _interval_plot_figsize,
-    _is_plottable_level,
-    _resolve_metric_key,
-    _INTERVAL_PLOT_HEIGHT_PER_LEVEL,
-    _INTERVAL_PLOT_MIN_HEIGHT,
-    _INTERVAL_PLOT_WIDTH,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared fixture: close all figures after every test to avoid memory leaks
@@ -123,9 +125,7 @@ class TestIsPlottableLevel:
         assert _is_plottable_level(lm)
 
     def test_not_plottable_nan_score(self):
-        lm = LevelMetric(
-            name="s", label="S", score=float("nan"), interval=(0.7, 0.9)
-        )
+        lm = LevelMetric(name="s", label="S", score=float("nan"), interval=(0.7, 0.9))
         assert not _is_plottable_level(lm)
 
     def test_not_plottable_none_interval(self):
@@ -133,15 +133,11 @@ class TestIsPlottableLevel:
         assert not _is_plottable_level(lm)
 
     def test_not_plottable_nan_lower_bound(self):
-        lm = LevelMetric(
-            name="s", label="S", score=0.8, interval=(float("nan"), 0.9)
-        )
+        lm = LevelMetric(name="s", label="S", score=0.8, interval=(float("nan"), 0.9))
         assert not _is_plottable_level(lm)
 
     def test_not_plottable_nan_upper_bound(self):
-        lm = LevelMetric(
-            name="s", label="S", score=0.8, interval=(0.7, float("nan"))
-        )
+        lm = LevelMetric(name="s", label="S", score=0.8, interval=(0.7, float("nan")))
         assert not _is_plottable_level(lm)
 
     def test_plottable_integer_score(self):
@@ -164,9 +160,7 @@ class TestResolveMetricKey:
     """Unit tests for _resolve_metric_key."""
 
     def _features(self) -> "dict[str, FeatureEvaluation]":
-        feval = _make_feature(
-            "sex", "Sex", {"M": _make_level("M", 0.85, (0.80, 0.90))}
-        )
+        feval = _make_feature("sex", "Sex", {"M": _make_level("M", 0.85, (0.80, 0.90))})
         return {"sex": feval}
 
     def test_exact_name_match(self):
@@ -219,9 +213,7 @@ class TestGetMetricDisplayLabel:
     """Unit tests for _get_metric_display_label."""
 
     def test_returns_label_from_first_matching_level(self):
-        feval = _make_feature(
-            "sex", "Sex", {"M": _make_level("M", 0.85, (0.80, 0.90))}
-        )
+        feval = _make_feature("sex", "Sex", {"M": _make_level("M", 0.85, (0.80, 0.90))})
         assert _get_metric_display_label("sensitivity", feval) == "Sensitivity"
 
     def test_falls_back_to_key_for_empty_feature(self):
@@ -229,9 +221,7 @@ class TestGetMetricDisplayLabel:
         assert _get_metric_display_label("missing_key", feval) == "missing_key"
 
     def test_falls_back_to_key_when_metric_absent_from_all_levels(self):
-        feval = _make_feature(
-            "sex", "Sex", {"M": _make_level("M", 0.85, (0.80, 0.90))}
-        )
+        feval = _make_feature("sex", "Sex", {"M": _make_level("M", 0.85, (0.80, 0.90))})
         assert _get_metric_display_label("auroc", feval) == "auroc"
 
 
@@ -318,7 +308,7 @@ class TestPlotMetricIntervalsSuccess:
             "Sex",
             {
                 "M": _make_level("M", 0.85, (0.80, 0.90)),  # plottable
-                "F": _make_level("F", 0.78, None),           # excluded
+                "F": _make_level("F", 0.78, None),  # excluded
             },
         )
         results = _make_score_eval({"sex": feval})
@@ -378,16 +368,12 @@ class TestPlotMetricIntervalsErrors:
     def test_unknown_feature_in_feature_names_raises(self):
         results = _two_feature_score_eval()
         with pytest.raises(ValueError, match="Unknown feature"):
-            results.plot_metric_intervals(
-                "sensitivity", feature_names=["nonexistent"]
-            )
+            results.plot_metric_intervals("sensitivity", feature_names=["nonexistent"])
 
     def test_unknown_feature_error_message_lists_available(self):
         results = _two_feature_score_eval()
         with pytest.raises(ValueError) as exc_info:
-            results.plot_metric_intervals(
-                "sensitivity", feature_names=["nonexistent"]
-            )
+            results.plot_metric_intervals("sensitivity", feature_names=["nonexistent"])
         msg = str(exc_info.value)
         # At least one valid feature name must appear in the error message.
         assert "sex" in msg or "age" in msg
@@ -477,7 +463,8 @@ class TestEndToEndPlotting:
     """
 
     @pytest.fixture(scope="class")
-    def results(self):
+    @classmethod
+    def results(cls):
         import pandas as pd
 
         from model_auditor import Auditor
@@ -521,20 +508,8 @@ class TestEndToEndPlotting:
         assert "group" in plots
 
     def test_feature_names_subset_works_end_to_end(self, results):
-        plots = results.plot_metric_intervals(
-            "sensitivity", feature_names=["group"]
-        )
+        plots = results.plot_metric_intervals("sensitivity", feature_names=["group"])
         assert list(plots.keys()) == ["group"]
-
-
-
-# ---------------------------------------------------------------------------
-# Additional imports for new tests
-# ---------------------------------------------------------------------------
-
-from matplotlib.text import Annotation
-
-from model_auditor.schemas import _extract_level_counts, _format_level_annotation
 
 
 # ---------------------------------------------------------------------------
@@ -544,7 +519,9 @@ from model_auditor.schemas import _extract_level_counts, _format_level_annotatio
 
 def _annotation_texts(ax) -> list[str]:
     """Return text content of all Annotation objects on the axes."""
-    return [child.get_text() for child in ax.get_children() if isinstance(child, Annotation)]
+    return [
+        child.get_text() for child in ax.get_children() if isinstance(child, Annotation)
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -608,7 +585,9 @@ class TestExtractLevelCounts:
     def _leval(self, **kwargs) -> LevelEvaluation:
         leval = LevelEvaluation(name="test")
         for name, value in kwargs.items():
-            leval.metrics[name] = LevelMetric(name=name, label=name.upper(), score=value)
+            leval.metrics[name] = LevelMetric(
+                name=name, label=name.upper(), score=value
+            )
         return leval
 
     def test_empty_level_returns_none_triple(self):
@@ -621,7 +600,11 @@ class TestExtractLevelCounts:
         assert n_neg is None
 
     def test_all_direct_metrics(self):
-        assert _extract_level_counts(self._leval(n=20, n_pos=8, n_neg=12)) == (20, 8, 12)
+        assert _extract_level_counts(self._leval(n=20, n_pos=8, n_neg=12)) == (
+            20,
+            8,
+            12,
+        )
 
     def test_derives_n_pos_from_n_tp_n_fn(self):
         _, n_pos, _ = _extract_level_counts(self._leval(n_tp=3, n_fn=5))
@@ -670,10 +653,15 @@ class TestFormatLevelAnnotation:
         assert _format_level_annotation(10, 100, 4, 6, True, False) == "N: 10 (10.0%)"
 
     def test_class_balance_only(self):
-        assert _format_level_annotation(10, 100, 4, 6, False, True) == "N Pos: 4 (40.0%)"
+        assert (
+            _format_level_annotation(10, 100, 4, 6, False, True) == "N Pos: 4 (40.0%)"
+        )
 
     def test_both_enabled_newline_joined(self):
-        assert _format_level_annotation(10, 100, 4, 6, True, True) == "N: 10 (10.0%)\nN Pos: 4 (40.0%)"
+        assert (
+            _format_level_annotation(10, 100, 4, 6, True, True)
+            == "N: 10 (10.0%)\nN Pos: 4 (40.0%)"
+        )
 
     def test_sample_size_none_n_level_gives_na_na(self):
         assert _format_level_annotation(None, 100, 4, 6, True, False) == "N: NA (NA)"
@@ -685,10 +673,14 @@ class TestFormatLevelAnnotation:
         assert _format_level_annotation(10, 0, 4, 6, True, False) == "N: 10 (NA)"
 
     def test_class_balance_none_n_pos_gives_na_na(self):
-        assert _format_level_annotation(10, 100, None, 6, False, True) == "N Pos: NA (NA)"
+        assert (
+            _format_level_annotation(10, 100, None, 6, False, True) == "N Pos: NA (NA)"
+        )
 
     def test_class_balance_none_n_neg_gives_n_na(self):
-        assert _format_level_annotation(10, 100, 4, None, False, True) == "N Pos: 4 (NA)"
+        assert (
+            _format_level_annotation(10, 100, 4, None, False, True) == "N Pos: 4 (NA)"
+        )
 
     def test_class_balance_zero_denom_gives_n_na(self):
         assert _format_level_annotation(10, 100, 0, 0, False, True) == "N Pos: 0 (NA)"
@@ -723,9 +715,9 @@ class TestPlotMetricIntervalsOverall:
 
     def test_include_overall_true_prepends_overall_to_yticks(self):
         results = _score_eval_with_overall()
-        fig, ax = results.plot_metric_intervals(
-            "sensitivity", include_overall=True
-        )["sex"]
+        fig, ax = results.plot_metric_intervals("sensitivity", include_overall=True)[
+            "sex"
+        ]
         labels = [t.get_text() for t in ax.get_yticklabels()]
         # Overall must be the first (top) level.
         assert labels[0] == "Overall"
@@ -734,9 +726,9 @@ class TestPlotMetricIntervalsOverall:
 
     def test_include_overall_false_no_overall_in_yticks(self):
         results = _score_eval_with_overall()
-        fig, ax = results.plot_metric_intervals(
-            "sensitivity", include_overall=False
-        )["sex"]
+        fig, ax = results.plot_metric_intervals("sensitivity", include_overall=False)[
+            "sex"
+        ]
         labels = [t.get_text() for t in ax.get_yticklabels()]
         assert "Overall" not in labels
         assert "M" in labels
@@ -745,9 +737,9 @@ class TestPlotMetricIntervalsOverall:
     def test_include_overall_true_no_overall_feature_no_crash(self):
         """include_overall=True is a no-op when the 'overall' feature is absent."""
         results = _two_feature_score_eval()  # no 'overall' feature
-        fig, ax = results.plot_metric_intervals(
-            "sensitivity", include_overall=True
-        )["sex"]
+        fig, ax = results.plot_metric_intervals("sensitivity", include_overall=True)[
+            "sex"
+        ]
         labels = [t.get_text() for t in ax.get_yticklabels()]
         assert "Overall" not in labels
 
@@ -767,9 +759,9 @@ class TestPlotMetricIntervalsOverall:
                 ),
             }
         )
-        fig, ax = results.plot_metric_intervals(
-            "sensitivity", include_overall=True
-        )["sex"]
+        fig, ax = results.plot_metric_intervals("sensitivity", include_overall=True)[
+            "sex"
+        ]
         labels = [t.get_text() for t in ax.get_yticklabels()]
         assert "Overall" not in labels
         assert "M" in labels
@@ -777,9 +769,9 @@ class TestPlotMetricIntervalsOverall:
     def test_overall_level_count_reflects_three_feature_levels(self):
         """When include_overall=True, the plot has N+1 y-ticks (Overall + feature levels)."""
         results = _score_eval_with_overall()
-        fig, ax = results.plot_metric_intervals(
-            "sensitivity", include_overall=True
-        )["sex"]
+        fig, ax = results.plot_metric_intervals("sensitivity", include_overall=True)[
+            "sex"
+        ]
         labels = [t.get_text() for t in ax.get_yticklabels()]
         # 1 Overall + 2 feature levels (M, F)
         assert len(labels) == 3
@@ -903,16 +895,18 @@ class TestPlotMetricIntervalsAnnotations:
         overall_leval = _make_level_with_counts(
             "Overall", 0.82, (0.78, 0.86), n=20, n_pos=8, n_neg=12
         )
-        m_leval = _make_level_with_counts("M", 0.85, (0.80, 0.90), n=10, n_pos=4, n_neg=6)
-        f_leval = _make_level_with_counts("F", 0.78, (0.72, 0.84), n=10, n_pos=4, n_neg=6)
+        m_leval = _make_level_with_counts(
+            "M", 0.85, (0.80, 0.90), n=10, n_pos=4, n_neg=6
+        )
+        f_leval = _make_level_with_counts(
+            "F", 0.78, (0.72, 0.84), n=10, n_pos=4, n_neg=6
+        )
         results = _make_score_eval(
             {
                 "overall": _make_feature(
                     "overall", "Overall", {"Overall": overall_leval}
                 ),
-                "sex": _make_feature(
-                    "sex", "Sex", {"M": m_leval, "F": f_leval}
-                ),
+                "sex": _make_feature("sex", "Sex", {"M": m_leval, "F": f_leval}),
             }
         )
         fig, ax = results.plot_metric_intervals(
@@ -927,8 +921,12 @@ class TestPlotMetricIntervalsAnnotations:
 
     def test_class_balance_annotation_formatted_correctly_with_count_metrics(self):
         """n_pos=4, n_neg=6 → 'N Pos: 4 (40.0%)'; n_pos=2, n_neg=8 → 'N Pos: 2 (20.0%)'."""
-        m_leval = _make_level_with_counts("M", 0.85, (0.80, 0.90), n=10, n_pos=4, n_neg=6)
-        f_leval = _make_level_with_counts("F", 0.78, (0.72, 0.84), n=10, n_pos=2, n_neg=8)
+        m_leval = _make_level_with_counts(
+            "M", 0.85, (0.80, 0.90), n=10, n_pos=4, n_neg=6
+        )
+        f_leval = _make_level_with_counts(
+            "F", 0.78, (0.72, 0.84), n=10, n_pos=2, n_neg=8
+        )
         results = _make_score_eval(
             {"sex": _make_feature("sex", "Sex", {"M": m_leval, "F": f_leval})}
         )
@@ -946,7 +944,9 @@ class TestPlotMetricIntervalsAnnotations:
         overall_leval = _make_level_with_counts(
             "Overall", 0.82, (0.78, 0.86), n=0, n_pos=0, n_neg=0
         )
-        m_leval = _make_level_with_counts("M", 0.85, (0.80, 0.90), n=10, n_pos=4, n_neg=6)
+        m_leval = _make_level_with_counts(
+            "M", 0.85, (0.80, 0.90), n=10, n_pos=4, n_neg=6
+        )
         results = _make_score_eval(
             {
                 "overall": _make_feature(
@@ -967,10 +967,10 @@ class TestPlotMetricIntervalsAnnotations:
 
     def test_annotation_class_balance_na_when_zero_denom(self):
         """n_pos=0, n_neg=0 → denominator zero → 'N Pos: 0 (NA)'."""
-        m_leval = _make_level_with_counts("M", 0.85, (0.80, 0.90), n=10, n_pos=0, n_neg=0)
-        results = _make_score_eval(
-            {"sex": _make_feature("sex", "Sex", {"M": m_leval})}
+        m_leval = _make_level_with_counts(
+            "M", 0.85, (0.80, 0.90), n=10, n_pos=0, n_neg=0
         )
+        results = _make_score_eval({"sex": _make_feature("sex", "Sex", {"M": m_leval})})
         fig, ax = results.plot_metric_intervals(
             "sensitivity",
             include_sample_size=False,
@@ -1039,16 +1039,28 @@ class TestIntervalPlotFigureScaling:
     def test_figure_size_scales_with_level_count(self):
         """More levels → taller figure."""
         results_small = _make_score_eval(
-            {"sex": _make_feature("sex", "Sex", {
-                "M": _make_level("M", 0.85, (0.80, 0.90)),
-                "F": _make_level("F", 0.78, (0.72, 0.84)),
-            })}
+            {
+                "sex": _make_feature(
+                    "sex",
+                    "Sex",
+                    {
+                        "M": _make_level("M", 0.85, (0.80, 0.90)),
+                        "F": _make_level("F", 0.78, (0.72, 0.84)),
+                    },
+                )
+            }
         )
         results_large = _make_score_eval(
-            {"race": _make_feature("race", "Race", {
-                name: _make_level(name, 0.80, (0.75, 0.85))
-                for name in ["A", "B", "C", "D", "E", "F", "G", "H"]
-            })}
+            {
+                "race": _make_feature(
+                    "race",
+                    "Race",
+                    {
+                        name: _make_level(name, 0.80, (0.75, 0.85))
+                        for name in ["A", "B", "C", "D", "E", "F", "G", "H"]
+                    },
+                )
+            }
         )
         fig_small, _ = results_small.plot_metric_intervals("sensitivity")["sex"]
         fig_large, _ = results_large.plot_metric_intervals("sensitivity")["race"]
@@ -1068,16 +1080,16 @@ class TestIntervalPlotFigureScaling:
         # Need enough levels that both with/without are above the minimum
         # height floor so the +1 level from Overall is observable.
         level_names = ["A", "B", "C", "D", "E", "F"]
-        levels = {
-            name: _make_level(name, 0.80, (0.75, 0.85)) for name in level_names
-        }
+        levels = {name: _make_level(name, 0.80, (0.75, 0.85)) for name in level_names}
         overall_leval = _make_level("Overall", 0.82, (0.78, 0.86))
-        results = _make_score_eval({
-            "overall": _make_feature(
-                "overall", "Overall", {"Overall": overall_leval}
-            ),
-            "grp": _make_feature("grp", "Group", levels),
-        })
+        results = _make_score_eval(
+            {
+                "overall": _make_feature(
+                    "overall", "Overall", {"Overall": overall_leval}
+                ),
+                "grp": _make_feature("grp", "Group", levels),
+            }
+        )
         fig_with, _ = results.plot_metric_intervals(
             "sensitivity", include_overall=True
         )["grp"]
@@ -1108,14 +1120,14 @@ class TestIntervalPlotAnnotationPlacement:
         f_leval = _make_level_with_counts(
             "F", 0.78, (0.72, 0.84), n=10, n_pos=4, n_neg=6
         )
-        results = _make_score_eval({
-            "overall": _make_feature(
-                "overall", "Overall", {"Overall": overall_leval}
-            ),
-            "sex": _make_feature(
-                "sex", "Sex", {"M": m_leval, "F": f_leval}
-            ),
-        })
+        results = _make_score_eval(
+            {
+                "overall": _make_feature(
+                    "overall", "Overall", {"Overall": overall_leval}
+                ),
+                "sex": _make_feature("sex", "Sex", {"M": m_leval, "F": f_leval}),
+            }
+        )
         fig, ax = results.plot_metric_intervals(
             "sensitivity",
             include_overall=True,
@@ -1126,7 +1138,6 @@ class TestIntervalPlotAnnotationPlacement:
 
     def _get_annotation_objects(self, ax):
         """Return all Annotation objects from the axes."""
-        from matplotlib.text import Annotation
         return [c for c in ax.get_children() if isinstance(c, Annotation)]
 
     def test_all_annotations_share_same_x_position(self):
@@ -1171,12 +1182,14 @@ class TestIntervalPlotAnnotationPlacement:
         m_leval = _make_level_with_counts(
             "M", 0.85, (0.80, 0.90), n=10, n_pos=4, n_neg=6
         )
-        results = _make_score_eval({
-            "overall": _make_feature(
-                "overall", "Overall", {"Overall": overall_leval}
-            ),
-            "sex": _make_feature("sex", "Sex", {"M": m_leval}),
-        })
+        results = _make_score_eval(
+            {
+                "overall": _make_feature(
+                    "overall", "Overall", {"Overall": overall_leval}
+                ),
+                "sex": _make_feature("sex", "Sex", {"M": m_leval}),
+            }
+        )
         fig, ax = results.plot_metric_intervals(
             "sensitivity",
             rotate_plots=True,
@@ -1184,9 +1197,31 @@ class TestIntervalPlotAnnotationPlacement:
             include_sample_size=True,
             include_class_balance=False,
         )["sex"]
-        from matplotlib.text import Annotation
         annotations = [c for c in ax.get_children() if isinstance(c, Annotation)]
         # Rotated mode uses offset-points text positioning, so
         # annotations should have textcoords='offset points'.
         for ann in annotations:
             assert ann.anncoords == "offset points"
+
+
+@pytest.mark.parametrize("rotate", [False, True])
+def test_interval_can_exclude_point_estimate(rotate):
+    level = _make_level("A", 0.9, (0.5, 0.8))
+    result = ScoreEvaluation(
+        "score", "Score", {"group": _make_feature("group", "Group", {"A": level})}
+    )
+    _, ax = result.plot_metric_intervals("sensitivity", rotate_plots=rotate)["group"]
+    points = ax.lines[0].get_ydata() if rotate else ax.lines[0].get_xdata()
+    assert points.tolist() == [0.9]
+    segment = ax.collections[0].get_segments()[0]
+    assert segment[:, 1 if rotate else 0].tolist() == [0.5, 0.8]
+
+
+@pytest.mark.parametrize(
+    "score,interval",
+    [(float("inf"), (0.1, 0.9)), (0.5, (0.1, float("inf"))), (0.5, (0.9, 0.1))],
+)
+def test_nonfinite_or_reversed_interval_is_not_plottable(score, interval):
+    assert not _is_plottable_level(
+        _make_level("A", score, interval).metrics["sensitivity"]
+    )

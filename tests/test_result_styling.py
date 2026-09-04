@@ -12,22 +12,23 @@ import re
 
 import numpy as np
 import pandas as pd
-import pytest
 
+from model_auditor._styling import (
+    _get_metric_tier,
+    _is_count_metric,
+    _is_lower_better_metric,
+)
 from model_auditor.schemas import (
     FeatureEvaluation,
     LevelEvaluation,
     LevelMetric,
     ScoreEvaluation,
-    _get_metric_tier,
-    _is_count_metric,
-    _is_lower_better_metric,
 )
-
 
 # ---------------------------------------------------------------------------
 # HTML inspection helpers
 # ---------------------------------------------------------------------------
+
 
 def _render_html(styler: "pd.io.formats.style.Styler") -> str:
     """Render styler to HTML, compatible with pandas < 1.4 and >= 1.4."""
@@ -52,9 +53,7 @@ def _parse_cell_styles(html: str) -> dict[str, str]:
 
     # Each CSS rule may have one or more comma-separated selectors.
     # Capture the full selector group and the declaration block separately.
-    for rule_m in re.finditer(
-        r"((?:#T_\w+_row\d+_col\d+\s*,?\s*)+)\{([^}]+)\}", html
-    ):
+    for rule_m in re.finditer(r"((?:#T_\w+_row\d+_col\d+\s*,?\s*)+)\{([^}]+)\}", html):
         css = rule_m.group(2).strip()
         # Extract every individual cell ID from the selector list.
         for sel_m in re.finditer(r"T_\w+_row\d+_col\d+", rule_m.group(1)):
@@ -77,9 +76,8 @@ def _parse_cell_styles(html: str) -> dict[str, str]:
 # Helper: build FeatureEvaluation with one named metric across multiple levels
 # ---------------------------------------------------------------------------
 
-def _make_feature(
-    metric_name: str, scores: dict[str, float]
-) -> FeatureEvaluation:
+
+def _make_feature(metric_name: str, scores: dict[str, float]) -> FeatureEvaluation:
     """Build a FeatureEvaluation with one metric, one level per score entry.
 
     Insertion order determines row order in the resulting DataFrame.
@@ -106,6 +104,7 @@ LOW_COLOR = "#f8d7da"
 # ===========================================================================
 # TestHelperFunctions
 # ===========================================================================
+
 
 class TestHelperFunctions:
     """Unit tests for the three helper functions used by styling."""
@@ -203,6 +202,7 @@ class TestHelperFunctions:
 # TestStylingCSS  — verifies that the correct background-colors are applied
 # ===========================================================================
 
+
 class TestStylingCSS:
     """CSS-level assertions for style_dataframe().
 
@@ -233,9 +233,7 @@ class TestStylingCSS:
 
     def test_fpr_styled_by_default(self):
         """fpr is a performance metric and must be styled even with include_count_metrics=False."""
-        feature = _make_feature(
-            "fpr", {"best": 0.10, "mid": 0.50, "worst": 0.90}
-        )
+        feature = _make_feature("fpr", {"best": 0.10, "mid": 0.50, "worst": 0.90})
         html = _render_html(feature.style_dataframe(include_count_metrics=False))
         assert "background-color" in html, (
             "fpr should be styled by default (not a count metric)"
@@ -243,25 +241,19 @@ class TestStylingCSS:
 
     def test_fnr_styled_by_default(self):
         """fnr is a performance metric and must be styled by default."""
-        feature = _make_feature(
-            "fnr", {"best": 0.10, "mid": 0.50, "worst": 0.90}
-        )
+        feature = _make_feature("fnr", {"best": 0.10, "mid": 0.50, "worst": 0.90})
         html = _render_html(feature.style_dataframe(include_count_metrics=False))
         assert "background-color" in html
 
     def test_tpr_styled_by_default(self):
         """tpr is a performance metric and must be styled by default."""
-        feature = _make_feature(
-            "tpr", {"low": 0.70, "mid": 0.80, "high": 0.90}
-        )
+        feature = _make_feature("tpr", {"low": 0.70, "mid": 0.80, "high": 0.90})
         html = _render_html(feature.style_dataframe(include_count_metrics=False))
         assert "background-color" in html
 
     def test_tnr_styled_by_default(self):
         """tnr is a performance metric and must be styled by default."""
-        feature = _make_feature(
-            "tnr", {"low": 0.70, "mid": 0.80, "high": 0.90}
-        )
+        feature = _make_feature("tnr", {"low": 0.70, "mid": 0.80, "high": 0.90})
         html = _render_html(feature.style_dataframe(include_count_metrics=False))
         assert "background-color" in html
 
@@ -269,9 +261,7 @@ class TestStylingCSS:
 
     def test_fpr_lower_better_inversion(self):
         """Low fpr (good performance) → high tier (green); high fpr (bad) → low tier (red)."""
-        feature = _make_feature(
-            "fpr", {"best": 0.10, "mid": 0.50, "worst": 0.90}
-        )
+        feature = _make_feature("fpr", {"best": 0.10, "mid": 0.50, "worst": 0.90})
         styler = feature.style_dataframe()
         html = _render_html(styler)
         cells = _parse_cell_styles(html)
@@ -285,9 +275,7 @@ class TestStylingCSS:
 
     def test_fnr_lower_better_inversion(self):
         """Low fnr (good performance) → high tier (green); high fnr (bad) → low tier (red)."""
-        feature = _make_feature(
-            "fnr", {"best": 0.10, "mid": 0.50, "worst": 0.90}
-        )
+        feature = _make_feature("fnr", {"best": 0.10, "mid": 0.50, "worst": 0.90})
         html = _render_html(feature.style_dataframe())
         cells = _parse_cell_styles(html)
 
@@ -300,9 +288,7 @@ class TestStylingCSS:
 
     def test_accuracy_higher_better_normal(self):
         """High accuracy → high tier (green); low accuracy → low tier (red)."""
-        feature = _make_feature(
-            "accuracy", {"low": 0.70, "mid": 0.80, "high": 0.90}
-        )
+        feature = _make_feature("accuracy", {"low": 0.70, "mid": 0.80, "high": 0.90})
         html = _render_html(feature.style_dataframe())
         cells = _parse_cell_styles(html)
 
@@ -329,7 +315,9 @@ class TestStylingCSS:
             level.metrics["N"] = LevelMetric(name="N", label="N", score=n_val)
             feature.levels[level_name] = level
 
-        html_default = _render_html(feature.style_dataframe(include_count_metrics=False))
+        html_default = _render_html(
+            feature.style_dataframe(include_count_metrics=False)
+        )
         # fpr column is styled → background-color must appear
         assert "background-color" in html_default
 
@@ -367,11 +355,8 @@ class TestStylingCSS:
 
     def test_tie_stability_all_equal_values(self):
         """All levels with same metric value must not crash, and all get the same tier."""
-        feature = _make_feature(
-            "accuracy", {"a": 0.85, "b": 0.85, "c": 0.85}
-        )
+        feature = _make_feature("accuracy", {"a": 0.85, "b": 0.85, "c": 0.85})
         html = _render_html(feature.style_dataframe())
-        cells = _parse_cell_styles(html)
         # Three rows all display "0.850".  The dict will have one entry (last wins).
         # What matters: no exception and the result is a non-empty string.
         assert isinstance(html, str)
@@ -384,9 +369,7 @@ class TestStylingCSS:
 
     def test_all_nan_does_not_crash(self):
         """All-NaN values in a column must not crash and produce no coloring."""
-        feature = _make_feature(
-            "accuracy", {"a": float("nan"), "b": float("nan")}
-        )
+        feature = _make_feature("accuracy", {"a": float("nan"), "b": float("nan")})
         html = _render_html(feature.style_dataframe())
         assert isinstance(html, str)
 
@@ -394,9 +377,7 @@ class TestStylingCSS:
 
     def test_custom_colors_appear_in_output(self):
         """Custom high/low/medium colors must appear in rendered HTML."""
-        feature = _make_feature(
-            "accuracy", {"low": 0.70, "mid": 0.80, "high": 0.90}
-        )
+        feature = _make_feature("accuracy", {"low": 0.70, "mid": 0.80, "high": 0.90})
         html = _render_html(
             feature.style_dataframe(
                 low_color="#aa0000",
@@ -415,9 +396,7 @@ class TestStylingCSS:
         feature = FeatureEvaluation(name="gender", label="Gender")
         for level_name, fpr_val in [("male", 0.10), ("female", 0.40)]:
             level = LevelEvaluation(name=level_name)
-            level.metrics["fpr"] = LevelMetric(
-                name="fpr", label="FPR", score=fpr_val
-            )
+            level.metrics["fpr"] = LevelMetric(name="fpr", label="FPR", score=fpr_val)
             feature.levels[level_name] = level
         score.features["gender"] = feature
 
@@ -441,6 +420,7 @@ class TestStylingCSS:
 # ===========================================================================
 # TestLevelEvaluationStyling
 # ===========================================================================
+
 
 class TestLevelEvaluationStyling:
     """Tests for LevelEvaluation.style_dataframe()."""
@@ -478,6 +458,7 @@ class TestLevelEvaluationStyling:
 # TestFeatureEvaluationStyling
 # ===========================================================================
 
+
 class TestFeatureEvaluationStyling:
     """Tests for FeatureEvaluation.style_dataframe()."""
 
@@ -493,9 +474,7 @@ class TestFeatureEvaluationStyling:
 
     def test_relative_ranking_across_levels(self):
         """Three levels with distinct accuracy produce all three tiers."""
-        feature = _make_feature(
-            "accuracy", {"low": 0.70, "mid": 0.80, "high": 0.90}
-        )
+        feature = _make_feature("accuracy", {"low": 0.70, "mid": 0.80, "high": 0.90})
         html = _render_html(feature.style_dataframe())
         assert HIGH_COLOR in html
         assert MED_COLOR in html
@@ -505,6 +484,7 @@ class TestFeatureEvaluationStyling:
 # ===========================================================================
 # TestScoreEvaluationStyling
 # ===========================================================================
+
 
 class TestScoreEvaluationStyling:
     """Tests for ScoreEvaluation.style_dataframe()."""
@@ -538,6 +518,7 @@ class TestScoreEvaluationStyling:
 # ===========================================================================
 # TestBackwardCompatibility
 # ===========================================================================
+
 
 class TestBackwardCompatibility:
     """Ensure existing to_dataframe() behaviour is unchanged."""
