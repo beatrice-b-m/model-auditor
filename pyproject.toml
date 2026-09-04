@@ -1,6 +1,5 @@
-# allows the package to be installed in editable mode
 [build-system]
-requires = ["setuptools>=64", "setuptools_scm>=8", "wheel"]
+requires = ["setuptools>=77", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -44,9 +43,32 @@ dependencies = [
     "tqdm >= 4.0",
 ]
 
+[project.optional-dependencies]
+plotting = ["matplotlib>=3.7", "plotly>=5"]
+styling = ["jinja2>=3.1"]
+dev = ["model-auditor[plotting,styling]", "pytest>=8", "ruff>=0.9,<0.17", "build>=1.2"]
+
 [project.urls]
 Homepage = "https://github.com/beatrice-b-m/model-auditor"
+Documentation = "https://model-auditor-docs.beatricebm.workers.dev"
 Repository = "https://github.com/beatrice-b-m/model-auditor"
 Issues = "https://github.com/beatrice-b-m/model-auditor/issues"
 
 [tool.setuptools_scm]
+
+[tool.setuptools.packages.find]
+include = ["model_auditor*"]
+
+[tool.setuptools.package-data]
+model_auditor = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+include = ["model_auditor/**/*.py", "tests/**/*.py", "pyproject.toml"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

@@ -2,3 +2,10 @@ __pycache__/
 *.egg-info
 .ipynb-checkpoints
 .vscode/
+.venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+.coverage
+htmlcov/
