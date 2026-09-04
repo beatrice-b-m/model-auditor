@@ -881,3 +881,17 @@ class ErrorEvaluation:
             medium_color,
             high_color,
         )
+
+
+@dataclass
+class CalibrationEvaluation:
+    """Binned observed frequencies and probability-metric summary.
+
+    Bins are fixed equal-width intervals on [0, 1], including empty bins.
+    Bin intervals are pointwise and concern observed event frequency only;
+    they are not simultaneous bands or uncertainty in mean predicted scores.
+    """
+
+    bins: pd.DataFrame
+    summary: ScoreEvaluation
+    metadata: dict[str, Any] = field(default_factory=dict)

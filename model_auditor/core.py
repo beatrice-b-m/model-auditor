@@ -41,6 +41,7 @@ from model_auditor.schemas import (
     AuditorFeature,
     AuditorOutcome,
     AuditorScore,
+    CalibrationEvaluation,
     ConditionalThreshold,
     ErrorEvaluation,
     FeatureEvaluation,
@@ -259,6 +260,35 @@ class Auditor:
             }
         )
 
+    def add_intersection(
+        self, name: str, features: list[str], label: Optional[str] = None
+    ) -> None:
+        """Register a joint subgroup without ambiguous delimiter concatenation.
+
+        Missing components remain missing. Define intersections before examining
+        results; exploratory discoveries require independent validation.
+        """
+        import json
+
+        from model_auditor._evaluation import _prepare_feature_data
+
+        if self.data is None or not features or len(set(features)) != len(features):
+            raise ValueError(
+                "Provide data and a nonempty list of distinct feature columns."
+            )
+        if name in self.data:
+            raise ValueError("Intersection name must not overwrite an existing column.")
+        for feature in features:
+            _prepare_feature_data(self.data, feature)
+        self.add_feature(name, label)
+        valid = self.data[features].notna().all(axis=1)
+        values = (
+            self.data[features]
+            .astype(str)
+            .apply(lambda row: json.dumps(row.tolist()), axis=1)
+        )
+        self.data[name] = values.where(valid)
+
     def evaluate_metrics(
         self,
         score_name: str,
@@ -441,6 +471,339 @@ class Auditor:
             error_eval.groups[group_col] = group_eval
 
         return error_eval
+
+    def evaluate_calibration(
+        self,
+        score_name: str,
+        *,
+        bins: int = 10,
+        n_bootstraps: Optional[int] = 1000,
+        inference: Optional[InferenceConfig] = None,
+        cohort: Optional[str] = None,
+    ) -> CalibrationEvaluation:
+        """Fixed-bin reliability table and probability accuracy by subgroup.
+
+        Requires probabilities in [0, 1]. Uses Brier score, log loss, calibration
+        intercept and slope. Binned frequency intervals follow the inference
+        configuration; they are pointwise, not simultaneous confidence bands.
+        Calibration fits require interior probabilities and identified fits.
+        """
+        from model_auditor._evaluation import _prepare_feature_data, evaluate_level
+        from model_auditor.metrics import (
+            BrierScore,
+            CalibrationIntercept,
+            CalibrationSlope,
+            LogLoss,
+            Prevalence,
+            validate_probabilities,
+        )
+
+        if isinstance(bins, bool) or not isinstance(bins, int) or bins < 1:
+            raise ValueError("bins must be a positive integer.")
+        config = inference or InferenceConfig()
+        _, threshold, data, features = self._prepare_evaluation(
+            score_name, None, n_bootstraps, inference=config, require_threshold=False
+        )
+        validate_probabilities(data)
+        summary = ScoreEvaluation(score_name, score_name)
+        metadata = self._metadata(score_name, threshold, n_bootstraps, config, cohort)
+        metadata.update(
+            binning="equal_width_fixed",
+            bins=bins,
+            estimand="binary_probability_calibration",
+        )
+        summary.metadata = deepcopy(metadata)
+        metrics = [BrierScore(), LogLoss(), CalibrationIntercept(), CalibrationSlope()]
+        metadata["metrics"] = [
+            {"name": metric.name, "parameters": getattr(metric, "parameters", {})}
+            for metric in metrics
+        ]
+        summary.metadata = deepcopy(metadata)
+        rows = []
+        edges = np.linspace(0, 1, bins + 1)
+        for feature in features.values():
+            summary.features[feature.name] = evaluate_feature(
+                metrics, data, feature, n_bootstraps, config
+            )
+            full, _ = _prepare_feature_data(data, feature.name, config.missing)
+            for name, group in full.groupby(feature.name, observed=True):
+                indices = np.minimum(
+                    np.searchsorted(edges, group["_pred"], side="right") - 1, bins - 1
+                )
+                for i in range(bins):
+                    subset = group.iloc[np.flatnonzero(indices == i)]
+                    level = evaluate_level(
+                        [Prevalence()], subset, str(i), n_bootstraps, config
+                    )
+                    metric = level.metrics["prevalence"]
+                    rows.append(
+                        {
+                            "feature": feature.name,
+                            "level": str(name),
+                            "bin": i,
+                            "bin_lower": edges[i],
+                            "bin_upper": edges[i + 1],
+                            "n": len(subset),
+                            "n_pos": level.support["n_pos"],
+                            "mean_prediction": subset["_pred"].mean(),
+                            "observed_frequency": metric.score,
+                            "lower": metric.interval[0] if metric.interval else np.nan,
+                            "upper": metric.interval[1] if metric.interval else np.nan,
+                            "interval_status": metric.interval_status,
+                            "interval_method": metric.interval_method,
+                        }
+                    )
+        frame = pd.DataFrame(rows)
+        frame.attrs["metadata"] = deepcopy(metadata)
+        return CalibrationEvaluation(frame, summary, metadata)
+
+    def decision_curve(self, score_name: str, thresholds: list[float]) -> pd.DataFrame:
+        """Descriptive net benefit for probability thresholds, with act-all/none.
+
+        Net benefit = TP/N - FP/N * t/(1-t). Threshold probability encodes the
+        relative harm of a false positive; it must be meaningful for the target
+        decision. No confidence bands or automatic selection are provided.
+        """
+        from model_auditor.metrics import validate_probabilities
+
+        _, _, data, _ = self._prepare_evaluation(
+            score_name, None, None, require_threshold=False
+        )
+        probabilities = validate_probabilities(data)
+        values = np.asarray(thresholds, dtype=float)
+        if (
+            values.ndim != 1
+            or not len(values)
+            or not np.isfinite(values).all()
+            or np.any((values <= 0) | (values >= 1))
+        ):
+            raise ValueError(
+                "Threshold probabilities must be a nonempty sequence in (0, 1)."
+            )
+        truth = data["_truth"].to_numpy()
+        rows = []
+        for t in values:
+            predictions = probabilities >= t
+            tp = np.sum(predictions & (truth == 1))
+            fp = np.sum(predictions & (truth == 0))
+            rows.append(
+                {
+                    "threshold": t,
+                    "net_benefit": (tp - fp * t / (1 - t)) / len(data),
+                    "act_all": truth.mean() - (1 - truth.mean()) * t / (1 - t),
+                    "act_none": 0.0,
+                    "selection_rate": predictions.mean(),
+                    "n": len(data),
+                }
+            )
+        result = pd.DataFrame(rows)
+        result.attrs["interval_scope"] = "descriptive_only"
+        return result
+
+    def compare_scores(
+        self,
+        score_name: str,
+        reference_score: str,
+        *,
+        threshold: Optional[ThresholdSpec] = None,
+        reference_threshold: Optional[ThresholdSpec] = None,
+        contrast: Literal["difference", "ratio"] = "difference",
+        n_bootstraps: Optional[int] = 1000,
+        inference: Optional[InferenceConfig] = None,
+        cohort: Optional[str] = None,
+    ) -> ScoreEvaluation:
+        """Paired model contrasts (score minus/divided by reference) on the same rows.
+
+        Metrics and subgroup memberships are recomputed inside shared resamples.
+        Intervals are pointwise, not multiplicity- or selection-adjusted. Supplied
+        predictions must come from an appropriate independent evaluation design.
+        """
+        from model_auditor._comparisons import contrast_estimate, evaluate_contrast
+        from model_auditor._evaluation import _prepare_feature_data, support_counts
+        from model_auditor.schemas import LevelEvaluation
+
+        if contrast not in {"difference", "ratio"} or not self.metrics:
+            raise ValueError("Choose difference or ratio and configure metrics first.")
+        config = inference or InferenceConfig()
+        _, threshold, left, features = self._prepare_evaluation(
+            score_name,
+            threshold,
+            n_bootstraps,
+            inference=config,
+            require_threshold=self._requires_threshold(),
+        )
+        _, reference_threshold, right, _ = self._prepare_evaluation(
+            reference_score,
+            reference_threshold,
+            n_bootstraps,
+            inference=config,
+            require_threshold=self._requires_threshold(),
+        )
+        self._collect_inputs()
+        left, right = self._apply_inputs(left), self._apply_inputs(right)
+        # Positional pairing remains valid even with duplicate DataFrame indices.
+        left = left.reset_index(drop=True)
+        right = right.reset_index(drop=True)
+        paired = left.copy()
+        if {"__reference_score", "__reference_binary"} & set(paired.columns):
+            raise ValueError(
+                "Comparison input columns conflict with reserved reference columns."
+            )
+        paired["__reference_score"] = right["_pred"]
+        paired["__reference_binary"] = right["_binary_pred"]
+        result = ScoreEvaluation(score_name, f"{score_name} vs {reference_score}")
+        result.metadata = self._metadata(
+            score_name, threshold, n_bootstraps, config, cohort
+        )
+        result.metadata.update(
+            reference_score=reference_score,
+            reference_threshold=asdict(reference_threshold)
+            if isinstance(reference_threshold, ConditionalThreshold)
+            else reference_threshold,
+            contrast=contrast,
+            estimand="paired_model_contrast",
+        )
+        for feature in features.values():
+            data, categories = _prepare_feature_data(
+                paired, feature.name, config.missing
+            )
+            fe = FeatureEvaluation(
+                feature.name,
+                feature.label or feature.name,
+                excluded_n=len(paired) - len(data),
+                total_n=len(paired),
+            )
+            for name, group in data.groupby(feature.name, observed=True):
+                level = LevelEvaluation(str(name), support=support_counts(group))
+                for metric in self.metrics:
+
+                    def statistic(boot, metric=metric):
+                        reference = boot.copy()
+                        reference["_pred"] = boot["__reference_score"]
+                        reference["_binary_pred"] = boot["__reference_binary"]
+                        reference = self._apply_inputs(reference)
+                        return contrast_estimate(
+                            metric.data_call(boot),
+                            metric.data_call(reference),
+                            contrast,
+                        )
+
+                    identical = group["_pred"].equals(
+                        group["__reference_score"]
+                    ) and group["_binary_pred"].equals(group["__reference_binary"])
+                    level.metrics[metric.name] = evaluate_contrast(
+                        group,
+                        statistic,
+                        metric.name,
+                        metric.label,
+                        n_bootstraps if metric.ci_eligible else None,
+                        config,
+                        identical=identical,
+                    )
+                fe.levels[str(name)] = level
+            if categories is not None:
+                for name in categories:
+                    if name not in fe.levels:
+                        level = LevelEvaluation(
+                            name, support=support_counts(data.iloc[:0])
+                        )
+                        for metric in self.metrics:
+                            level.update(metric.name, metric.label, float("nan"))
+                            level.metrics[metric.name].status = "undefined"
+                        fe.levels[name] = level
+                fe.levels = {name: fe.levels[name] for name in categories}
+            result.features[feature.name] = fe
+        return result
+
+    def compare_groups(
+        self,
+        score_name: str,
+        feature: str,
+        reference: str,
+        *,
+        threshold: Optional[ThresholdSpec] = None,
+        contrast: Literal["difference", "ratio"] = "difference",
+        n_bootstraps: Optional[int] = 1000,
+        inference: Optional[InferenceConfig] = None,
+        cohort: Optional[str] = None,
+    ) -> ScoreEvaluation:
+        """Compare each level with a named reference using shared resamples.
+
+        With FPR/FNR metrics these are class-conditional error-rate contrasts.
+        No causal interpretation or automatic multiple-comparison adjustment.
+        Reference uses the unambiguous string level label shown in results.
+        """
+        from model_auditor._comparisons import contrast_estimate, evaluate_contrast
+        from model_auditor._evaluation import _prepare_feature_data, support_counts
+        from model_auditor.schemas import LevelEvaluation
+
+        if contrast not in {"difference", "ratio"} or not self.metrics:
+            raise ValueError("Choose difference or ratio and configure metrics first.")
+        config = inference or InferenceConfig()
+        _, threshold, data, features = self._prepare_evaluation(
+            score_name,
+            threshold,
+            n_bootstraps,
+            inference=config,
+            require_threshold=self._requires_threshold(),
+        )
+        if feature not in self.features:
+            raise ValueError("Register the comparison feature first.")
+        self._collect_inputs()
+        data = self._apply_inputs(data)
+        full_n = len(data)
+        data, categories = _prepare_feature_data(data, feature, config.missing)
+        if reference not in set(data[feature].astype(str)):
+            raise ValueError("Reference must be an observed feature level.")
+        result = ScoreEvaluation(score_name, f"{feature} vs {reference}")
+        result.metadata = self._metadata(
+            score_name, threshold, n_bootstraps, config, cohort
+        )
+        result.metadata.update(
+            reference_level=reference,
+            contrast=contrast,
+            estimand="subgroup_metric_contrast",
+        )
+        fe = FeatureEvaluation(
+            feature,
+            features[feature].label or feature,
+            excluded_n=full_n - len(data),
+            total_n=full_n,
+        )
+        names = (
+            categories
+            if categories is not None
+            else sorted(data[feature].astype(str).unique())
+        )
+        for name in names:
+            if name == reference:
+                continue
+            level = LevelEvaluation(
+                name,
+                support=support_counts(data.loc[data[feature].astype(str) == name]),
+            )
+            for metric in self.metrics:
+
+                def statistic(boot, metric=metric, name=name):
+                    left = boot.loc[boot[feature].astype(str) == name]
+                    right = boot.loc[boot[feature].astype(str) == reference]
+                    if left.empty or right.empty:
+                        return float("nan")
+                    return contrast_estimate(
+                        metric.data_call(left), metric.data_call(right), contrast
+                    )
+
+                level.metrics[metric.name] = evaluate_contrast(
+                    data,
+                    statistic,
+                    metric.name,
+                    metric.label,
+                    n_bootstraps if metric.ci_eligible else None,
+                    config,
+                )
+            fe.levels[name] = level
+        result.features[feature] = fe
+        return result
 
     def optimize_score_threshold(self, score_name: str) -> float:
         """Optimize a score threshold using the Youden index (sensitivity - FPR).

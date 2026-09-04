@@ -571,3 +571,201 @@ class nNegative(AuditorMetric):
             Number of rows where _truth equals 0.
         """
         return (data["_truth"] == 0).astype(int).sum()
+
+
+class AveragePrecision(AUPRC):
+    """Non-interpolated average precision; AUPRC remains a compatibility alias.
+
+    Prevalence-dependent. Undefined without positives. This is not trapezoidal
+    PR area and is not a probability calibration metric.
+    """
+
+    name = "average_precision"
+    label = "Average precision"
+
+
+class NegativePredictiveValue(AuditorMetric):
+    """TN / (TN + FN); undefined without negative predictions."""
+
+    name = "npv"
+    label = "NPV"
+    inputs = ["tn", "fn"]
+    ci_eligible = True
+    direction = "higher"
+    binomial_columns = ("tn", "fn")
+
+    def data_call(self, data: pd.DataFrame) -> float:
+        return _safe_ratio(data["tn"].sum(), data["tn"].sum() + data["fn"].sum())
+
+
+class BalancedAccuracy(AuditorMetric):
+    """Mean sensitivity and specificity; requires both truth classes."""
+
+    name = "balanced_accuracy"
+    label = "Balanced accuracy"
+    inputs = ["tp", "tn", "fp", "fn"]
+    ci_eligible = True
+    direction = "higher"
+
+    def data_call(self, data: pd.DataFrame) -> float:
+        return (Sensitivity().data_call(data) + Specificity().data_call(data)) / 2
+
+
+class Prevalence(AuditorMetric):
+    """Observed positive-class proportion; descriptive, not a performance rank."""
+
+    name = "prevalence"
+    label = "Prevalence"
+    inputs = ["_truth"]
+    ci_eligible = True
+    direction = "none"
+    binomial_indicator = "_truth"
+
+    def data_call(self, data: pd.DataFrame) -> float:
+        return float(data["_truth"].mean())
+
+
+class SelectionRate(Prevalence):
+    """Predicted-positive proportion at the chosen policy threshold."""
+
+    name = "selection_rate"
+    label = "Selection rate"
+    inputs = ["_binary_pred"]
+    binomial_indicator = "_binary_pred"
+
+    def data_call(self, data: pd.DataFrame) -> float:
+        return float(data["_binary_pred"].mean())
+
+
+def validate_probabilities(data: pd.DataFrame) -> np.ndarray:
+    """Probability metrics require finite values in [0, 1], unlike ranking scores."""
+    probabilities = data["_pred"].to_numpy(dtype=float)
+    if (
+        not np.isfinite(probabilities).all()
+        or ((probabilities < 0) | (probabilities > 1)).any()
+    ):
+        raise ValueError("Probability metrics require finite scores in [0, 1].")
+    return probabilities
+
+
+class BrierScore(AuditorMetric):
+    """Mean squared probability error; measures calibration and discrimination."""
+
+    name = "brier_score"
+    label = "Brier score"
+    inputs = ["_truth", "_pred"]
+    ci_eligible = True
+    direction = "lower"
+
+    def data_call(self, data: pd.DataFrame) -> float:
+        probabilities = validate_probabilities(data)
+        return float(np.mean((probabilities - data["_truth"].to_numpy()) ** 2))
+
+
+class LogLoss(BrierScore):
+    """Binary log loss, clipping probabilities to float64 epsilon at endpoints."""
+
+    name = "log_loss"
+    label = "Log loss"
+    parameters = {"clip_epsilon": float(np.finfo(float).eps)}
+
+    def data_call(self, data: pd.DataFrame) -> float:
+        p = np.clip(
+            validate_probabilities(data), np.finfo(float).eps, 1 - np.finfo(float).eps
+        )
+        y = data["_truth"].to_numpy()
+        return float(-np.mean(y * np.log(p) + (1 - y) * np.log1p(-p)))
+
+
+def _calibration_fit(data: pd.DataFrame, fit_slope: bool) -> float:
+    """Logistic calibration with explicit rejection of unidentified/separated fits."""
+    from scipy.optimize import minimize
+    from scipy.special import expit, logit
+
+    p = validate_probabilities(data)
+    y = data["_truth"].to_numpy(dtype=float)
+    if len(np.unique(y)) != 2 or np.any((p == 0) | (p == 1)):
+        return float("nan")
+    x = logit(p)
+    if fit_slope:
+        if (
+            np.ptp(x) == 0
+            or x[y == 0].max() <= x[y == 1].min()
+            or x[y == 1].max() <= x[y == 0].min()
+        ):
+            return float("nan")
+        design = np.column_stack([np.ones(len(x)), x])
+        offset = np.zeros(len(x))
+        initial = np.array([0.0, 1.0])
+    else:
+        design = np.ones((len(x), 1))
+        offset = x
+        initial = np.array([0.0])
+
+    def objective(beta):
+        eta = design @ beta + offset
+        return np.mean(np.logaddexp(0, eta) - y * eta), design.T @ (
+            expit(eta) - y
+        ) / len(y)
+
+    fit = minimize(objective, initial, jac=True, method="BFGS", options={"gtol": 1e-8})
+    if not fit.success or not np.isfinite(fit.x).all():
+        return float("nan")
+    return float(fit.x[-1])
+
+
+class CalibrationIntercept(BrierScore):
+    """Calibration-in-the-large: logistic intercept with logit(score) as offset.
+
+    Ideal value is zero. Requires interior probabilities and both truth classes.
+    Not a higher/lower-is-better metric. Invalid fits return NaN.
+    """
+
+    name = "calibration_intercept"
+    label = "Calibration intercept"
+    direction = "none"
+
+    def data_call(self, data: pd.DataFrame) -> float:
+        return _calibration_fit(data, fit_slope=False)
+
+
+class CalibrationSlope(CalibrationIntercept):
+    """Slope from logistic regression on logit(score), with a fitted intercept.
+
+    Ideal value is one. Constant scores, separation and boundary probabilities
+    are not estimable; bootstrap failures are exposed in interval diagnostics.
+    """
+
+    name = "calibration_slope"
+    label = "Calibration slope"
+
+    def data_call(self, data: pd.DataFrame) -> float:
+        return _calibration_fit(data, fit_slope=True)
+
+
+class ExpectedCost(AuditorMetric):
+    """Mean FP/FN cost per evaluated row at the selected decision policy."""
+
+    name = "expected_cost"
+    label = "Expected cost"
+    inputs = ["fp", "fn"]
+    ci_eligible = True
+    direction = "lower"
+
+    def __init__(self, false_positive_cost: float = 1, false_negative_cost: float = 1):
+        if not all(
+            np.isfinite(v) and v >= 0
+            for v in (false_positive_cost, false_negative_cost)
+        ):
+            raise ValueError("Costs must be finite and nonnegative.")
+        self.parameters = {
+            "false_positive_cost": float(false_positive_cost),
+            "false_negative_cost": float(false_negative_cost),
+        }
+
+    def data_call(self, data: pd.DataFrame) -> float:
+        return _safe_ratio(
+            self.parameters["false_positive_cost"] * data["fp"].sum()
+            + self.parameters["false_negative_cost"] * data["fn"].sum(),
+            len(data),
+        )
