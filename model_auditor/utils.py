@@ -7,6 +7,7 @@ validating metric input classes.
 import importlib
 import inspect
 from typing import Type
+
 from model_auditor.metric_inputs import AuditorMetricInput
 
 

@@ -28,3 +28,5 @@ Example:
 """
 
 from model_auditor.core import Auditor
+
+__all__ = ["Auditor"]

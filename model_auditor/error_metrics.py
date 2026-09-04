@@ -136,10 +136,10 @@ class OddsRatio:
         if full_total - full_count == 0:
             return float("nan")
 
-        a = group_count                              # level ∩ group
-        b = full_count - group_count                 # level ∩ not-group
-        c = group_total - group_count                # not-level ∩ group
-        d = (full_total - full_count) - c            # not-level ∩ not-group
+        a = group_count  # level ∩ group
+        b = full_count - group_count  # level ∩ not-group
+        c = group_total - group_count  # not-level ∩ group
+        d = (full_total - full_count) - c  # not-level ∩ not-group
 
         numerator = a * d
         denominator = b * c

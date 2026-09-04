@@ -9,7 +9,6 @@ from model_auditor.metric_inputs import (
     TruePositives,
 )
 
-
 BASE_DF = pd.DataFrame(
     {
         "_truth": [1.0, 1.0, 0.0, 0.0, 1.0, 0.0],

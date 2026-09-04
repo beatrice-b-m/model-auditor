@@ -24,7 +24,9 @@ def bootstrap_df() -> pd.DataFrame:
     )
 
 
-def _bootstrap_oracle(data: pd.DataFrame, metric: Sensitivity, n_bootstraps: int) -> tuple[float, float]:
+def _bootstrap_oracle(
+    data: pd.DataFrame, metric: Sensitivity, n_bootstraps: int
+) -> tuple[float, float]:
     n = len(data)
     scores = np.empty(n_bootstraps, dtype=float)
     for i in range(n_bootstraps):
@@ -34,7 +36,9 @@ def _bootstrap_oracle(data: pd.DataFrame, metric: Sensitivity, n_bootstraps: int
     return float(lower), float(upper)
 
 
-def test_private_ci_computation_matches_seeded_oracle_exactly(bootstrap_df: pd.DataFrame):
+def test_private_ci_computation_matches_seeded_oracle_exactly(
+    bootstrap_df: pd.DataFrame,
+):
     auditor = Auditor(metrics=[Sensitivity(), nData()])
     n_bootstraps = 64
 
@@ -42,7 +46,9 @@ def test_private_ci_computation_matches_seeded_oracle_exactly(bootstrap_df: pd.D
     expected = _bootstrap_oracle(bootstrap_df, Sensitivity(), n_bootstraps)
 
     np.random.seed(12345)
-    actual = auditor._evaluate_confidence_interval(bootstrap_df, n_bootstraps=n_bootstraps)
+    actual = auditor._evaluate_confidence_interval(
+        bootstrap_df, n_bootstraps=n_bootstraps
+    )
 
     assert set(actual.keys()) == {"sensitivity"}
     assert actual["sensitivity"] == pytest.approx(expected)
@@ -101,14 +107,22 @@ def test_evaluate_errors_bootstrap_ci_rules():
 
     for group in ("tp", "tn", "fp", "fn"):
         for level in ("Female", "Male", "Other"):
-            lm = result.groups[group].features["gender"].levels[level].metrics["odds_ratio"]
+            lm = (
+                result.groups[group]
+                .features["gender"]
+                .levels[level]
+                .metrics["odds_ratio"]
+            )
             if not math.isnan(lm.score):
                 assert lm.interval is not None
                 lower, upper = lm.interval
                 assert lower <= upper
 
-        unknown_lm = result.groups[group].features["gender"].levels["Unknown"].metrics[
-            "odds_ratio"
-        ]
+        unknown_lm = (
+            result.groups[group]
+            .features["gender"]
+            .levels["Unknown"]
+            .metrics["odds_ratio"]
+        )
         assert math.isnan(unknown_lm.score)
         assert unknown_lm.interval is None

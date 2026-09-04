@@ -8,7 +8,6 @@ from sklearn.metrics import roc_curve
 from model_auditor import Auditor
 from model_auditor.metrics import Sensitivity, Specificity
 
-
 BASE_DF = pd.DataFrame(
     {
         "risk_score": [0.95, 0.85, 0.8, 0.7, 0.6, 0.55, 0.4, 0.3, 0.2, 0.1],
@@ -149,3 +148,27 @@ class TestOptimizeScoreThresholdYoudenRegression:
 
         assert isinstance(threshold, float)
         assert np.isfinite(threshold)
+
+
+@pytest.mark.parametrize("target", [float("nan"), float("inf"), float("-inf")])
+def test_target_must_be_finite(target):
+    with pytest.raises(ValueError, match="target must be between"):
+        Auditor().optimize_score_threshold_for_target("score", target)
+
+
+def test_youden_threshold_is_usable_for_an_inverted_classifier():
+    auditor = _make_auditor(
+        pd.DataFrame({"risk_score": [0.9, 0.8, 0.2, 0.1], "label": [0, 0, 1, 1]})
+    )
+    with pytest.warns(UserWarning, match="Optimal threshold"):
+        threshold = auditor.optimize_score_threshold("risk_score")
+    assert threshold == 0.1
+    assert (
+        _overall_metric(
+            auditor.evaluate_metrics(
+                "risk_score", threshold=threshold, n_bootstraps=None
+            ),
+            "sensitivity",
+        )
+        == 1.0
+    )

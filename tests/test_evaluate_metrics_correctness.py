@@ -6,11 +6,10 @@ import pandas as pd
 import pytest
 
 from model_auditor import Auditor
-from model_auditor.schemas import ConditionalThreshold
 from model_auditor.metrics import (
-    F1Score,
     FNR,
     FPR,
+    F1Score,
     MatthewsCorrelationCoefficient,
     Precision,
     Sensitivity,
@@ -23,6 +22,7 @@ from model_auditor.metrics import (
     nTN,
     nTP,
 )
+from model_auditor.schemas import ConditionalThreshold
 
 
 @pytest.fixture

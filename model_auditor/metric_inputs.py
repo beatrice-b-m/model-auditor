@@ -8,8 +8,9 @@ These metric inputs are computed row-wise and added as columns to the
 DataFrame, which are then aggregated by the metric classes.
 """
 
-import pandas as pd
 from typing import Protocol, Union, runtime_checkable
+
+import pandas as pd
 
 
 @runtime_checkable
@@ -24,6 +25,7 @@ class AuditorMetricInput(Protocol):
         label: Human-readable display name.
         inputs: List of column names required to compute this input.
     """
+
     name: str
     label: str
     inputs: list[str]
@@ -58,6 +60,7 @@ class TruePositives(AuditorMetricInput):
     Produces 1 for rows where both ground truth and prediction are positive,
     0 otherwise.
     """
+
     name: str = "tp"
     label: str = "TP"
     inputs: list[str] = ["_truth", "_binary_pred"]
@@ -74,7 +77,9 @@ class TruePositives(AuditorMetricInput):
         return int((row["_truth"] == 1.0) & (row["_binary_pred"] == 1.0))
 
     def data_transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        data[self.name] = ((data["_truth"] == 1.0) & (data["_binary_pred"] == 1.0)).astype(int)
+        data[self.name] = (
+            (data["_truth"] == 1.0) & (data["_binary_pred"] == 1.0)
+        ).astype(int)
         return data
 
 
@@ -84,6 +89,7 @@ class FalsePositives(AuditorMetricInput):
     Produces 1 for rows where ground truth is negative but prediction is
     positive, 0 otherwise.
     """
+
     name: str = "fp"
     label: str = "FP"
     inputs: list[str] = ["_truth", "_binary_pred"]
@@ -100,7 +106,9 @@ class FalsePositives(AuditorMetricInput):
         return int((row["_truth"] == 0.0) & (row["_binary_pred"] == 1.0))
 
     def data_transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        data[self.name] = ((data["_truth"] == 0.0) & (data["_binary_pred"] == 1.0)).astype(int)
+        data[self.name] = (
+            (data["_truth"] == 0.0) & (data["_binary_pred"] == 1.0)
+        ).astype(int)
         return data
 
 
@@ -110,6 +118,7 @@ class TrueNegatives(AuditorMetricInput):
     Produces 1 for rows where both ground truth and prediction are negative,
     0 otherwise.
     """
+
     name: str = "tn"
     label: str = "TN"
     inputs: list[str] = ["_truth", "_binary_pred"]
@@ -126,7 +135,9 @@ class TrueNegatives(AuditorMetricInput):
         return int((row["_truth"] == 0.0) & (row["_binary_pred"] == 0.0))
 
     def data_transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        data[self.name] = ((data["_truth"] == 0.0) & (data["_binary_pred"] == 0.0)).astype(int)
+        data[self.name] = (
+            (data["_truth"] == 0.0) & (data["_binary_pred"] == 0.0)
+        ).astype(int)
         return data
 
 
@@ -136,6 +147,7 @@ class FalseNegatives(AuditorMetricInput):
     Produces 1 for rows where ground truth is positive but prediction is
     negative, 0 otherwise.
     """
+
     name: str = "fn"
     label: str = "FN"
     inputs: list[str] = ["_truth", "_binary_pred"]
@@ -152,5 +164,7 @@ class FalseNegatives(AuditorMetricInput):
         return int((row["_truth"] == 1.0) & (row["_binary_pred"] == 0.0))
 
     def data_transform(self, data: pd.DataFrame) -> pd.DataFrame:
-        data[self.name] = ((data["_truth"] == 1.0) & (data["_binary_pred"] == 0.0)).astype(int)
+        data[self.name] = (
+            (data["_truth"] == 1.0) & (data["_binary_pred"] == 0.0)
+        ).astype(int)
         return data

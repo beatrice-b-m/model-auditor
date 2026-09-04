@@ -18,13 +18,11 @@ Coverage:
 
 import math
 
-import numpy as np
 import pandas as pd
 import pytest
 
 from model_auditor import Auditor
 from model_auditor.schemas import ConditionalThreshold, ErrorEvaluation, ScoreEvaluation
-
 
 # ---------------------------------------------------------------------------
 # Synthetic dataset
@@ -55,20 +53,20 @@ def _make_df(include_unknown: bool = False) -> pd.DataFrame:
 
     # Female
     rows.extend([{"gender": "Female", "score": 0.8, "label": 1}] * 4)  # TP
-    rows.append({"gender": "Female", "score": 0.7, "label": 0})          # FP
-    rows.append({"gender": "Female", "score": 0.3, "label": 1})          # FN
-    rows.extend([{"gender": "Female", "score": 0.2, "label": 0}] * 2)   # TN
+    rows.append({"gender": "Female", "score": 0.7, "label": 0})  # FP
+    rows.append({"gender": "Female", "score": 0.3, "label": 1})  # FN
+    rows.extend([{"gender": "Female", "score": 0.2, "label": 0}] * 2)  # TN
 
     # Male
-    rows.extend([{"gender": "Male", "score": 0.9, "label": 1}] * 3)     # TP
-    rows.append({"gender": "Male", "score": 0.6, "label": 0})            # FP
-    rows.append({"gender": "Male", "score": 0.4, "label": 1})            # FN
-    rows.extend([{"gender": "Male", "score": 0.1, "label": 0}] * 3)     # TN
+    rows.extend([{"gender": "Male", "score": 0.9, "label": 1}] * 3)  # TP
+    rows.append({"gender": "Male", "score": 0.6, "label": 0})  # FP
+    rows.append({"gender": "Male", "score": 0.4, "label": 1})  # FN
+    rows.extend([{"gender": "Male", "score": 0.1, "label": 0}] * 3)  # TN
 
     # Other
-    rows.append({"gender": "Other", "score": 0.8, "label": 1})           # TP
-    rows.append({"gender": "Other", "score": 0.3, "label": 1})           # FN
-    rows.extend([{"gender": "Other", "score": 0.1, "label": 0}] * 2)    # TN
+    rows.append({"gender": "Other", "score": 0.8, "label": 1})  # TP
+    rows.append({"gender": "Other", "score": 0.3, "label": 1})  # FN
+    rows.extend([{"gender": "Other", "score": 0.1, "label": 0}] * 2)  # TN
 
     if include_unknown:
         rows.extend([{"gender": "Unknown", "score": 0.8, "label": 1}] * 2)
@@ -122,19 +120,31 @@ class TestEvaluateErrorsStructure:
     """evaluate_errors() exposes deterministic, truth-checked structure."""
 
     def test_returns_error_evaluation(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         assert isinstance(result, ErrorEvaluation)
         assert set(result.groups.keys()) == {"tp", "tn", "fp", "fn"}
 
     def test_name_and_label(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         assert result.name == "score"
         assert result.label == "score"
-        female_tp = result.groups["tp"].features["gender"].levels["Female"].metrics["odds_ratio"].score
+        female_tp = (
+            result.groups["tp"]
+            .features["gender"]
+            .levels["Female"]
+            .metrics["odds_ratio"]
+            .score
+        )
         assert female_tp == pytest.approx(2.0)
 
     def test_threshold_stored(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         assert result.threshold == 0.5
         overridden = _make_auditor(_make_df()).evaluate_errors(
             score_name="score", threshold=0.6, n_bootstraps=None
@@ -163,9 +173,10 @@ class TestEvaluateErrorsStructure:
         assert support["fp"]["gender"]["Other"]["n"] == 2
         assert support["fn"]["gender"]["Male"]["n"] == 4
 
-
     def test_all_four_groups_present(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         support = result.support_data
         assert support["tp"]["gender"]["Female"]["n"] == 4
         assert support["tp"]["gender"]["Male"]["n"] == 3
@@ -174,30 +185,46 @@ class TestEvaluateErrorsStructure:
         assert support["tn"]["gender"]["Male"]["n"] == 3
 
     def test_each_group_is_score_evaluation(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         for group_eval in result.groups.values():
             assert isinstance(group_eval, ScoreEvaluation)
             assert {"gender", "overall"}.issubset(group_eval.features.keys())
 
     def test_gender_feature_present_in_every_group(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         expected_order = ["Female", "Male", "Other", "Unknown"]
         for group_eval in result.groups.values():
             assert list(group_eval.features["gender"].levels.keys()) == expected_order
 
     def test_overall_feature_present_in_every_group(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         for group in ("tp", "tn", "fp", "fn"):
-            overall_or = result.groups[group].features["overall"].levels["Overall"].metrics[
-                "odds_ratio"
-            ].score
+            overall_or = (
+                result.groups[group]
+                .features["overall"]
+                .levels["Overall"]
+                .metrics["odds_ratio"]
+                .score
+            )
             assert math.isnan(overall_or)
 
     def test_odds_ratio_metric_present_in_levels(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         tp_gender = result.groups["tp"].features["gender"]
-        assert tp_gender.levels["Female"].metrics["odds_ratio"].score == pytest.approx(2.0)
-        assert tp_gender.levels["Male"].metrics["odds_ratio"].score == pytest.approx(0.84)
+        assert tp_gender.levels["Female"].metrics["odds_ratio"].score == pytest.approx(
+            2.0
+        )
+        assert tp_gender.levels["Male"].metrics["odds_ratio"].score == pytest.approx(
+            0.84
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -210,10 +237,18 @@ class TestOddsRatioValues:
 
     def setup_method(self):
         df = _make_df()
-        self.result = _make_auditor(df).evaluate_errors(score_name="score", n_bootstraps=None)
+        self.result = _make_auditor(df).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
 
     def _or_for(self, group: str, level: str) -> float:
-        return self.result.groups[group].features["gender"].levels[level].metrics["odds_ratio"].score
+        return (
+            self.result.groups[group]
+            .features["gender"]
+            .levels[level]
+            .metrics["odds_ratio"]
+            .score
+        )
 
     def test_female_in_tp(self):
         # a=4, b=4, c=4, d=8 → OR=32/16=2.0
@@ -261,16 +296,23 @@ class TestZeroInGroup:
     def test_other_in_fp_is_zero(self):
         # Other has no FP rows (all Other scores are 0.3/0.1 < threshold=0.5).
         # a=0, b=4, c=2, d=14 → OR=0/8=0.0
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         fp_other = result.groups["fp"].features["gender"].levels["Other"]
         ratio = fp_other.metrics["odds_ratio"].score
         assert ratio == 0.0, f"Expected 0.0 for Other in FP, got {ratio}"
 
     def test_zero_or_is_not_nan(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         ratio = (
-            result.groups["fp"].features["gender"].levels["Other"]
-            .metrics["odds_ratio"].score
+            result.groups["fp"]
+            .features["gender"]
+            .levels["Other"]
+            .metrics["odds_ratio"]
+            .score
         )
         assert not math.isnan(ratio), "Zero-in-group OR must not be NaN"
 
@@ -285,13 +327,17 @@ class TestNaNBaseline:
 
     def test_unobserved_category_nan_or(self):
         # 'Unknown' is a declared category with zero rows in the full dataset.
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         unknown = result.groups["tp"].features["gender"].levels["Unknown"]
         ratio = unknown.metrics["odds_ratio"].score
         assert math.isnan(ratio), f"Expected NaN for unobserved 'Unknown', got {ratio}"
 
     def test_unobserved_category_no_ci(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=500)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=500
+        )
         for group in ("tp", "tn", "fp", "fn"):
             unknown = result.groups[group].features["gender"].levels["Unknown"]
             lm = unknown.metrics["odds_ratio"]
@@ -302,7 +348,9 @@ class TestNaNBaseline:
 
     def test_unobserved_category_nan_score_with_bootstraps(self):
         """Bootstrap must preserve NaN score for levels with undefined baseline."""
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=50)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=50
+        )
         unknown = result.groups["tp"].features["gender"].levels["Unknown"]
         assert math.isnan(unknown.metrics["odds_ratio"].score)
 
@@ -316,15 +364,24 @@ class TestBootstrap:
     """Bootstrap path: point estimate becomes bootstrap mean; CI bounds populated."""
 
     def test_observed_levels_have_ci(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=100)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=100
+        )
         for level in ("Female", "Male", "Other"):
-            lm = result.groups["tp"].features["gender"].levels[level].metrics["odds_ratio"]
+            lm = (
+                result.groups["tp"]
+                .features["gender"]
+                .levels[level]
+                .metrics["odds_ratio"]
+            )
             assert lm.interval is not None, (
                 f"Observed level '{level}' must have a CI after bootstrapping"
             )
 
     def test_ci_lower_le_upper(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=100)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=100
+        )
         for group in ("tp", "tn", "fp", "fn"):
             for level in ("Female", "Male", "Other"):
                 lm = (
@@ -340,12 +397,21 @@ class TestBootstrap:
                     )
 
     def test_bootstrap_mean_is_float(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=50)
-        lm = result.groups["tp"].features["gender"].levels["Female"].metrics["odds_ratio"]
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=50
+        )
+        lm = (
+            result.groups["tp"]
+            .features["gender"]
+            .levels["Female"]
+            .metrics["odds_ratio"]
+        )
         assert isinstance(lm.score, float)
 
     def test_no_bootstraps_no_ci(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         for group in ("tp", "tn", "fp", "fn"):
             for level in ("Female", "Male", "Other"):
                 lm = (
@@ -371,7 +437,9 @@ class TestCategoricalOrdering:
     """Declared categorical order is preserved in every group's feature evaluation."""
 
     def test_gender_levels_follow_declared_order_in_all_groups(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         for group_name, group_eval in result.groups.items():
             keys = list(group_eval.features["gender"].levels.keys())
             assert keys == DECLARED_ORDER, (
@@ -379,7 +447,9 @@ class TestCategoricalOrdering:
             )
 
     def test_unobserved_unknown_present_in_all_groups(self):
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         for group_name, group_eval in result.groups.items():
             assert "Unknown" in group_eval.features["gender"].levels, (
                 f"'Unknown' placeholder missing from group '{group_name}'"
@@ -402,7 +472,9 @@ class TestToDataframe:
     """
 
     def setup_method(self):
-        self.result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        self.result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         self.df = self.result.to_dataframe()
 
     # -- basic structure -------------------------------------------------------
@@ -461,8 +533,14 @@ class TestToDataframe:
     def test_group_section_sub_columns_default_names(self):
         for group in ("TP", "TN", "FP", "FN"):
             group_cols = set(self.df[group].columns)
-            expected = {"N", "% overall", "% group", "odds_ratio",
-                        "odds_ratio_ci_lower", "odds_ratio_ci_upper"}
+            expected = {
+                "N",
+                "% overall",
+                "% group",
+                "odds_ratio",
+                "odds_ratio_ci_lower",
+                "odds_ratio_ci_upper",
+            }
             assert expected.issubset(group_cols), (
                 f"Group {group} missing columns; got {group_cols}"
             )
@@ -543,11 +621,12 @@ class TestToDataframe:
         leaf_cols = [col[1] for col in self.df.columns]
         assert "Neg %" not in leaf_cols
 
-
     def test_first_two_columns_are_overall(self):
         """First two leaf columns are ('Overall', 'N') then ('Overall', '% overall')."""
         cols = list(self.df.columns)
-        assert cols[0] == ("Overall", "N"), f"First column should be ('Overall', 'N'), got {cols[0]}"
+        assert cols[0] == ("Overall", "N"), (
+            f"First column should be ('Overall', 'N'), got {cols[0]}"
+        )
         assert cols[1] == ("Overall", "% overall"), (
             f"Second column should be ('Overall', '% overall'), got {cols[1]}"
         )
@@ -703,7 +782,6 @@ class TestValidation:
         assert result.threshold == 0.6
 
 
-
 # ---------------------------------------------------------------------------
 # TestStyleDataframe — style_dataframe() rendering and tier behaviour
 # ---------------------------------------------------------------------------
@@ -726,10 +804,9 @@ def _cell_styles(html: str) -> "dict[str, str]":
     interest are unique across the table.
     """
     import re
+
     id_to_css: dict = {}
-    for rule_m in re.finditer(
-        r"((?:#T_\w+_row\d+_col\d+\s*,?\s*)+)\{([^}]+)\}", html
-    ):
+    for rule_m in re.finditer(r"((?:#T_\w+_row\d+_col\d+\s*,?\s*)+)\{([^}]+)\}", html):
         css = rule_m.group(2).strip()
         for sel_m in re.finditer(r"T_\w+_row\d+_col\d+", rule_m.group(1)):
             id_to_css[sel_m.group(0)] = css
@@ -756,7 +833,9 @@ class TestStyleDataframe:
 
     def test_or_shows_inline_ci_with_bootstraps(self):
         """With bootstraps, OR cells show 'value (lo, hi)' inline."""
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=100)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=100
+        )
         styler = result.style_dataframe(n_decimals=3)
         display_df = styler.data
         for group in ("TP", "TN", "FP", "FN"):
@@ -768,7 +847,9 @@ class TestStyleDataframe:
 
     def test_or_shows_value_only_without_bootstraps(self):
         """Without bootstraps, OR cells show just the numeric value (no parens)."""
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         styler = result.style_dataframe(n_decimals=3)
         display_df = styler.data
         for group in ("TP", "TN", "FP", "FN"):
@@ -783,7 +864,9 @@ class TestStyleDataframe:
 
     def test_nan_or_shows_em_dash(self):
         """NaN OR values (Overall/Overall row) must render as em dash."""
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         styler = result.style_dataframe()
         display_df = styler.data
         for group in ("TP", "TN", "FP", "FN"):
@@ -794,25 +877,37 @@ class TestStyleDataframe:
 
     def test_n_decimals_respected_in_or_cell(self):
         """OR cell text uses the requested decimal precision."""
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         styler = result.style_dataframe(n_decimals=2)
         display_df = styler.data
         val = display_df.at[("gender", "Female"), ("TP", "odds_ratio")]
-        assert val == "2.00", f"Expected '2.00' for Female/TP OR at n_decimals=2, got {val!r}"
+        assert val == "2.00", (
+            f"Expected '2.00' for Female/TP OR at n_decimals=2, got {val!r}"
+        )
 
     # -- CI columns absent from styled output -----------------------------------
 
     def test_ci_columns_absent_from_styled_output(self):
         """CI bound columns must not appear in the Styler display DataFrame."""
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=100)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=100
+        )
         styler = result.style_dataframe()
         leaf_cols = [col[1] for col in styler.data.columns]
-        assert "odds_ratio_ci_lower" not in leaf_cols, "CI lower must be hidden in styled output"
-        assert "odds_ratio_ci_upper" not in leaf_cols, "CI upper must be hidden in styled output"
+        assert "odds_ratio_ci_lower" not in leaf_cols, (
+            "CI lower must be hidden in styled output"
+        )
+        assert "odds_ratio_ci_upper" not in leaf_cols, (
+            "CI upper must be hidden in styled output"
+        )
 
     def test_ci_columns_absent_with_metric_labels(self):
         """CI columns absent even when metric_labels=True swaps column names."""
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=100)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=100
+        )
         styler = result.style_dataframe(metric_labels=True)
         leaf_cols = [col[1] for col in styler.data.columns]
         assert "OR 95% CI Lower" not in leaf_cols
@@ -822,7 +917,9 @@ class TestStyleDataframe:
 
     def test_or_column_present_in_styled_output(self):
         """OR column is present in the Styler for every group section."""
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         styler = result.style_dataframe()
         for group in ("TP", "TN", "FP", "FN"):
             assert (group, "odds_ratio") in styler.data.columns, (
@@ -837,7 +934,9 @@ class TestStyleDataframe:
         Female TP OR = 2.0 (highest in TP column) → should be green (#d4edda).
         This value is unique in the table so the _cell_styles lookup is unambiguous.
         """
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         html = _render_html(result.style_dataframe(n_decimals=3))
         styles = _cell_styles(html)
         assert "#d4edda" in styles.get("2.000", ""), (
@@ -852,7 +951,9 @@ class TestStyleDataframe:
         inversion they should receive medium (yellow) tier, not high (green).
         '1.571' is unique in the display table (no other column produces this value).
         """
-        result = _make_auditor(_make_df()).evaluate_errors(score_name="score", n_bootstraps=None)
+        result = _make_auditor(_make_df()).evaluate_errors(
+            score_name="score", n_bootstraps=None
+        )
         html = _render_html(result.style_dataframe(n_decimals=3))
         styles = _cell_styles(html)
         css = styles.get("1.571", "")
