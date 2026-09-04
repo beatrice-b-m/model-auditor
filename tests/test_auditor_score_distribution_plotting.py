@@ -25,7 +25,6 @@ import pytest
 
 from model_auditor import Auditor
 
-
 # ---------------------------------------------------------------------------
 # Shared fixture: close all figures after every test
 # ---------------------------------------------------------------------------
@@ -52,8 +51,13 @@ def _make_auditor(feature_dtype: str = "object") -> Auditor:
     rows = []
     for grp, n in [("A", 10), ("B", 8), ("C", 5)]:
         for _ in range(n):
-            rows.append({"group": grp, "region": "North" if grp != "C" else "South",
-                          "score": 0.6 if grp == "A" else 0.4})
+            rows.append(
+                {
+                    "group": grp,
+                    "region": "North" if grp != "C" else "South",
+                    "score": 0.6 if grp == "A" else 0.4,
+                }
+            )
     df = pd.DataFrame(rows)
 
     if feature_dtype == "categorical":
@@ -224,9 +228,7 @@ class TestHistogramProperties:
     def test_density_false_uses_raw_counts(self):
         """With density=False, bar heights are raw counts, area != 1."""
         auditor = _make_auditor()
-        _, axes = auditor.plot_score_distributions(
-            "score", density=False
-        )["group"]
+        _, axes = auditor.plot_score_distributions("score", density=False)["group"]
         # At least one bar should have height > 1 (raw count).
         heights = [p.get_height() for ax in axes for p in ax.patches]
         assert any(h > 1.0 for h in heights)
@@ -269,9 +271,7 @@ class TestLevelOrdering:
 
     def test_non_categorical_levels_follow_first_appearance_order(self):
         """Non-categorical strings must appear in the order first seen in data."""
-        df = pd.DataFrame(
-            {"grp": ["Z", "Z", "Y", "Y", "X", "X"], "score": [0.3] * 6}
-        )
+        df = pd.DataFrame({"grp": ["Z", "Z", "Y", "Y", "X", "X"], "score": [0.3] * 6})
         auditor = Auditor()
         auditor.add_data(df)
         auditor.add_feature(name="grp")
@@ -323,16 +323,12 @@ class TestErrors:
     def test_error_unknown_feature_message_includes_name(self):
         auditor = _make_auditor()
         with pytest.raises(ValueError) as exc_info:
-            auditor.plot_score_distributions(
-                "score", feature_names=["nonexistent"]
-            )
+            auditor.plot_score_distributions("score", feature_names=["nonexistent"])
         assert "nonexistent" in str(exc_info.value)
 
     def test_error_all_nulls_in_feature_column(self):
         """If all feature values are null, no levels can be formed."""
-        df = pd.DataFrame(
-            {"grp": [float("nan")] * 5, "score": [0.5] * 5}
-        )
+        df = pd.DataFrame({"grp": [float("nan")] * 5, "score": [0.5] * 5})
         auditor = Auditor()
         auditor.add_data(df)
         auditor.add_feature(name="grp")
@@ -342,9 +338,7 @@ class TestErrors:
 
     def test_error_all_nulls_in_score_column(self):
         """If all score values are null, no data remains after dropna."""
-        df = pd.DataFrame(
-            {"grp": ["A"] * 5, "score": [float("nan")] * 5}
-        )
+        df = pd.DataFrame({"grp": ["A"] * 5, "score": [float("nan")] * 5})
         auditor = Auditor()
         auditor.add_data(df)
         auditor.add_feature(name="grp")
@@ -363,9 +357,7 @@ class TestEndToEnd:
 
     def test_works_without_outcome_defined(self):
         """plot_score_distributions must not require add_outcome()."""
-        df = pd.DataFrame(
-            {"grp": ["A", "B", "A", "B"], "score": [0.8, 0.3, 0.7, 0.4]}
-        )
+        df = pd.DataFrame({"grp": ["A", "B", "A", "B"], "score": [0.8, 0.3, 0.7, 0.4]})
         auditor = Auditor()
         auditor.add_data(df)
         auditor.add_feature(name="grp")
@@ -375,9 +367,7 @@ class TestEndToEnd:
 
     def test_works_without_metrics_defined(self):
         """plot_score_distributions must not require set_metrics()."""
-        df = pd.DataFrame(
-            {"grp": ["A", "B", "A", "B"], "score": [0.8, 0.3, 0.7, 0.4]}
-        )
+        df = pd.DataFrame({"grp": ["A", "B", "A", "B"], "score": [0.8, 0.3, 0.7, 0.4]})
         auditor = Auditor()
         auditor.add_data(df)
         auditor.add_feature(name="grp")
@@ -417,3 +407,35 @@ class TestEndToEnd:
         # B: 1 valid row (row 5; row 2 has null feature... wait, row 2 has grp=B, score=0.2 — valid).
         # Let's just check no error and correct level count.
         assert len(axes) == 2  # A and B
+
+
+def test_class_split_histogram_counts_match_outcomes():
+    auditor = Auditor(
+        pd.DataFrame(
+            {
+                "group": ["A"] * 4,
+                "score": [0.1, 0.2, 0.8, 0.9],
+                "truth": [0, 0, 1, 1],
+            }
+        )
+    )
+    auditor.add_feature("group")
+    auditor.add_score("score")
+    auditor.add_outcome("truth")
+    _, axes = auditor.plot_score_distributions(
+        "score", bins=2, density=False, split_classes=True
+    )["group"]
+    ax = axes[0]
+    assert [text.get_text() for text in ax.get_legend().get_texts()] == [
+        "Negative",
+        "Positive",
+    ]
+    assert [[bar.get_height() for bar in container] for container in ax.containers] == [
+        [2, 0],
+        [0, 2],
+    ]
+
+
+def test_class_split_requires_outcome():
+    with pytest.raises(ValueError, match="add_outcome"):
+        _make_auditor().plot_score_distributions("score", split_classes=True)
