@@ -1,0 +1,43 @@
+name: Visual gallery
+
+# Dedicated rendering environment: pinned dependencies, a headless Chromium,
+# a bundled DejaVu Sans font, a fixed viewport, and fixed image dimensions.
+# Rendering failures surface here independently of the numerical test jobs.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gallery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install library and pinned rendering tools
+        run: |
+          python -m pip install -e '.[dev]'
+          python -m pip install -r validation/visuals/requirements-render.txt
+      - name: Install headless browser
+        run: python -m playwright install --with-deps chromium
+      - name: Render gallery
+        run: python -m validation.visuals.gallery --screenshots --require-browser
+        env:
+          MPLBACKEND: Agg
+      - name: Verify artifact completeness and hashes
+        run: python -m validation.visuals.manifest artifacts/visuals --require-documentation
+      - name: Upload gallery
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-gallery
+          path: artifacts/visuals
+          if-no-files-found: error
+          retention-days: 30

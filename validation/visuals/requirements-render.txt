@@ -1,0 +1,12 @@
+# Pinned rendering environment for the visual example gallery.
+#
+# These tools are NOT library runtime dependencies.  Install them only for
+# gallery generation and the CI rendering job:
+#
+#   python -m pip install -r validation/visuals/requirements-render.txt
+#   python -m playwright install --with-deps chromium
+#
+matplotlib==3.11.1
+plotly==7.0.0
+jinja2==3.1.6
+playwright==1.62.0
