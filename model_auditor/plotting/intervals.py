@@ -31,6 +31,130 @@ def _is_plottable_level(lm: LevelMetric) -> bool:
     return bool(np.isfinite(lo) and np.isfinite(hi) and lo <= hi)
 
 
+# Human-readable explanations for omitted levels, keyed by interval_status.
+_INTERVAL_STATUS_MESSAGES = {
+    "not_requested": "interval not requested",
+    "undefined_estimate": "no data at this level",
+    "insufficient_resamples": "too few valid resamples",
+    "too_many_invalid_resamples": "too many invalid resamples",
+    "degenerate_distribution": "degenerate resampling distribution",
+    "insufficient_clusters": "too few clusters for resampling",
+    "conditional_on_valid_resamples": "conditional on valid resamples",
+}
+
+
+def _describe_omission(lm: LevelMetric) -> str:
+    """Return a readable reason why a level is not drawn."""
+    if lm.interval is None:
+        return _INTERVAL_STATUS_MESSAGES.get(lm.interval_status, lm.interval_status)
+    return "nonfinite or reversed interval bounds"
+
+
+def _boxes_overlap(
+    first: tuple[float, float, float, float],
+    second: tuple[float, float, float, float],
+    pad: float = 0.0,
+) -> bool:
+    """Return True when two ``(x0, y0, x1, y1)`` boxes overlap (inflated by pad)."""
+    return not (
+        first[2] + pad <= second[0]
+        or second[2] + pad <= first[0]
+        or first[3] + pad <= second[1]
+        or second[3] + pad <= first[1]
+    )
+
+
+def _stack_annotations(
+    ax,
+    fig,
+    x_positions: list[float],
+    y_positions: list[float],
+    texts: list[str],
+    fontsize: float = 7.0,
+    base_offset_pts: float = 5.0,
+    row_gap_pts: float = 20.0,
+    pad_pts: float = 4.0,
+) -> None:
+    """Annotate rotated points, stacking overlapping labels into extra rows.
+
+    Labels are anchored above their point and assigned to the lowest row whose
+    rendered box does not collide with an already-placed label.  Placement uses
+    real display geometry (including each point's own vertical position), so
+    labels stay disjoint even when point estimates differ.  The y-axis grows
+    until the tallest label row fits inside the axes.
+    """
+    if not texts:
+        return
+    # Force a full draw so transforms reflect final layout.
+    fig.canvas.draw()
+
+    from matplotlib.font_manager import FontProperties
+    from matplotlib.textpath import TextToPath
+
+    text_to_path = TextToPath()
+    properties = FontProperties(size=fontsize)
+    pixels_per_point = fig.dpi / 72.0
+    widths: list[float] = []
+    heights: list[float] = []
+    for text in texts:
+        lines = text.splitlines() or [""]
+        widths.append(
+            max(
+                text_to_path.get_text_width_height_descent(line, properties, False)[0]
+                for line in lines
+            )
+            * pixels_per_point
+        )
+        heights.append(len(lines) * fontsize * 1.25 * pixels_per_point)
+
+    pad = pad_pts * pixels_per_point
+    assignments: list[int] = []
+    y0, y1 = ax.get_ylim()
+    for _ in range(8):
+        centers = [
+            ax.transData.transform((x, y)) for x, y in zip(x_positions, y_positions)
+        ]
+        placed: list[tuple[float, float, float, float]] = []
+        assignments = []
+        highest = 0.0
+        for (center_x, center_y), width, height in zip(centers, widths, heights):
+            row = 0
+            while True:
+                offset = (base_offset_pts + row * row_gap_pts) * pixels_per_point
+                box = (
+                    center_x - width / 2,
+                    center_y + offset,
+                    center_x + width / 2,
+                    center_y + offset + height,
+                )
+                if all(not _boxes_overlap(box, other, pad) for other in placed):
+                    break
+                row += 1
+            placed.append(box)
+            assignments.append(row)
+            highest = max(highest, box[3])
+        overflow = highest - ax.bbox.y1
+        if overflow <= 0.5 or ax.bbox.height <= 0:
+            break
+        units_per_pixel = (y1 - y0) / ax.bbox.height
+        y1 = y1 + overflow * units_per_pixel * 1.02
+        ax.set_ylim(y0, y1)
+
+    for index, text in enumerate(texts):
+        if not text:
+            continue
+        offset = base_offset_pts + assignments[index] * row_gap_pts
+        ax.annotate(
+            text,
+            xy=(x_positions[index], y_positions[index]),
+            xytext=(0, offset),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=fontsize,
+        )
+
+
 def _resolve_metric_key(
     metric: str,
     selected_features: list[str],
@@ -314,12 +438,7 @@ def plot_metric_intervals(
         for name, level in candidates:
             lm = level.metrics.get(metric_key)
             if lm is not None and not _is_plottable_level(lm):
-                reason = (
-                    lm.interval_status
-                    if lm.interval is None
-                    else "unbounded or invalid interval"
-                )
-                omitted.append(f"{name}: {reason}")
+                omitted.append(f"{name}: {_describe_omission(lm)}")
         if not plot_names:
             fig, ax = plt.subplots()
             ax.axis("off")
@@ -421,10 +540,19 @@ def plot_metric_intervals(
             ax.set_ylabel(metric_label)
             ax.set_title(f"{feval.label}: {metric_label}")
 
-            if include_sample_size or include_class_balance:
-                for i, (score, ann_leval) in enumerate(zip(plot_scores, plot_levals)):
-                    n_lev, n_pos_lev, n_neg_lev = _extract_level_counts(ann_leval)
-                    text = _format_level_annotation(
+        if omitted:
+            fig.text(
+                0.01, 0.01, "Not drawn: " + "; ".join(omitted), fontsize=8, wrap=True
+            )
+        fig.tight_layout(rect=(0, 0.08 if omitted else 0, 1, 1))
+
+        if rotate_plots and (include_sample_size or include_class_balance):
+            # Stack after layout so collision detection uses final geometry.
+            texts: list[str] = []
+            for ann_leval in plot_levals:
+                n_lev, n_pos_lev, n_neg_lev = _extract_level_counts(ann_leval)
+                texts.append(
+                    _format_level_annotation(
                         n_lev,
                         n_overall,
                         n_pos_lev,
@@ -432,21 +560,9 @@ def plot_metric_intervals(
                         include_sample_size,
                         include_class_balance,
                     )
-                    if text:
-                        ax.annotate(
-                            text,
-                            xy=(x[i], score),
-                            xytext=(0, 5),
-                            textcoords="offset points",
-                            ha="center",
-                            fontsize=7,
-                        )
+                )
+            _stack_annotations(ax, fig, x, plot_scores, texts)
 
-        if omitted:
-            fig.text(
-                0.01, 0.01, "Not drawn: " + "; ".join(omitted), fontsize=8, wrap=True
-            )
-        fig.tight_layout(rect=(0, 0.08 if omitted else 0, 1, 1))
         plots[fname] = (fig, ax)
 
     return plots
