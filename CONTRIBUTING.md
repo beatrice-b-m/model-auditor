@@ -39,6 +39,7 @@ The `plotting` extra installs Matplotlib and Plotly; `styling` installs Jinja2. 
 | `plotting/intervals.py`, `plotting/distributions.py` | Optional Matplotlib renderers |
 | `plotting/plotters.py`, `plotting/schemas.py` | Hierarchy compilation and Plotly-compatible arrays |
 | `tests/` | Metric oracles, evaluation integration, regressions, and plotting/table behavior |
+| `validation/visuals/` | Deterministic visual examples, gallery generator, manifest verifier, release asset builder |
 
 Keep numerical evaluation independent of rendering. Internal helpers receive data and configuration explicitly. Preserve public import paths and method signatures when reorganizing implementations; underscore-prefixed modules are internal.
 
@@ -63,10 +64,42 @@ The core evaluates fixed binary predictions: ranking, decisions, probability acc
 
 Changes in this statistical revision intentionally replace zero-denominator zeros, bootstrap-mean ORs, global RNG behavior, and default performance coloring. Preserve public aliases and positional arguments, but update regression tests for these authorized contract changes. `n_bootstraps=None` disables all intervals; positive counts request intervals, with analytic methods avoiding unnecessary resampling. Release these changes with migration notes.
 
+## Visual examples and release assets
+
+`validation/visuals/` holds deterministic synthetic data, named executable
+examples, and the curated documentation subset (`DOCUMENTATION_EXAMPLES`).
+Each example stores the exact standalone script that generates its output, so
+the gallery and pytest capture cannot drift from the recorded code.
+
+```bash
+# Browsable local gallery (ignored by Git, written to artifacts/visuals/)
+python -m validation.visuals.gallery --screenshots
+
+# Opt-in pytest capture using the same example functions
+python -m pytest tests/test_visual_examples.py --visuals
+
+# Re-hash and check a gallery or release bundle
+python -m validation.visuals.manifest artifacts/visuals --require-documentation
+```
+
+Rendering tools are pinned in `validation/visuals/requirements-render.txt` and
+must stay out of library runtime dependencies and core imports. The gallery
+wrapper sets only reproducibility settings (DPI, bundled DejaVu Sans font, fixed
+viewport); it never improves the package's apparent defaults. Add examples for
+every presentation surface and put difficult cases (long labels, many levels,
+missing categories, undefined intervals, wide tables, rotated annotations) in
+the developer collection rather than the documentation subset. Add regression
+coverage for each layout defect fixed.
+
+The release workflow builds the wheel once, installs it in an isolated
+environment that cannot import the checkout, renders and verifies the curated
+examples, records provenance and output hashes, attaches the bundle to the
+GitHub release, and only then publishes. Do not weaken that ordering.
+
 ## Documentation and releases
 
 Keep the README to installation, a runnable quick start, and links. Keep this guide and AGENTS.md focused on repository work; do not grow a second user manual or tutorial notebook here. Preserve API docstrings beside the implementation.
 
 Versioning comes from Git tags through setuptools-scm. The release workflow runs validation before building and publishing to PyPI through OIDC; fetch full Git history so versions resolve correctly.
 
-For a release, review public behavior changes against the documentation site's `docs-source.json` provenance, then synchronize the affected site pages to that release. Do not publish unreleased checkout behavior as the site's stable API. In particular, the optional dependency extras, stricter validation, and class-splitting behavior added here need inclusion in the next documentation synchronization.
+For a release, review public behavior changes against the documentation site's `docs-source.json` provenance, then synchronize the affected site pages to that release. Do not publish unreleased checkout behavior as the site's stable API. In particular, the optional dependency extras, stricter validation, and class-splitting behavior added here need inclusion in the next documentation synchronization. Import the verified release bundle in the documentation repository with its `npm run assets:import` command, which refuses bundles whose provenance or artifact hashes disagree with `docs-source.json`.
