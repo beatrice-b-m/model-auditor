@@ -1,5 +1,13 @@
 name: Publish release to PyPI
 
+# Release order:
+#   1. validate source
+#   2. build the wheel once
+#   3. render and verify documentation assets from that exact wheel in an
+#      isolated environment that cannot import the checkout
+#   4. publish the wheel and preserve the verified documentation bundle as a
+#      GitHub release asset (retryable without rebuilding the wheel)
+
 on:
   release:
     types: [created]
@@ -11,15 +19,9 @@ jobs:
   validate:
     uses: ./.github/workflows/ci.yml
 
-  pypi-publish:
+  build-wheel:
     needs: validate
     runs-on: ubuntu-latest
-    environment:
-      name: release
-      url: https://pypi.org/p/model-auditor
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,5 +30,92 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install build
-      - run: python -m build
+      - run: python -m build --wheel
+      - name: Record wheel hash
+        run: sha256sum dist/*.whl > dist/wheel.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-wheel
+          path: |
+            dist/*.whl
+            dist/wheel.sha256
+          if-no-files-found: error
+
+  documentation-assets:
+    needs: build-wheel
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-wheel
+          path: dist
+      - name: Verify wheel hash
+        run: cd dist && sha256sum -c wheel.sha256
+      - name: Build isolated rendering environment
+        run: |
+          set -euo pipefail
+          WHEEL=$(ls "$GITHUB_WORKSPACE"/dist/*.whl)
+          rm -rf /tmp/render-src
+          mkdir -p /tmp/render-src
+          cp -r validation /tmp/render-src/validation
+          python -m venv /tmp/render-venv
+          /tmp/render-venv/bin/python -m pip install --upgrade pip
+          /tmp/render-venv/bin/python -m pip install \
+            "$WHEEL" -r validation/visuals/requirements-render.txt
+          /tmp/render-venv/bin/python -m playwright install --with-deps chromium
+      - name: Generate and verify documentation assets
+        run: |
+          set -euo pipefail
+          WHEEL=$(ls "$GITHUB_WORKSPACE"/dist/*.whl)
+          VERSION="${TAG#v}"
+          cd /tmp/render-src
+          /tmp/render-venv/bin/python -m validation.visuals.release_assets \
+            --output "$GITHUB_WORKSPACE/release-assets" \
+            --wheel "$WHEEL" \
+            --tag "$TAG" \
+            --commit "$GITHUB_SHA" \
+            --expect-version "$VERSION"
+          cd "$GITHUB_WORKSPACE"
+          tar -czf "model-auditor-docs-assets-${TAG}.tar.gz" release-assets
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          MPLBACKEND: Agg
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-assets
+          path: model-auditor-docs-assets-*.tar.gz
+          if-no-files-found: error
+          retention-days: 90
+      - name: Attach bundle to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          gh release upload "$TAG" model-auditor-docs-assets-*.tar.gz --clobber
+
+  pypi-publish:
+    needs: documentation-assets
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://pypi.org/p/model-auditor
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-wheel
+          path: dist
+      - name: Verify wheel hash
+        run: cd dist && sha256sum -c wheel.sha256
       - uses: pypa/gh-action-pypi-publish@release/v1
