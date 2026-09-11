@@ -9,3 +9,9 @@ Model Auditor is a synchronous Python library for subgroup evaluation of binary 
 - Keep confusion inputs vectorized and optional plotting/styling dependencies out of core imports. Do not mutate caller-owned DataFrames.
 - Use Python 3.10-compatible type hints and the repository's Ruff configuration. Prefer explicit state and small helpers over additional inheritance or framework layers.
 - Keep repository documentation short and developer-focused. The separate [documentation repository](https://github.com/beatrice-b-m/model-auditor-docs) owns tutorials and reference pages and tracks a stable release; do not sync it to unreleased changes automatically.
+
+## Git commits
+
+Track all changes in reasonably scoped Git commits. Keep each commit focused on
+one coherent change, use a descriptive message, and stage files selectively.
+Commit completed work before handing it back to the user.
