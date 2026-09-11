@@ -1,6 +1,8 @@
 # Visual output and documentation asset plan
 
-Status: proposed implementation sequence.
+Status: implemented for the library repository (stages 1-5) plus the
+documentation-side import command (stage 6). Full page synchronization and
+provenance advance wait for the next stable release, per documentation policy.
 
 ## Objective
 
