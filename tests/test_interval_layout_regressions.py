@@ -67,7 +67,7 @@ def _boxes_overlap(a, b, tolerance: float = 0.5) -> bool:
 @pytest.mark.parametrize(
     ("status", "expected"),
     [
-        ("undefined_estimate", "no data at this level"),
+        ("undefined_estimate", "estimate undefined"),
         ("too_many_invalid_resamples", "too many invalid resamples"),
         ("insufficient_resamples", "too few valid resamples"),
         ("degenerate_distribution", "degenerate resampling distribution"),
@@ -145,5 +145,55 @@ def test_omitted_levels_use_readable_reasons():
     caption = "\n".join(text.get_text() for text in figure.texts)
     assert "Not drawn" in caption
     assert "Sparse: too many invalid resamples" in caption
-    assert "Unobserved: no data at this level" in caption
+    assert "Unobserved: estimate undefined" in caption
     assert "too_many_invalid_resamples" not in caption
+
+
+def test_long_labels_retain_usable_axes_and_title_clearance():
+    names = [
+        "Northeast Metropolitan Service Area",
+        "Pacific Northwest Coastal Region",
+        "Upper Midwest Rural District",
+        "Southern Gulf Catchment",
+    ]
+    levels = {name: _level(name, 0.8, (0.7, 0.9)) for name in names}
+    figure, axes = _score_evaluation(levels).plot_metric_intervals(
+        "specificity", rotate_plots=True
+    )["clinic"]
+    figure.canvas.draw()
+    renderer = figure.canvas.get_renderer()
+    assert axes.bbox.height / figure.dpi >= 2.9
+    assert axes.get_ylim()[1] < 1.2
+    title_box = axes.title.get_window_extent(renderer)
+    for annotation in axes.texts:
+        box = annotation.get_window_extent(renderer)
+        assert not _boxes_overlap(box, title_box)
+        assert box.y1 <= axes.bbox.y1 + 0.5
+        assert box.y0 > axes.transData.transform((0, 0.9))[1]
+
+
+def test_undefined_metric_does_not_claim_observed_subgroup_is_empty():
+    import pandas as pd
+
+    from model_auditor import Auditor
+    from model_auditor.metrics import Sensitivity
+
+    auditor = Auditor(
+        pd.DataFrame(
+            {
+                "group": ["A", "A", "B", "B"],
+                "truth": [0, 0, 1, 0],
+                "score": [0.1, 0.2, 0.9, 0.1],
+            }
+        )
+    )
+    auditor.add_feature("group")
+    auditor.add_score("score", threshold=0.5)
+    auditor.add_outcome("truth")
+    auditor.set_metrics([Sensitivity()])
+    result = auditor.evaluate_metrics("score")
+    assert result.features["group"].levels["A"].support["n"] == 2
+    figure, _ = result.plot_metric_intervals("sensitivity")["group"]
+    caption = "\n".join(text.get_text() for text in figure.texts)
+    assert "A: estimate undefined" in caption
+    assert "no data" not in caption

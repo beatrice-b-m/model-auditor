@@ -34,7 +34,7 @@ def _is_plottable_level(lm: LevelMetric) -> bool:
 # Human-readable explanations for omitted levels, keyed by interval_status.
 _INTERVAL_STATUS_MESSAGES = {
     "not_requested": "interval not requested",
-    "undefined_estimate": "no data at this level",
+    "undefined_estimate": "estimate undefined",
     "insufficient_resamples": "too few valid resamples",
     "too_many_invalid_resamples": "too many invalid resamples",
     "degenerate_distribution": "degenerate resampling distribution",
@@ -153,6 +153,35 @@ def _stack_annotations(
             va="bottom",
             fontsize=fontsize,
         )
+
+
+def _layout_interval_figure(fig, ax, rotated: bool, omitted: bool) -> None:
+    """Reserve physical space for rotated labels before placing annotations."""
+    rect = (0, 0.08 if omitted else 0, 1, 1)
+    if rotated:
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        label_height = (
+            max(
+                (
+                    label.get_window_extent(renderer).height
+                    for label in ax.get_xticklabels()
+                ),
+                default=0,
+            )
+            / fig.dpi
+        )
+        fig.set_figheight(max(fig.get_figheight(), label_height + 3.5))
+    fig.tight_layout(rect=rect)
+    if rotated:
+        # A numeric-axis expansion cannot create space when tick labels consume
+        # the figure. Keep at least three inches for the data and annotations.
+        for _ in range(3):
+            shortfall = 3.0 - ax.get_window_extent().height / fig.dpi
+            if shortfall <= 0:
+                break
+            fig.set_figheight(fig.get_figheight() + shortfall + 0.2)
+            fig.tight_layout(rect=rect)
 
 
 def _resolve_metric_key(
@@ -544,7 +573,7 @@ def plot_metric_intervals(
             fig.text(
                 0.01, 0.01, "Not drawn: " + "; ".join(omitted), fontsize=8, wrap=True
             )
-        fig.tight_layout(rect=(0, 0.08 if omitted else 0, 1, 1))
+        _layout_interval_figure(fig, ax, rotate_plots, bool(omitted))
 
         if rotate_plots and (include_sample_size or include_class_balance):
             # Stack after layout so collision detection uses final geometry.
@@ -561,7 +590,9 @@ def plot_metric_intervals(
                         include_class_balance,
                     )
                 )
-            _stack_annotations(ax, fig, x, plot_scores, texts)
+            # Start above both the estimate and its interval, including
+            # percentile intervals that do not contain the point estimate.
+            _stack_annotations(ax, fig, x, np.maximum(plot_scores, plot_uppers), texts)
 
         plots[fname] = (fig, ax)
 

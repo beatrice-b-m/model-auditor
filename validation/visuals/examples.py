@@ -335,7 +335,7 @@ UNDEFINED_LEVELS = _example(
         )
     """,
     outputs=("plots",),
-    expected_text=("AUROC", "Not drawn", "Declined", "no data"),
+    expected_text=("AUROC", "Not drawn", "Declined", "estimate undefined"),
 )
 
 MANY_LEVEL_DISTRIBUTIONS = _example(
