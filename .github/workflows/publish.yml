@@ -32,7 +32,7 @@ jobs:
       - run: python -m pip install build
       - run: python -m build --wheel
       - name: Record wheel hash
-        run: sha256sum dist/*.whl > dist/wheel.sha256
+        run: cd dist && sha256sum *.whl > wheel.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: release-wheel
@@ -118,4 +118,8 @@ jobs:
           path: dist
       - name: Verify wheel hash
         run: cd dist && sha256sum -c wheel.sha256
+      - name: Prepare distributions for publication
+        run: mkdir -p packages && cp dist/*.whl packages/
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/
