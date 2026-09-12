@@ -117,13 +117,12 @@ def render_outputs(
 
     if example.kind == KIND_TABLE:
         for name, styler in outputs.items():
-            body = styler.to_html()
+            # A stable ID changes selectors, not the Styler's presentation.
+            body = styler.to_html(table_uuid=f"{example.slug}-{name}")
             document = (
                 "<!doctype html>\n<html><head><meta charset='utf-8'>"
                 f"<title>{html.escape(example.title)}</title>"
-                "<style>body{font-family:DejaVu Sans,Helvetica,Arial,sans-serif;"
-                "margin:24px;}table{border-collapse:collapse;}"
-                "td,th{padding:4px 8px;}</style></head>"
+                "</head>"
                 f"<body>{body}</body></html>\n"
             )
             path = directory / f"{name}.html"
@@ -133,7 +132,9 @@ def render_outputs(
 
     if example.kind == KIND_PLOTLY:
         for name, figure in outputs.items():
-            document = figure.to_html(include_plotlyjs=True, full_html=True)
+            document = figure.to_html(
+                include_plotlyjs=True, full_html=True, div_id=f"{example.slug}-{name}"
+            )
             path = directory / f"{name}.html"
             path.write_text(document, encoding="utf-8")
             artifacts.append({"name": name, "type": "html", "file": path.name})
@@ -180,7 +181,10 @@ def check_example(example: Example, outputs: dict[str, Any]) -> None:
 def playwright_available() -> bool:
     import importlib.util
 
-    return importlib.util.find_spec("playwright.sync_api") is not None
+    try:
+        return importlib.util.find_spec("playwright.sync_api") is not None
+    except ModuleNotFoundError:
+        return False
 
 
 def _new_browser_page(view_width: int, view_height: int):
@@ -189,7 +193,11 @@ def _new_browser_page(view_width: int, view_height: int):
     sync_api = importlib.import_module("playwright.sync_api")
 
     playwright = sync_api.sync_playwright().start()
-    browser = playwright.chromium.launch()
+    try:
+        browser = playwright.chromium.launch()
+    except Exception:
+        playwright.stop()
+        raise
     page = browser.new_page(viewport={"width": view_width, "height": view_height})
     return playwright, browser, page
 
@@ -201,6 +209,8 @@ def verify_html_rendering(
     view_width: int = VIEWPORT_WIDTH,
     view_height: int = VIEWPORT_HEIGHT,
     full_page: bool = True,
+    kind: str = KIND_TABLE,
+    timeout_ms: int = 8000,
 ) -> str:
     """Load an HTML artifact in Chromium, optionally screenshot it, and return its text.
 
@@ -208,21 +218,43 @@ def verify_html_rendering(
     Raises ``AssertionError`` when expected text is absent after rendering.
     """
     playwright, browser, page = _new_browser_page(view_width, view_height)
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on(
+        "requestfailed", lambda request: errors.append(f"Request failed: {request.url}")
+    )
     try:
         page.goto(path.resolve().as_uri(), wait_until="load")
-        # Wait for a real rendered surface: Plotly SVG, a table, or the plot
-        # container.  Ignore absence (a plain page) after the timeout.
-        try:
-            page.wait_for_selector("svg.main-svg, .plot-container, table", timeout=8000)
-        except Exception:  # noqa: BLE001 - best-effort readiness probe
-            pass
-        page.wait_for_timeout(300)
-        content = page.content()
-        if screenshot is not None:
-            page.screenshot(path=str(screenshot), full_page=full_page)
+        if errors:
+            raise AssertionError(f"{path.name}: browser errors: {errors}")
+        if kind == KIND_TABLE:
+            surface = page.locator("table").first
+            text_selector = "th, td"
+        elif kind == KIND_PLOTLY:
+            surface = page.locator(".plotly-graph-div svg.main-svg").first
+            text_selector = "text"
+            # An empty chart container is not a rendered trace.
+            page.locator("svg.main-svg .trace, svg.main-svg .slice").first.wait_for(
+                state="visible", timeout=timeout_ms
+            )
+        else:
+            raise ValueError(f"Unsupported browser artifact kind: {kind!r}")
+        surface.wait_for(state="visible", timeout=timeout_ms)
+        page.evaluate("document.fonts.ready")
+        content = "\n".join(
+            element.text_content() or ""
+            for element in surface.locator(text_selector).all()
+            if element.is_visible()
+        )
+        if not content.strip():
+            raise AssertionError(f"{path.name}: empty rendered surface")
         missing = [item for item in expected_text if item not in content]
         if missing:
             raise AssertionError(f"{path.name} is missing rendered text: {missing!r}")
+        if errors:
+            raise AssertionError(f"{path.name}: browser errors: {errors}")
+        if screenshot is not None:
+            page.screenshot(path=str(screenshot), full_page=full_page)
         return content
     finally:
         browser.close()

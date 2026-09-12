@@ -53,7 +53,7 @@ def _write_index(results: Sequence[ExampleResult], output_dir: Path) -> None:
                     f'<figure><img src="{relative}" alt="{html.escape(example.title)}">'
                     f"</figure>"
                 )
-            elif artifact.get("kind") == "plotly":
+            elif example.kind == "plotly":
                 embeds.append(
                     f'<iframe src="{relative}" title="{html.escape(example.title)}" '
                     'width="1000" height="750"></iframe>'
@@ -175,7 +175,7 @@ def build_gallery(
                 shot_name = f"{artifact['name']}-screenshot.png"
                 shot_path = directory / shot_name if screenshots else None
                 render.verify_html_rendering(
-                    path, example.expected_text, screenshot=shot_path
+                    path, example.expected_text, screenshot=shot_path, kind=example.kind
                 )
                 if shot_path is not None:
                     artifact["screenshot"] = shot_name
