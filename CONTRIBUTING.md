@@ -68,8 +68,9 @@ Changes in this statistical revision intentionally replace zero-denominator zero
 
 `validation/visuals/` holds deterministic synthetic data, named executable
 examples, and the curated documentation subset (`DOCUMENTATION_EXAMPLES`).
-Each example stores the exact standalone script that generates its output, so
-the gallery and pytest capture cannot drift from the recorded code.
+Each example stores its generating script. Bundles include those scripts and
+the shared data and rendering modules under `sources/`, with verified hashes.
+The tracked `catalog.json` declares the required files for each example.
 
 ```bash
 # Browsable local gallery (ignored by Git, written to artifacts/visuals/)
@@ -84,8 +85,8 @@ python -m validation.visuals.manifest artifacts/visuals --require-documentation
 
 Rendering tools are pinned in `validation/visuals/requirements-render.txt` and
 must stay out of library runtime dependencies and core imports. The gallery
-wrapper sets only reproducibility settings (DPI, bundled DejaVu Sans font, fixed
-viewport); it never improves the package's apparent defaults. Add examples for
+wrapper sets Matplotlib DPI/font and the browser viewport; table HTML retains
+the Styler's own CSS without extra presentation rules. Add examples for
 every presentation surface and put difficult cases (long labels, many levels,
 missing categories, undefined intervals, wide tables, rotated annotations) in
 the developer collection rather than the documentation subset. Add regression
@@ -95,6 +96,8 @@ The release workflow builds the wheel once, installs it in an isolated
 environment that cannot import the checkout, renders and verifies the curated
 examples, records provenance and output hashes, attaches the bundle to the
 GitHub release, and only then publishes. Do not weaken that ordering.
+Retry failed downstream jobs to reuse the successful build job's wheel artifact.
+Re-running all jobs rebuilds the wheel; do not treat that as an artifact-only retry.
 
 ## Documentation and releases
 

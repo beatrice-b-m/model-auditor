@@ -28,6 +28,10 @@ jobs:
           python -m pip install -r validation/visuals/requirements-render.txt
       - name: Install headless browser
         run: python -m playwright install --with-deps chromium
+      - name: Check browser rendering regressions
+        run: python -m pytest -q tests/test_visual_rendering.py --visuals
+        env:
+          MPLBACKEND: Agg
       - name: Render gallery
         run: python -m validation.visuals.gallery --screenshots --require-browser
         env:

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "examples": {
+    "intervals-default": {"kind": "figure", "documentation": true, "files": ["plots-sex.png", "plots-age-group.png", "plots-site.png"]},
+    "distributions-default": {"kind": "figure", "documentation": true, "files": ["plots-sex.png", "plots-age-group.png", "plots-site.png"]},
+    "distributions-class-split": {"kind": "figure", "documentation": true, "files": ["plots-sex.png", "plots-age-group.png"]},
+    "performance-tables-neutral": {"kind": "table", "documentation": true, "files": ["styled.html"]},
+    "performance-tables-ranked": {"kind": "table", "documentation": true, "files": ["styled.html"]},
+    "error-tables": {"kind": "table", "documentation": true, "files": ["styled.html"]},
+    "hierarchy-plotly": {"kind": "plotly", "documentation": true, "files": ["figure.html"]},
+    "rotated-long-labels": {"kind": "figure", "documentation": false, "files": ["plots-service-region.png"]},
+    "rotated-dense-levels": {"kind": "figure", "documentation": false, "files": ["plots-clinic.png"]},
+    "undefined-levels": {"kind": "figure", "documentation": false, "files": ["plots-referral.png"]},
+    "many-level-distributions": {"kind": "figure", "documentation": false, "files": ["plots-clinic.png"]},
+    "wide-difficult-error-table": {"kind": "table", "documentation": false, "files": ["styled.html"]}
+  }
+}

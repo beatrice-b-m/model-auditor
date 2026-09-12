@@ -18,6 +18,7 @@ import datetime as dt
 import html
 import json
 import platform
+import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,6 +31,7 @@ from validation.visuals.examples import (
     Example,
     run_example,
 )
+from validation.visuals.manifest import verify_bundle
 
 DEFAULT_OUTPUT = Path("artifacts/visuals")
 
@@ -119,6 +121,7 @@ def _manifest_entry(result: ExampleResult) -> dict[str, Any]:
         "documentation": result.example.documentation,
         "description": result.example.description,
         "caption": result.example.caption,
+        "code_file": f"{result.example.slug}/example.py",
         "code_sha256": render.sha256_text(result.example.code),
         "outputs": outputs,
     }
@@ -152,7 +155,23 @@ def build_gallery(
 ) -> dict[str, Any]:
     """Render every example, write the index and manifest, and return the manifest."""
     render.configure_matplotlib()
+    if not examples:
+        raise ValueError("Select at least one visual example.")
     output_dir.mkdir(parents=True, exist_ok=True)
+    # Retain executable inputs, including the shared data generator. The wheel
+    # deliberately excludes these development modules.
+    source_files = []
+    source_root = Path(__file__).resolve().parents[1]
+    for source in sorted(source_root.rglob("*")):
+        if source.suffix not in {".py", ".json", ".txt"}:
+            continue
+        relative = Path("sources/validation") / source.relative_to(source_root)
+        target = output_dir / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        source_files.append(
+            {"file": relative.as_posix(), "sha256": render.sha256_file(target)}
+        )
     use_browser = screenshots or verify_browser
     if use_browser and not render.playwright_available():
         if screenshots or require_browser:
@@ -167,6 +186,7 @@ def build_gallery(
         render.check_example(example, outputs)
         directory = output_dir / example.slug
         artifacts = render.render_outputs(example, outputs, directory)
+        (directory / "example.py").write_text(example.code, encoding="utf-8")
         if use_browser:
             for artifact in artifacts:
                 if artifact["type"] != "html":
@@ -193,6 +213,7 @@ def build_gallery(
 
     _write_index(results, output_dir)
     manifest = {
+        "schema_version": 1,
         "generator": "validation.visuals.gallery",
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "python_version": platform.python_version(),
@@ -205,11 +226,19 @@ def build_gallery(
             "height": render.VIEWPORT_HEIGHT,
         },
         "browser_verified": use_browser,
+        "screenshots_required": screenshots,
+        "source_files": source_files,
+        "catalog_file": "sources/validation/visuals/catalog.json",
+        "index_file": "index.html",
+        "index_sha256": render.sha256_file(output_dir / "index.html"),
         "examples": [_manifest_entry(result) for result in results],
     }
     (output_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )
+    problems = verify_bundle(output_dir, [example.slug for example in examples])
+    if problems:
+        raise RuntimeError("Gallery verification failed: " + "; ".join(problems))
     return manifest
 
 

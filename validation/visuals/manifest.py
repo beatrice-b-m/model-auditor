@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Sequence
@@ -35,55 +36,138 @@ def load_manifest(directory: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _verify_file(directory: Path, relative, expected, problems: list[str]) -> None:
+    if (
+        not isinstance(relative, str)
+        or not relative
+        or Path(relative).is_absolute()
+        or ".." in Path(relative).parts
+        or not (directory / relative).resolve().is_relative_to(directory.resolve())
+    ):
+        problems.append(f"invalid artifact path: {relative!r}")
+        return
+    if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+        problems.append(f"{relative}: invalid SHA-256")
+        return
+    path = directory / relative
+    if not path.is_file():
+        problems.append(f"missing artifact: {relative}")
+    elif hash_file(path) != expected:
+        problems.append(f"hash mismatch: {relative}")
+
+
 def verify_bundle(directory: Path, require_examples: Sequence[str] = ()) -> list[str]:
-    """Return a list of problems found in the bundle (empty when valid)."""
+    """Check the catalog, executable inputs, and every required output."""
     problems: list[str] = []
     try:
         manifest = load_manifest(directory)
-    except (FileNotFoundError, json.JSONDecodeError) as exc:
+    except (OSError, json.JSONDecodeError) as exc:
         return [str(exc)]
-
+    if not isinstance(manifest, dict) or manifest.get("schema_version") != 1:
+        return ["unsupported manifest schema_version"]
+    _verify_file(
+        directory, manifest.get("index_file"), manifest.get("index_sha256"), problems
+    )
+    sources = manifest.get("source_files")
+    if not isinstance(sources, list) or not sources:
+        return ["missing executable source_files"]
+    source_paths: set[str] = set()
+    for source in sources:
+        if not isinstance(source, dict):
+            problems.append("invalid source entry")
+            continue
+        relative = source.get("file")
+        _verify_file(directory, relative, source.get("sha256"), problems)
+        if isinstance(relative, str):
+            if relative in source_paths:
+                problems.append(f"duplicate source: {relative}")
+            source_paths.add(relative)
+    catalog_file = manifest.get("catalog_file")
+    if not isinstance(catalog_file, str) or catalog_file not in source_paths:
+        problems.append("catalog_file must reference a verified source file")
+    if problems:
+        return problems
+    try:
+        catalog = json.loads((directory / catalog_file).read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"cannot read catalog: {exc}"]
+    if not isinstance(catalog, dict) or catalog.get("schema_version") != 1:
+        return ["unsupported catalog schema_version"]
+    specifications = catalog.get("examples")
+    if not isinstance(specifications, dict) or not specifications:
+        return ["catalog declares no examples"]
     examples = manifest.get("examples")
     if not isinstance(examples, list) or not examples:
-        return [f"{MANIFEST_NAME} declares no examples"]
-
+        return ["manifest declares no examples"]
+    require_screenshots = manifest.get("screenshots_required") is True
+    if "release" in manifest:
+        require_screenshots = True
+        if manifest.get("browser_verified") is not True:
+            problems.append("release bundle must be browser-verified")
+        require_examples = [
+            *require_examples,
+            *(
+                slug
+                for slug, spec in specifications.items()
+                if spec.get("documentation")
+            ),
+        ]
     seen: set[str] = set()
     for example in examples:
-        slug = example.get("slug")
-        if not slug:
-            problems.append("example entry without a slug")
+        if not isinstance(example, dict):
+            problems.append("invalid example entry")
             continue
+        slug = example.get("slug")
+        if not isinstance(slug, str) or not re.fullmatch(r"[a-z0-9-]+", slug):
+            problems.append("invalid example slug")
+            continue
+        if slug in seen:
+            problems.append(f"duplicate example: {slug}")
         seen.add(slug)
-        code_hash = example.get("code_sha256")
-        if not code_hash:
-            problems.append(f"{slug}: missing code_sha256")
-        outputs = example.get("outputs") or []
-        if not outputs:
-            problems.append(f"{slug}: no outputs recorded")
+        spec = specifications.get(slug)
+        if not isinstance(spec, dict):
+            problems.append(f"{slug}: absent from catalog")
+            continue
+        if any(example.get(key) != spec.get(key) for key in ("kind", "documentation")):
+            problems.append(f"{slug}: metadata disagrees with catalog")
+        _verify_file(
+            directory, example.get("code_file"), example.get("code_sha256"), problems
+        )
+        expected_files = spec.get("files")
+        if not isinstance(expected_files, list) or not expected_files:
+            problems.append(f"{slug}: catalog declares no outputs")
+            continue
+        expected_files = {f"{slug}/{name}" for name in expected_files}
+        outputs = example.get("outputs")
+        if not isinstance(outputs, list):
+            problems.append(f"{slug}: missing outputs")
+            continue
+        actual_files = []
         for output in outputs:
-            for file_key, hash_key in (
-                ("file", "sha256"),
-                ("screenshot", "screenshot_sha256"),
+            if not isinstance(output, dict):
+                problems.append(f"{slug}: invalid output entry")
+                continue
+            relative = output.get("file")
+            _verify_file(directory, relative, output.get("sha256"), problems)
+            if isinstance(relative, str):
+                actual_files.append(relative)
+            expected_type = "image" if spec.get("kind") == "figure" else "html"
+            if output.get("type") != expected_type:
+                problems.append(f"{slug}: incorrect output type")
+            if output.get("screenshot") or (
+                require_screenshots and expected_type == "html"
             ):
-                relative = output.get(file_key)
-                if not relative:
-                    continue
-                path = directory / relative
-                if not path.exists():
-                    problems.append(f"{slug}: missing {relative}")
-                    continue
-                expected = output.get(hash_key)
-                if not expected:
-                    problems.append(f"{slug}: {relative} has no recorded hash")
-                    continue
-                actual = hash_file(path)
-                if actual != expected:
-                    problems.append(
-                        f"{slug}: {relative} hash mismatch "
-                        f"(expected {expected[:12]}, got {actual[:12]})"
-                    )
-
-    missing = [slug for slug in require_examples if slug not in seen]
+                _verify_file(
+                    directory,
+                    output.get("screenshot"),
+                    output.get("screenshot_sha256"),
+                    problems,
+                )
+        if set(actual_files) != expected_files or len(actual_files) != len(
+            expected_files
+        ):
+            problems.append(f"{slug}: outputs disagree with catalog")
+    missing = sorted(set(require_examples) - seen)
     if missing:
         problems.append(f"missing required examples: {missing!r}")
     return problems
