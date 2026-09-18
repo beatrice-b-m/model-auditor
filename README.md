@@ -2,7 +2,7 @@
 
 Evaluate fixed binary-model predictions across subgroups: discrimination, decision performance, probability calibration, and paired comparisons, with explicit statistical assumptions and reproducible results.
 
-[Documentation](https://model-auditor-docs.beatricebm.workers.dev) · [PyPI](https://pypi.org/project/model-auditor/) · [Issues](https://github.com/beatrice-b-m/model-auditor/issues)
+[Documentation](https://modelauditor.beabm.dev) · [PyPI](https://pypi.org/project/model-auditor/) · [Issues](https://github.com/beatrice-b-m/model-auditor/issues)
 
 ## Installation
 
@@ -53,6 +53,6 @@ Intervals are pointwise and condition on fixed predictions and thresholds. Selec
 
 ## Learn more
 
-The [documentation website](https://model-auditor-docs.beatricebm.workers.dev) contains the guides, examples, metric definitions, API reference, and statistical conventions. Its [source repository](https://github.com/beatrice-b-m/model-auditor-docs) tracks the latest stable release; this checkout may contain unreleased changes.
+The [documentation website](https://modelauditor.beabm.dev) contains the guides, examples, metric definitions, API reference, and statistical conventions. Its [source repository](https://github.com/beatrice-b-m/model-auditor-docs) tracks the latest stable release; this checkout may contain unreleased changes.
 
 For work on the library itself, see [CONTRIBUTING.md](CONTRIBUTING.md). Agent instructions are in [AGENTS.md](AGENTS.md).

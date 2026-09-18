@@ -893,6 +893,7 @@ class ErrorEvaluation:
         support_data: New empty dict by default. Nested group -> feature -> level
             -> support mapping, containing n, pct_overall and pct_group. Despite
             their names, pct fields are fractions in [0, 1], not percentages.
+            pct_group is NaN for an empty confusion group.
             pct_overall uses global_total_n; pct_group uses all rows in that
             confusion group after per-feature exclusions.
 
@@ -925,6 +926,7 @@ class ErrorEvaluation:
     """New empty dict by default. Nested group -> feature -> level
     -> support mapping, containing n, pct_overall and pct_group. Despite
     their names, pct fields are fractions in [0, 1], not percentages.
+    pct_group is NaN for an empty confusion group.
     pct_overall uses global_total_n; pct_group uses all rows in that
     confusion group after per-feature exclusions."""
 

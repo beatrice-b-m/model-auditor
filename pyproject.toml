@@ -59,7 +59,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/beatrice-b-m/model-auditor"
-Documentation = "https://model-auditor-docs.beatricebm.workers.dev"
+Documentation = "https://modelauditor.beabm.dev"
 Repository = "https://github.com/beatrice-b-m/model-auditor"
 Issues = "https://github.com/beatrice-b-m/model-auditor/issues"
 
