@@ -1,0 +1,7 @@
+{
+  "include": ["api_usage.py"],
+  "extraPaths": ["../.."],
+  "pythonVersion": "3.10",
+  "typeCheckingMode": "basic",
+  "reportMissingTypeStubs": false
+}

@@ -18,12 +18,27 @@ Run from the repository root:
 python -m ruff check .
 python -m ruff format --check .
 python -m pytest -q
+python -m pyright --project validation/typing/pyrightconfig.json
+python validation/typing/editor_workflows.py
 python -m build
 ```
 
 Use `python -m ruff format .` to format changes. CI runs the tests on Python 3.10, 3.11, and 3.12, plus lint, formatting, and package-build checks. Matplotlib tests use the noninteractive Agg backend.
 
 The `plotting` extra installs Matplotlib and Plotly; `styling` installs Jinja2. Core evaluation must remain usable without these extras. The `dev` extra includes both plus the verification tools.
+
+Inline documentation uses Google-style docstrings. Tests execute doctest examples,
+check public parameter documentation and dataclass field hovers, and compare
+forwarded plotting signatures. The Pyright consumer fixture checks public return
+types under Python 3.10 rules; it is not a full implementation type audit. The
+Jedi script checks static signature help, completions, hovers, and navigation;
+it does not launch an editor. Keep optional rendering types under TYPE_CHECKING.
+Runtime `typing.get_type_hints()` callers must supply these optional names when
+resolving plotting annotations without runtime imports.
+
+For distribution changes, inspect both wheel and sdist for `model_auditor/py.typed`
+and annotated sources. Install the wheel in a separate environment, run checks
+outside the checkout, and verify `model_auditor.__file__` points to that install.
 
 ## Module boundaries
 
