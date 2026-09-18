@@ -6,7 +6,7 @@ definitions.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -17,28 +17,43 @@ class PlotterData:
     plots in libraries like Plotly.
 
     Attributes:
-        labels: Display labels for each node.
-        ids: Unique identifiers for each node.
-        parents: Parent node IDs (empty string for root nodes).
-        values: Numeric values (typically counts) for sizing nodes.
-        colors: Optional color values for coloring nodes.
+        labels: Original group values (any pandas group-key type) or string labels.
+            New empty list by default; values are not coerced to strings.
+        ids: Node IDs; new empty list by default. Uniqueness is the caller
+            or compiler's responsibility; add() performs no validation.
+        parents: Parent node IDs (empty string for root); new empty list by default.
+        values: Integer row counts for sizing nodes; new empty list by default.
+        colors: Scalar aggregation results or None; new empty list by default.
+            Lists are mutable, parallel, and stored by reference if supplied.
+            No JSON conversion is performed; encode nonstandard labels and
+            NaN colors explicitly for strict JSON serialization.
     """
 
-    labels: list = field(default_factory=list)
-    ids: list = field(default_factory=list)
-    parents: list = field(default_factory=list)
-    values: list = field(default_factory=list)
-    colors: list = field(default_factory=list)
+    labels: list[Any] = field(default_factory=list)
+    """Original group values (any pandas group-key type) or string labels.
+    New empty list by default; values are not coerced to strings."""
+    ids: list[str] = field(default_factory=list)
+    """Node IDs; new empty list by default. Uniqueness is the caller
+    or compiler's responsibility; add() performs no validation."""
+    parents: list[str] = field(default_factory=list)
+    """Parent node IDs (empty string for root); new empty list by default."""
+    values: list[int] = field(default_factory=list)
+    """Integer row counts for sizing nodes; new empty list by default."""
+    colors: list[Optional[float]] = field(default_factory=list)
+    """Scalar aggregation results or None; new empty list by default.
+    Lists are mutable, parallel, and stored by reference if supplied.
+    No JSON conversion is performed; encode nonstandard labels and
+    NaN colors explicitly for strict JSON serialization."""
 
     def add(
         self,
-        label: str,
+        label: Any,
         node_id: str,
         parent: str,
         value: int,
         color: Optional[float] = None,
     ) -> None:
-        """Add a node to the plotter data.
+        """Append one entry to every parallel list in place, without validation.
 
         Args:
             label: Display label for the node.
@@ -62,12 +77,19 @@ class HItem:
 
     Attributes:
         name: Column name in the DataFrame.
-        query: Optional pandas query string to filter when this item applies.
-            If None, the item always applies.
+        query: Optional pandas eval expression; default None always applies.
+            An item applies only when the expression is true for every row
+            in the current branch. It does not filter rows. Use only trusted
+            expressions; pandas eval can execute arbitrary code.
     """
 
     name: str
+    """Column name in the DataFrame."""
     query: Optional[str] = None
+    """Optional pandas eval expression; default None always applies.
+    An item applies only when the expression is true for every row
+    in the current branch. It does not filter rows. Use only trusted
+    expressions; pandas eval can execute arbitrary code."""
 
 
 @dataclass
@@ -78,10 +100,13 @@ class HLevel:
     to form a composite feature level.
 
     Attributes:
-        items: List of HItem objects at this hierarchy level.
+        items: Ordered HItem objects; new empty list by default. Applicable
+            items are joined with " & "; no applicable items ends the branch.
     """
 
     items: list[HItem] = field(default_factory=list)
+    """Ordered HItem objects; new empty list by default. Applicable
+    items are joined with " & "; no applicable items ends the branch."""
 
 
 @dataclass
@@ -92,7 +117,8 @@ class Hierarchy:
     of levels, where each level contains one or more feature items.
 
     Attributes:
-        levels: Ordered list of HLevel objects from root to leaf.
+        levels: Ordered HLevel objects from root to leaf; new empty list
+            by default. Supplied lists are retained by reference.
 
     Example:
         Creating a two-level hierarchy::
@@ -104,3 +130,5 @@ class Hierarchy:
     """
 
     levels: list[HLevel] = field(default_factory=list)
+    """Ordered HLevel objects from root to leaf; new empty list
+    by default. Supplied lists are retained by reference."""

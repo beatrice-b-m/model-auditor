@@ -38,7 +38,9 @@ class AuditorErrorMetric(Protocol):
     Attributes:
         name: Unique identifier used as the dict key in result objects.
         label: Human-readable display name.
-        ci_eligible: Whether bootstrap confidence intervals apply to this metric.
+        ci_eligible: Whether intervals may be attempted. Custom metrics use
+            diagnosed bootstrap intervals; the built-in OddsRatio can use
+            conditional exact intervals with IID auto inference.
     """
 
     name: str
@@ -126,7 +128,10 @@ class OddsRatio:
             full_total: Total rows in the full dataset.
 
         Returns:
-            Odds ratio, or NaN when the table is undefined (see class docstring).
+            Nonnegative odds ratio, NaN for a zero population/comparator or 0/0,
+            or positive infinity for a positive numerator over zero denominator.
+            Counts must describe a coherent nonnegative 2x2 table; this method
+            does not validate them. No continuity correction is applied.
         """
         # Declared-but-unobserved level: no 2x2 table can be formed.
         if full_count == 0:

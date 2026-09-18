@@ -15,54 +15,57 @@ from model_auditor.schemas import AuditorScore, ThresholdSpec
 
 
 class HierarchyPlotter:
-    """Creates hierarchical plot data from stratified DataFrames.
-
-    Builds the data structure needed for hierarchical visualizations
-    like sunburst or treemap charts, supporting both flat feature lists
-    and custom hierarchy definitions.
+    """Compile parallel node arrays for sunburst or treemap visualizations.
 
     Attributes:
-        features: Hierarchy object defining the feature structure.
-        data: DataFrame containing the source data.
-        aggregator: Method for aggregating score values (string or callable).
-        score: AuditorScore defining the score column.
+        features: Hierarchy configuration or None before set_features().
+        data: Source DataFrame or None. set_data() retains a reference; compile()
+            copies it, so caller edits before compilation are visible.
+        aggregator: pandas score-Series aggregation name or callable receiving a
+            whole group DataFrame and returning a scalar; default "median".
+        score: Optional AuditorScore. Without it, colors are None and compile warns.
+
+    Notes:
+        This compiler creates no figure and does not require Plotly or Matplotlib.
+        Supplied callbacks should not modify their data. Hierarchy configurations
+        are shared by reference; node arrays are new on every compile().
 
     Example:
+        >>> import pandas as pd
+        >>> from model_auditor.plotting import HierarchyPlotter
         >>> plotter = HierarchyPlotter()
-        >>> plotter.set_data(df)
-        >>> plotter.set_features(["category", "subcategory"])
-        >>> plotter.set_score(name="score_column")
-        >>> plot_data = plotter.compile(container="Root")
-    """
+        >>> plotter.set_data(pd.DataFrame({"region": ["N", "S"], "risk": [0.2, 0.8]}))
+        >>> plotter.set_features(["region"])
+        >>> plotter.set_score("risk")
+        >>> plotter.compile("All").values
+        [2, 1, 1]"""
 
     def __init__(self) -> None:
         """Initialize the HierarchyPlotter with default settings."""
         self.features: Optional[Hierarchy] = None
         self.data: Optional[pd.DataFrame] = None
-        self.aggregator: Union[str, Callable] = "median"
+        self.aggregator: Union[str, Callable[[pd.DataFrame], float]] = "median"
 
         self.score: Optional[AuditorScore] = None
 
     def set_data(self, data: pd.DataFrame) -> None:
-        """Set data for the plotter
+        """Retain the source DataFrame by reference for later compilation.
 
         Args:
-            data (pd.DataFrame): Data used to build the plot
-        """
+            data: Source rows. Edits made before compile() are visible to the plotter.
+                Compilation uses a pandas copy and does not add columns to this frame."""
         self.data = data
 
     def set_features(self, features: Union[Hierarchy, list[str]]) -> None:
-        """Set the feature hierarchy for the plotter
+        """Replace the ordered hierarchy used for compilation.
 
         Args:
-            features (Union[Hierarchy, list[str]]): Expects a list of strings
-            (column names corresponding to the data provided) or a predefined
-            custom Hierarchy object
+            features: List of column names, converted to one item per level, or a
+                Hierarchy object retained by reference. An empty hierarchy yields
+                only the container node.
 
         Raises:
-            ValueError: Raised if something other than a list of Hierarchy
-            object was passed
-        """
+            ValueError: features is neither a list nor a Hierarchy."""
         # flat hierarchy
         if isinstance(features, list):
             self.features: Hierarchy = Hierarchy()
@@ -76,14 +79,17 @@ class HierarchyPlotter:
                 "unrecognized type for features, please pass a list of strings or a predefined Hierarchy() object"
             )
 
-    def set_aggregator(self, method: Union[str, Callable]) -> None:
-        """Sets the aggregator used to color the plot cells
+    def set_aggregator(
+        self, method: Union[str, Callable[[pd.DataFrame], float]]
+    ) -> None:
+        """Set the scalar statistic used for node colors; initial default is "median".
 
         Args:
-            method (Union[str, Callable]): Expects a string corresponding to a
-            predefined aggregator for the .agg() pandas method, or a function
-            that takes each group as a DataFrame and returns a numeric value
-        """
+            method: pandas Series aggregation name such as "mean", "median" or "size",
+                or a callable receiving the whole group DataFrame (including all source
+                columns) and returning a numeric scalar. Called for root and child nodes.
+                Missing-score behavior follows pandas or the callable. Validation and
+                callback exceptions occur at compile time; no copy of method is made."""
         self.aggregator = method
 
     def set_score(
@@ -99,26 +105,37 @@ class HierarchyPlotter:
             label (Optional[str], optional): Label of the score column. Defaults to None
             (plot will just use the column name).
             threshold (Optional[ThresholdSpec], optional): Scalar or conditional
-            threshold specification used to binarize the score column.
-            Defaults to None (currently unused).
+            threshold retained as metadata only; it does not binarize scores.
+            Defaults to None.
         """
         self.score = AuditorScore(
             name=name, label=label if label is not None else name, threshold=threshold
         )
 
     def compile(self, container: str) -> PlotterData:
-        """Compiles the data for the plotter based on the defined HierarchyPlotter parameters
+        """Compile root-first node arrays without creating or displaying a figure.
 
         Args:
-            container (str): Name of the plot container trace
-
-        Raises:
-            ValueError: If features have not been set with .set_features() first
-            ValueError: If a score has not been set with .set_score() first
+            container: Root label and ID; descendant IDs join it to level values with
+                "$". Choose labels without ambiguous "$" paths to avoid ID collisions.
 
         Returns:
-            PlotterData: Parallel arrays for hierarchical plotting.
-        """
+            New PlotterData with parallel arrays in depth-first order. Values are row
+            counts; colors use the configured aggregation, or None without a score.
+            pandas group ordering applies, including unobserved categorical nodes.
+            Null single-feature levels are omitted; composite items stringify values
+            joined by " & ", including missing components. Root counts include all rows.
+
+        Raises:
+            ValueError: Data or features have not been configured, or pandas rejects
+                a query/aggregation. Callback exceptions propagate.
+            KeyError: A referenced data column is absent.
+
+        Notes:
+            Emits UserWarning if no score is set. An empty hierarchy returns the root.
+            Copies the source DataFrame; no source columns are changed. HItem queries
+            choose whether an item applies to an entire branch, rather than filtering
+            rows. This is a visualization hierarchy, not Auditor subgroup evaluation."""
         if self.features is None:
             raise ValueError("Please set features with .set_features() first")
 

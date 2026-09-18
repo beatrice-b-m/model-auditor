@@ -5,11 +5,14 @@ across different features and subgroups, with support for bootstrap confidence
 intervals.
 """
 
+from __future__ import annotations
+
 import warnings
+from collections.abc import Sequence as _Sequence
 from copy import deepcopy
 from dataclasses import asdict
 from importlib.metadata import version
-from typing import Any, Literal, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Type
 
 import numpy as np
 import pandas as pd
@@ -51,29 +54,51 @@ from model_auditor.schemas import (
 )
 from model_auditor.utils import collect_metric_inputs
 
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
+
 
 class Auditor:
-    """Main class for auditing ML model performance across subgroups.
+    """Evaluate fixed binary predictions overall and within registered subgroups.
 
-    The Auditor class provides a flexible interface for evaluating model
-    predictions stratified by features (subgroups), supporting multiple
-    metrics and bootstrap confidence interval calculation.
+    Configure data, scores, an outcome, and metric instances before evaluation.
+    Calls are synchronous and use private DataFrame slices. Intervals are pointwise,
+    conditional on supplied predictions and policies; they do not account for model
+    fitting, threshold selection, or multiple comparisons.
+
+    Args:
+        data: Optional DataFrame, copied using pandas ``copy()``. Default None.
+            Object-valued cells are not recursively copied. Evaluation requires
+            nonempty data, unique columns, finite numeric scores and binary truth.
+        features: Optional list of AuditorFeature configurations; default None.
+        scores: Optional list of AuditorScore configurations; default None.
+        outcome: Optional AuditorOutcome; requires data. Default None.
+        metrics: Optional list of metric instances; default None (no metrics).
 
     Attributes:
-        data: DataFrame containing the evaluation data.
-        features: Dictionary mapping feature names to AuditorFeature objects.
-        scores: Dictionary mapping score names to AuditorScore objects.
-        metrics: List of metrics to compute during evaluation.
+        data: Owned DataFrame or None. Prefer add_data() to replace it.
+        features: Mutable mapping of registered names to AuditorFeature objects.
+        scores: Mutable mapping of registered names to AuditorScore objects.
+        outcome: Registered AuditorOutcome, or None before registration.
+        metrics: List of configured metric instances. The list is copied, but the
+            instances are shared with the caller.
+
+    Raises:
+        ValueError: Invalid feature names, duplicate metric names, or an outcome
+            supplied without data.
+        KeyError: The supplied outcome column is absent from data.
 
     Example:
-        >>> auditor = Auditor()
-        >>> auditor.add_data(df)
-        >>> auditor.add_feature(name="age_group")
-        >>> auditor.add_score(name="risk_score", threshold=0.5)
-        >>> auditor.add_outcome(name="outcome")
-        >>> auditor.set_metrics([Sensitivity(), Specificity()])
-        >>> results = auditor.evaluate_metrics(score_name="risk_score")
-    """
+        >>> import pandas as pd
+        >>> from model_auditor import Auditor
+        >>> from model_auditor.metrics import Sensitivity
+        >>> auditor = Auditor(pd.DataFrame({"risk": [0.8, 0.2], "y": [1, 0]}))
+        >>> auditor.add_score("risk", threshold=0.5)
+        >>> auditor.add_outcome("y")
+        >>> auditor.set_metrics([Sensitivity()])
+        >>> result = auditor.evaluate_metrics("risk", n_bootstraps=None)
+        >>> result.features["overall"].levels["Overall"].metrics["sensitivity"].score
+        1.0"""
 
     def __init__(
         self,
@@ -83,15 +108,14 @@ class Auditor:
         outcome: Optional[AuditorOutcome] = None,
         metrics: Optional[list[AuditorMetric]] = None,
     ) -> None:
-        """Initialize the Auditor.
+        """Initialize optional registrations; see Auditor for parameter contracts.
 
         Args:
-            data: DataFrame containing the data for evaluation.
-            features: List of AuditorFeature objects defining stratification variables.
-            scores: List of AuditorScore objects defining prediction columns.
-            outcome: AuditorOutcome object defining the ground truth column.
-            metrics: List of AuditorMetric objects to compute during evaluation.
-        """
+            data: Optional input DataFrame copied on construction; default None.
+            features: Optional feature configurations; default None.
+            scores: Optional score configurations; default None.
+            outcome: Optional outcome configuration; requires data. Default None.
+            metrics: Optional metric instances with distinct names; default None."""
         # initialize data
         self.data: Optional[pd.DataFrame] = None if data is None else data.copy()
 
@@ -121,12 +145,16 @@ class Auditor:
         self._inputs: list[Type[AuditorMetricInput]] = list()
 
     def add_data(self, data: pd.DataFrame) -> None:
-        """
-        Method to add a dataframe to the auditor
+        """Replace evaluation data with a pandas copy and clear the outcome registration.
 
         Args:
-            data (pd.DataFrame): Full dataframe which will be subset for subgroup evaluation
-        """
+            data: Full DataFrame to evaluate. Object-valued cells are not recursively
+                copied. The caller's columns are not modified by the Auditor.
+
+        Notes:
+            Existing feature, score and metric registrations remain. Call add_outcome()
+            again after replacing data; an existing raw ``_truth`` column is retained
+            but does not count as outcome registration."""
         self.data = data.copy()
         self.outcome = None
 
@@ -135,14 +163,21 @@ class Auditor:
         name: str,
         label: Optional[str] = None,
     ) -> None:
-        """
-        Method to add a feature to the auditor. Equivalent to a grouping variable in
-        packages like tableone, the score variable will be stratified by this feature
+        """Register or replace a subgroup column without modifying the input data.
 
         Args:
-            name (str): Column name for the feature.
-            label (Optional[str], optional): Optional label for the feature. Defaults to None.
-        """
+            name: Column name. Existence is checked during evaluation.
+            label: Optional display label; None (default) uses the column name.
+
+        Raises:
+            ValueError: name is reserved (overall, _truth, _pred, _binary_pred,
+                tp, tn, fp or fn).
+
+        Notes:
+            Evaluations use declared categorical order, including unobserved levels
+            with NaN estimates. Other levels are sorted after conversion to strings.
+            Distinct values with the same string label are rejected during evaluation.
+            Missing levels follow InferenceConfig.missing; the default excludes them."""
         if name in {
             "overall",
             "_truth",
@@ -168,16 +203,20 @@ class Auditor:
         label: Optional[str] = None,
         threshold: Optional[ThresholdSpec] = None,
     ) -> None:
-        """
-        Method to add a score to the auditor. Expects a continuous feature which will
-        be used to calculate metrics and confidence intervals
+        """Register or replace a numeric prediction column and decision threshold.
 
         Args:
-            name (str): Column name for the score.
-            label (Optional[str], optional): Optional label for the score. Defaults to None.
-            threshold (Optional[ThresholdSpec], optional): Scalar threshold or
-            conditional threshold specification used to binarize the score column.
-        """
+            name: Score column; evaluation requires finite numeric values. Ranking
+                metrics accept arbitrary score scales; probability metrics require [0, 1].
+            label: Optional display label; None (default) uses name.
+            threshold: Finite scalar or ConditionalThreshold. None (default) leaves
+                the policy unset. Required only for decision metrics and error analysis.
+                A row is positive when its score is greater than or equal to its
+                threshold. Evaluation-time thresholds override this configuration.
+
+        Notes:
+            Registration defers column and threshold validation until use. It stores
+            a conditional threshold object by reference; do not mutate it during use."""
         score = AuditorScore(
             name=name,
             label=label,
@@ -186,16 +225,21 @@ class Auditor:
         self.scores[score.name] = score
 
     def add_outcome(self, name: str, mapping: Optional[dict[Any, int]] = None) -> None:
-        """Add an outcome (ground truth) variable to the auditor.
+        """Register truth and populate the owned DataFrame's ``_truth`` column.
 
         Args:
-            name: Column name for the outcome variable.
-            mapping: Optional dictionary to map outcome values to binary (0/1).
-                For example, {"positive": 1, "negative": 0}.
+            name: Existing outcome column.
+            mapping: Optional mapping to 0/1, e.g. {"positive": 1, "negative": 0}.
+                None (default) uses values directly. The mapping is deep-copied.
+                Unmapped values become missing and are rejected during evaluation.
 
         Raises:
-            ValueError: If no data has been added with .add_data() first.
-        """
+            ValueError: No data has been added.
+            KeyError: name is absent from the DataFrame.
+
+        Notes:
+            Overwrites the owned ``_truth`` column, never the caller's DataFrame.
+            Evaluation rejects missing or nonbinary truth; it does not drop these rows."""
         if self.data is None:
             raise ValueError("Please add data with .add_data() first")
 
@@ -206,13 +250,16 @@ class Auditor:
             self.data["_truth"] = self.data[name]
 
     def set_metrics(self, metrics: list[AuditorMetric]) -> None:
-        """
-        Method to define the metrics the auditor will use during evaluation of score variables.
+        """Replace the metrics computed by evaluate_metrics() and comparison methods.
 
         Args:
-            metrics (list[AuditorMetric]): A list of metrics classes following the AuditorMetric
-            protocol (pre-made metrics listed in model_auditor.metrics)
-        """
+            metrics: List of instances implementing AuditorMetric (not metric classes).
+                The list is copied, while instances remain shared. An empty list is
+                allowed here but metric evaluation and comparisons require a metric.
+
+        Raises:
+            ValueError: Metric names are duplicated, including parameterized metrics
+                whose names collide."""
         names = [metric.name for metric in metrics]
         if len(names) != len(set(names)):
             raise ValueError(
@@ -263,11 +310,24 @@ class Auditor:
     def add_intersection(
         self, name: str, features: list[str], label: Optional[str] = None
     ) -> None:
-        """Register a joint subgroup without ambiguous delimiter concatenation.
+        """Create and register a joint subgroup on the owned DataFrame.
 
-        Missing components remain missing. Define intersections before examining
-        results; exploratory discoveries require independent validation.
-        """
+        Args:
+            name: New column name; must not already exist or be reserved.
+            features: Nonempty list of distinct existing component column names.
+                Components need not have been registered individually.
+            label: Display label; None (default) uses name.
+
+        Raises:
+            ValueError: Data is absent, components are empty/duplicated, name exists
+                or is reserved, or component values have ambiguous string labels.
+            KeyError: A component column is absent.
+
+        Notes:
+            Values are JSON arrays of stringified components, in the supplied order.
+            Any missing component makes the intersection missing; evaluation then
+            applies InferenceConfig.missing. Only the owned data gains a column.
+            Define intersections before inspecting results to avoid selection bias."""
         import json
 
         from model_auditor._evaluation import _prepare_feature_data
@@ -308,13 +368,14 @@ class Auditor:
             threshold: Scalar threshold or conditional threshold specification for
                 binarizing scores. If None, uses the threshold defined in the
                 AuditorScore object.
-            n_bootstraps: Number of bootstrap samples for confidence interval
-                calculation. Set to None to disable CI calculation.
+            n_bootstraps: Positive resample count, default 1000. None disables all
+                intervals, including analytic ones. IID auto rate/OR intervals use
+                analytic methods without consuming this resample count.
 
-            inference: Interval method, confidence level, seed, resampling unit,
+            inference: None (default) uses InferenceConfig(). Interval method, confidence level, seed, resampling unit,
                 and missing-feature policy. Intervals are pointwise and condition
                 on fixed predictions and thresholds; no selection correction.
-            cohort: Optional evaluation-cohort identifier saved with provenance.
+            cohort: Optional evaluation-cohort identifier (default None) saved with provenance.
 
         Returns:
             ScoreEvaluation object containing metrics for all features and levels.
@@ -325,7 +386,16 @@ class Auditor:
             ValueError: If no metrics have been defined with .set_metrics() first.
             ValueError: If score_name is not found in the registered scores.
             ValueError: If a required decision threshold is not configured.
-        """
+
+        Notes:
+            Results include synthetic "overall" first, followed by registered features.
+            Categorical levels retain declared order and unobserved NaN placeholders;
+            other levels are sorted as strings. Missing features default to exclusion,
+            recorded per feature. Input data is not mutated. Invalid bootstrap counts,
+            empty data, missing columns, nonfinite scores, nonbinary/missing truth,
+            invalid thresholds or cluster IDs raise ValueError. Undefined metrics are
+            NaN, not zero. See InferenceConfig for bootstrap failure diagnostics.
+            A tqdm feature progress bar is displayed during evaluation."""
         if not self.metrics:
             raise ValueError(
                 "Please define at least one metric with .set_metrics() first"
@@ -401,13 +471,14 @@ class Auditor:
             threshold: Scalar threshold or conditional threshold specification for
                 binarizing scores. If None, uses the threshold defined in the
                 AuditorScore object.
-            n_bootstraps: Number of bootstrap samples for confidence intervals.
-                Set to None to disable CI calculation.
+            n_bootstraps: Positive resample count, default 1000. None disables all
+                intervals, including analytic ones; auto analytic methods need no
+                resampling.
 
-            inference: Interval method, confidence level, seed, resampling unit,
+            inference: None (default) uses InferenceConfig(). Interval method, confidence level, seed, resampling unit,
                 and missing-feature policy. Intervals are pointwise and condition
                 on fixed predictions and thresholds; no selection correction.
-            cohort: Optional evaluation-cohort identifier saved with provenance.
+            cohort: Optional evaluation-cohort identifier (default None) saved with provenance.
             error_metric: Optional custom count-based enrichment metric. Use
                 to_numeric_dataframe() for generic exports; the legacy wide
                 export is specific to OddsRatio.
@@ -420,7 +491,15 @@ class Auditor:
             ValueError: If no outcome has been defined with .add_outcome() first.
             ValueError: If score_name is not found in the registered scores.
             ValueError: If a required decision threshold is not configured.
-        """
+
+        Notes:
+            Results include synthetic "overall" first, followed by registered features.
+            Categorical levels retain declared order and unobserved NaN placeholders;
+            other levels are sorted as strings. Missing features default to exclusion,
+            recorded per feature. Input data is not mutated. Invalid bootstrap counts,
+            empty data, missing columns, nonfinite scores, nonbinary/missing truth,
+            invalid thresholds or cluster IDs raise ValueError. Undefined metrics are
+            NaN, not zero. See InferenceConfig for bootstrap failure diagnostics."""
         inference = inference or InferenceConfig()
         score, threshold, data_slice, eval_features = self._prepare_evaluation(
             score_name, threshold, n_bootstraps, inference=inference
@@ -481,13 +560,34 @@ class Auditor:
         inference: Optional[InferenceConfig] = None,
         cohort: Optional[str] = None,
     ) -> CalibrationEvaluation:
-        """Fixed-bin reliability table and probability accuracy by subgroup.
+        """Evaluate probability accuracy and fixed-bin reliability by subgroup.
 
-        Requires probabilities in [0, 1]. Uses Brier score, log loss, calibration
-        intercept and slope. Binned frequency intervals follow the inference
-        configuration; they are pointwise, not simultaneous confidence bands.
-        Calibration fits require interior probabilities and identified fits.
-        """
+        Args:
+            score_name: Registered score column with finite probabilities in [0, 1].
+            bins: Positive integer number of equal-width bins; default 10. Bins are
+                left-closed and right-open except the final bin includes 1.
+            n_bootstraps: Positive resample count, default 1000; None disables all
+                intervals. IID auto frequency intervals use analytic rate intervals.
+            inference: Optional InferenceConfig; None uses its default policies.
+            cohort: Optional cohort identifier stored in metadata; default None.
+
+        Returns:
+            CalibrationEvaluation with a bins DataFrame and a ScoreEvaluation summary
+            of Brier score, log loss, calibration intercept and slope. The configured
+            metric list is not replaced. Empty bins have n=0 and NaN estimates; bins
+            are produced for observed levels, while summary retains empty categories.
+
+        Raises:
+            ValueError: Invalid bins, probabilities, data, truth, score registration,
+                inference inputs or bootstrap count. An existing configured threshold
+                is still validated even though these metrics do not require one.
+
+        Notes:
+            Data is not mutated. Includes overall and registered features. Missing
+            features follow inference.missing. Bin intervals concern observed frequency,
+            not uncertainty in mean predicted scores or simultaneous calibration bands.
+            Intercept/slope fits can return NaN for boundary probabilities, missing
+            classes or failed fits; slope also requires variation and no separation."""
         from model_auditor._evaluation import _prepare_feature_data, evaluate_level
         from model_auditor.metrics import (
             BrierScore,
@@ -558,12 +658,25 @@ class Auditor:
         return CalibrationEvaluation(frame, summary, metadata)
 
     def decision_curve(self, score_name: str, thresholds: list[float]) -> pd.DataFrame:
-        """Descriptive net benefit for probability thresholds, with act-all/none.
+        """Compute descriptive net benefit for probability thresholds on all rows.
 
-        Net benefit = TP/N - FP/N * t/(1-t). Threshold probability encodes the
-        relative harm of a false positive; it must be meaningful for the target
-        decision. No confidence bands or automatic selection are provided.
-        """
+        Net benefit is TP/N - FP/N * t/(1-t), in true-positive equivalents per row.
+        Threshold probability encodes relative false-positive harm. No confidence
+        bands, subgroup estimates or automatic threshold selection are provided.
+
+        Args:
+            score_name: Registered column of finite probabilities in [0, 1].
+            thresholds: Nonempty sequence of finite probabilities strictly in (0, 1).
+                Rows preserve supplied order and duplicates; scores >= t are positive.
+
+        Returns:
+            New DataFrame with threshold, net_benefit, act_all, act_none (zero),
+            selection_rate (fraction) and n columns. Its interval_scope attribute in
+            ``attrs`` is "descriptive_only". Data and configured thresholds are unchanged.
+
+        Raises:
+            ValueError: Invalid thresholds, probabilities, data, truth or registrations.
+                Any configured score threshold is also validated."""
         from model_auditor.metrics import validate_probabilities
 
         _, _, data, _ = self._prepare_evaluation(
@@ -612,12 +725,36 @@ class Auditor:
         inference: Optional[InferenceConfig] = None,
         cohort: Optional[str] = None,
     ) -> ScoreEvaluation:
-        """Paired model contrasts (score minus/divided by reference) on the same rows.
+        """Compare paired scores on the same rows using configured metrics.
 
-        Metrics and subgroup memberships are recomputed inside shared resamples.
-        Intervals are pointwise, not multiplicity- or selection-adjusted. Supplied
-        predictions must come from an appropriate independent evaluation design.
-        """
+        Args:
+            score_name: Registered score whose metrics are contrasted.
+            reference_score: Registered reference score on the same data. Pairing is
+                positional and remains valid with duplicate DataFrame indices.
+            reference_threshold: Reference policy override; None uses its registration.
+            threshold: Optional override for the score's scalar/conditional policy;
+                None uses its registered threshold. Decision metrics require a policy.
+            contrast: "difference" (default) subtracts reference; "ratio" divides by it.
+                Nonfinite operands or a zero ratio denominator produce NaN.
+            n_bootstraps: Positive count, default 1000; None disables intervals.
+                Contrasts use percentile resampling even with method="auto".
+            inference: Optional InferenceConfig; None uses defaults. Shared resamples
+                preserve pairing/overlap. Missing features follow this configuration.
+            cohort: Optional cohort identifier in provenance; default None.
+
+        Returns:
+            New ScoreEvaluation with original-sample metric contrasts and interval
+            diagnostics. No input data or registrations are changed.
+
+        Raises:
+            ValueError: Invalid contrast, no metrics, invalid data/truth/scores,
+                thresholds, bootstrap count or inference inputs.
+
+        Notes:
+            Intervals are pointwise, without selection or multiplicity correction.
+            They condition on supplied predictions; evaluate on independent data.
+            Includes overall and all registered features, preserving evaluation order.
+            Identical paired predictions can have a degenerate but valid interval."""
         from model_auditor._comparisons import contrast_estimate, evaluate_contrast
         from model_auditor._evaluation import _prepare_feature_data, support_counts
         from model_auditor.schemas import LevelEvaluation
@@ -727,12 +864,37 @@ class Auditor:
         inference: Optional[InferenceConfig] = None,
         cohort: Optional[str] = None,
     ) -> ScoreEvaluation:
-        """Compare each level with a named reference using shared resamples.
+        """Compare each subgroup with an observed reference using configured metrics.
 
-        With FPR/FNR metrics these are class-conditional error-rate contrasts.
-        No causal interpretation or automatic multiple-comparison adjustment.
-        Reference uses the unambiguous string level label shown in results.
-        """
+        Args:
+            score_name: Registered score to evaluate.
+            feature: Registered subgroup feature name.
+            reference: Observed level's string label, as shown in result objects.
+                An absent reference raises ValueError. The reference itself is omitted
+                from returned levels; declared unobserved categories remain as NaN.
+            threshold: Optional override for the score's scalar/conditional policy;
+                None uses its registered threshold. Decision metrics require a policy.
+            contrast: "difference" (default) subtracts reference; "ratio" divides by it.
+                Nonfinite operands or a zero ratio denominator produce NaN.
+            n_bootstraps: Positive count, default 1000; None disables intervals.
+                Contrasts use percentile resampling even with method="auto".
+            inference: Optional InferenceConfig; None uses defaults. Shared resamples
+                preserve pairing/overlap. Missing features follow this configuration.
+            cohort: Optional cohort identifier in provenance; default None.
+
+        Returns:
+            New ScoreEvaluation with original-sample metric contrasts and interval
+            diagnostics. No input data or registrations are changed.
+
+        Raises:
+            ValueError: Invalid contrast, no metrics, invalid data/truth/scores,
+                thresholds, bootstrap count or inference inputs.
+
+        Notes:
+            Intervals are pointwise, without selection or multiplicity correction.
+            They condition on supplied predictions; evaluate on independent data.
+            Only the requested feature is returned. FPR/FNR contrasts compare
+            class-conditional rates, without implying causal fairness."""
         from model_auditor._comparisons import contrast_estimate, evaluate_contrast
         from model_auditor._evaluation import _prepare_feature_data, support_counts
         from model_auditor.schemas import LevelEvaluation
@@ -818,7 +980,13 @@ class Auditor:
 
         Returns:
             Finite threshold maximizing the Youden criterion among observed scores.
-        """
+
+        Notes:
+            Requires finite numeric scores and both truth classes. Emits UserWarning
+            identifying selection on tuning data. Returns a scalar without changing
+            the registered threshold; pass it to add_score() or an evaluation call.
+            Evaluate the selected policy on an independent cohort.
+            Ties select the first (largest) finite threshold on the ROC curve."""
         score, fpr, tpr, thresholds = self._prepare_score_roc_curve(
             score_name=score_name
         )
@@ -866,7 +1034,15 @@ class Auditor:
         Returns:
             Threshold that satisfies the target constraint with the requested
             tie-breaking rule.
-        """
+
+        Notes:
+            Requires finite numeric scores and both truth classes. Emits UserWarning
+            identifying selection on tuning data. Returns a scalar without changing
+            the registered threshold; pass it to add_score() or an evaluation call.
+            Evaluate the selected policy on an independent cohort.
+            With sensitivity (default), chooses the largest feasible threshold; with
+            specificity, the smallest feasible threshold. Candidates include observed
+            scores and a finite all-negative endpoint above the maximum if representable."""
         if metric not in ("sensitivity", "specificity"):
             raise ValueError(
                 "metric must be either 'sensitivity' or 'specificity'. "
@@ -936,10 +1112,10 @@ class Auditor:
         self,
         score_name: str,
         feature_names: Optional[list[str]] = None,
-        bins: Union[int, str] = 30,
+        bins: int | str | _Sequence[float] | NDArray[np.floating] = 30,
         density: bool = True,
         split_classes: bool = False,
-    ) -> dict:
+    ) -> dict[str, tuple[Figure, NDArray[np.object_]]]:
         """Visualize score distributions stratified by feature levels.
 
         For each selected feature, produces a figure with vertically stacked
@@ -973,7 +1149,11 @@ class Auditor:
             Dictionary mapping feature name to a
             ``(matplotlib.figure.Figure, numpy.ndarray)`` tuple.  The ndarray
             is a 1-D array of ``Axes`` objects, one per level, ordered top to
-            bottom to match the level order used in ``to_dataframe()``.
+            bottom. Observed categorical levels follow declared order; other
+            levels use first appearance (unlike sorted evaluation tables).
+            Rows with missing feature or score values are omitted. Each axes
+            array has dtype object. Figures are not shown or closed; callers
+            own them and should call ``matplotlib.pyplot.close(fig)`` when done.
 
         Raises:
             ImportError: If matplotlib is not installed.

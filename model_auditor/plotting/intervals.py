@@ -8,6 +8,9 @@ import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
+
     from model_auditor.schemas import (
         FeatureEvaluation,
         LevelEvaluation,
@@ -374,8 +377,60 @@ def plot_metric_intervals(
     rotate_plots: bool = False,
     include_sample_size: bool = True,
     include_class_balance: bool = True,
-) -> dict:
-    """Render plot metric intervals; see the public method for options."""
+) -> dict[str, tuple[Figure, Axes]]:
+    """Create interval plots for a metric across feature levels.
+
+    For each selected feature, produces one matplotlib figure with an
+    error-bar per level: the point marks the metric estimate (score) and
+    the whiskers extend to stored analytic or bootstrap CI bounds.
+
+    By default each feature subplot prepends an ``Overall`` comparator
+    level (drawn from the ``"overall"`` synthetic feature when present)
+    so subgroup performance can be read against the global baseline in
+    the same figure.  The standalone ``"overall"`` feature is never
+    rendered as its own subplot.
+
+    Levels without plottable CI data (nonfinite score, missing interval,
+    nonfinite bounds, or reversed bounds) are explicitly listed with their
+    status rather than silently disappearing.
+
+    Args:
+        evaluation: ScoreEvaluation to render without mutation.
+        metric: Metric to plot.  Matched first by exact name, then by
+            label.  Example: ``"sensitivity"`` or ``"Sensitivity"``.
+        feature_names: Feature names to include.  ``None`` plots all
+            features except the synthetic ``"overall"`` feature.
+            Passing ``"overall"`` in this list has no effect (it is
+            silently filtered out).
+        include_overall: If ``True`` (default) and an ``"overall"``
+            feature is present, prepend an ``Overall`` level to each
+            feature subplot for visual comparison.
+        rotate_plots: If ``False`` (default), error bars are horizontal
+            (metric on x-axis, levels on y-axis).  If ``True``, error
+            bars are vertical (levels on x-axis, metric on y-axis).
+        include_sample_size: If ``True`` (default), annotate each level
+            with its sample size as ``"N: {n} ({pct_of_overall}%)"``
+            (``NA`` placeholders when counts are unavailable).  In
+            horizontal mode the annotations are left-aligned at a
+            consistent x-position to the left of the class labels.
+        include_class_balance: If ``True`` (default), annotate each
+            level with its positive-class count as
+            ``"N Pos: {n_pos} ({pct_positive}%)"`` (``NA`` placeholders
+            when counts are unavailable).
+
+    Returns:
+        Dictionary mapping feature name to
+        ``(matplotlib.figure.Figure, matplotlib.axes.Axes)`` tuples,
+        one entry per selected feature in selected/stored order. Does not
+        mutate results or show figures. Callers own the figures and should
+        close them with matplotlib.pyplot.close(fig) after use.
+
+    Raises:
+        ImportError: If matplotlib is not installed.
+        ValueError: If ``self.features`` is empty, ``feature_names``
+            contains unknown names, no plottable features remain after
+            filtering ``"overall"``, or the metric is not found in any
+            selected feature."""
     try:
         import matplotlib.pyplot as plt
     except ImportError as exc:

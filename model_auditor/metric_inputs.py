@@ -4,8 +4,10 @@ This module defines the AuditorMetricInput protocol and provides
 implementations for calculating true positives, false positives,
 true negatives, and false negatives from prediction data.
 
-These metric inputs are computed row-wise and added as columns to the
-DataFrame, which are then aggregated by the metric classes.
+Built-in transforms compute vectorized 0/1 indicators and mutate the supplied
+DataFrame by adding or replacing a column. Auditor uses these on private slices.
+Direct callers should pass a copy when they need to preserve their input.
+row_call remains available for individual rows and custom input implementations.
 """
 
 from typing import Protocol, Union, runtime_checkable
@@ -48,7 +50,12 @@ class AuditorMetricInput(Protocol):
             data: DataFrame to transform.
 
         Returns:
-            The same DataFrame with the new metric input column added.
+            The same DataFrame, mutated by adding or overwriting self.name.
+            The default protocol implementation uses row-wise apply; built-in
+            classes override it with vectorized transforms.
+
+        Raises:
+            KeyError: An input required by row_call is absent.
         """
         data[self.name] = data.apply(self.row_call, axis=1)
         return data
@@ -77,6 +84,18 @@ class TruePositives(AuditorMetricInput):
         return int((row["_truth"] == 1.0) & (row["_binary_pred"] == 1.0))
 
     def data_transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Add or replace the tp indicator column using vectorized comparisons.
+
+        Args:
+            data: DataFrame with nonmissing binary _truth and _binary_pred columns.
+                Binary validity is not checked here; Auditor evaluation validates it.
+
+        Returns:
+            The same DataFrame object, mutated in place with integer 0/1 column tp.
+            Row order and index are preserved; copy data first to avoid mutation.
+
+        Raises:
+            KeyError: A required input column is missing."""
         data[self.name] = (
             (data["_truth"] == 1.0) & (data["_binary_pred"] == 1.0)
         ).astype(int)
@@ -106,6 +125,18 @@ class FalsePositives(AuditorMetricInput):
         return int((row["_truth"] == 0.0) & (row["_binary_pred"] == 1.0))
 
     def data_transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Add or replace the fp indicator column using vectorized comparisons.
+
+        Args:
+            data: DataFrame with nonmissing binary _truth and _binary_pred columns.
+                Binary validity is not checked here; Auditor evaluation validates it.
+
+        Returns:
+            The same DataFrame object, mutated in place with integer 0/1 column fp.
+            Row order and index are preserved; copy data first to avoid mutation.
+
+        Raises:
+            KeyError: A required input column is missing."""
         data[self.name] = (
             (data["_truth"] == 0.0) & (data["_binary_pred"] == 1.0)
         ).astype(int)
@@ -135,6 +166,18 @@ class TrueNegatives(AuditorMetricInput):
         return int((row["_truth"] == 0.0) & (row["_binary_pred"] == 0.0))
 
     def data_transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Add or replace the tn indicator column using vectorized comparisons.
+
+        Args:
+            data: DataFrame with nonmissing binary _truth and _binary_pred columns.
+                Binary validity is not checked here; Auditor evaluation validates it.
+
+        Returns:
+            The same DataFrame object, mutated in place with integer 0/1 column tn.
+            Row order and index are preserved; copy data first to avoid mutation.
+
+        Raises:
+            KeyError: A required input column is missing."""
         data[self.name] = (
             (data["_truth"] == 0.0) & (data["_binary_pred"] == 0.0)
         ).astype(int)
@@ -164,6 +207,18 @@ class FalseNegatives(AuditorMetricInput):
         return int((row["_truth"] == 1.0) & (row["_binary_pred"] == 0.0))
 
     def data_transform(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Add or replace the fn indicator column using vectorized comparisons.
+
+        Args:
+            data: DataFrame with nonmissing binary _truth and _binary_pred columns.
+                Binary validity is not checked here; Auditor evaluation validates it.
+
+        Returns:
+            The same DataFrame object, mutated in place with integer 0/1 column fn.
+            Row order and index are preserved; copy data first to avoid mutation.
+
+        Raises:
+            KeyError: A required input column is missing."""
         data[self.name] = (
             (data["_truth"] == 1.0) & (data["_binary_pred"] == 0.0)
         ).astype(int)

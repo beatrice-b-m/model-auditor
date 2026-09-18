@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Union
+from collections.abc import Sequence as _Sequence
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import pandas as pd
+from numpy.typing import NDArray as _NDArray
 
 if TYPE_CHECKING:
+    from matplotlib.figure import Figure
+
     from model_auditor.core import Auditor
     from model_auditor.schemas import AuditorScore
 
@@ -16,11 +20,60 @@ def plot_score_distributions(
     auditor: Auditor,
     score_name: str,
     feature_names: Optional[list[str]] = None,
-    bins: Union[int, str] = 30,
+    bins: int | str | _Sequence[float] | _NDArray[np.floating] = 30,
     density: bool = True,
     split_classes: bool = False,
-) -> dict:
-    """Render plot score distributions; see the public method for options."""
+) -> dict[str, tuple[Figure, _NDArray[np.object_]]]:
+    """Visualize score distributions stratified by feature levels.
+
+    For each selected feature, produces a figure with vertically stacked
+    histograms — one subplot per level — all sharing the same x-axis
+    (score values).  Bins are computed once from the full feature slice
+    so every level uses an identical bin grid, enabling direct visual
+    comparison across subgroups.
+
+    Requires matplotlib.  Does not require ``evaluate_metrics()`` to have
+    been called first; it operates directly on the raw data and the
+    configured features and score.
+
+    Args:
+        auditor: Configured Auditor; its data is read without mutation.
+        score_name: Name of the score column to visualize.  Must have
+            been registered with ``add_score()``.
+        feature_names: Feature names to plot.  ``None`` (default) plots
+            all registered features in insertion order.  An explicit list
+            preserves the caller-supplied order.
+        bins: Bin specification forwarded to ``numpy.histogram_bin_edges``.
+            Accepts an integer (number of bins), a string strategy such as
+            ``"auto"`` or ``"fd"``, or a precomputed bin-edge array.
+            Default is ``30``.
+        density: If ``True`` (default), normalize each histogram so that
+            the total area integrates to 1.  Pass ``False`` for raw
+            observation counts.
+        split_classes: If True, overlay negative and positive class histograms
+            using the configured outcome. Each class is normalized separately
+            when density=True. Defaults to False (combined distribution).
+
+    Returns:
+        Dictionary mapping feature name to a
+        ``(matplotlib.figure.Figure, numpy.ndarray)`` tuple.  The ndarray
+        is a 1-D array of ``Axes`` objects, one per level, ordered top to
+        bottom. Observed categorical levels follow declared order; other
+        levels use first appearance (unlike sorted evaluation tables).
+        Rows with missing feature or score values are omitted. Each axes
+        array has dtype object. Figures are not shown or closed; callers
+        own them and should call ``matplotlib.pyplot.close(fig)`` when done.
+
+    Raises:
+        ImportError: If matplotlib is not installed.
+        ValueError: If no data has been added with ``add_data()``.
+        ValueError: If no features have been configured with
+            ``add_feature()``.
+        ValueError: If ``score_name`` is not a registered score.
+        ValueError: If any name in ``feature_names`` is not a registered
+            feature.
+        ValueError: If a selected feature has no plottable levels after
+            null values are filtered out."""
     try:
         import matplotlib.pyplot as plt
     except ImportError as exc:

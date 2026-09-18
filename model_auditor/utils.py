@@ -11,18 +11,19 @@ from typing import Type
 from model_auditor.metric_inputs import AuditorMetricInput
 
 
-def is_metric_input_valid(cls: type) -> bool:
+def is_metric_input_valid(cls: object) -> bool:
     """Check if a class implements the AuditorMetricInput protocol.
 
     Validates that a class has all required attributes and methods
     to function as a metric input calculator.
 
     Args:
-        cls: The class to validate.
+        cls: Object to inspect; nonclasses return False. No instantiation occurs.
 
     Returns:
         True if the class has name, label, inputs attributes and
-        row_call, data_transform methods; False otherwise.
+        row_call, data_transform methods; False otherwise. This checks presence
+        and callability, not signatures, types or numerical correctness.
     """
     return (
         inspect.isclass(cls)

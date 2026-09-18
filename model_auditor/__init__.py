@@ -1,31 +1,21 @@
-"""Model Auditor: A library for evaluating ML models with stratified metrics.
+"""Evaluate fixed binary predictions overall and within subgroups.
 
-This package provides tools for auditing machine learning model performance
-across different subgroups, calculating metrics with confidence intervals,
-and visualizing results hierarchically.
+Public root exports are Auditor and InferenceConfig. Metric instances live in
+model_auditor.metrics; configuration and result dataclasses in
+model_auditor.schemas. The plotting extra provides figure rendering and the
+styling extra provides pandas styled tables; neither is needed for evaluation.
 
 Example:
-    Basic usage for evaluating a binary classifier::
-
-        from model_auditor import Auditor
-        from model_auditor.metrics import Sensitivity, Specificity, AUROC
-        from model_auditor.schemas import ConditionalThreshold
-
-        auditor = Auditor()
-        auditor.add_data(df)
-        auditor.add_feature(name="gender")
-        auditor.add_score(
-            name="prediction_score",
-            threshold=ConditionalThreshold(
-                feature="gender",
-                levels={"Female": 0.45, "Male": 0.55},
-                default=0.50,
-            ),
-        )
-        auditor.add_outcome(name="label")
-        auditor.set_metrics([Sensitivity(), Specificity(), AUROC()])
-        results = auditor.evaluate_metrics(score_name="prediction_score")
-"""
+    >>> import pandas as pd
+    >>> from model_auditor import Auditor
+    >>> from model_auditor.metrics import Sensitivity
+    >>> audit = Auditor(pd.DataFrame({"score": [0.9, 0.1], "truth": [1, 0]}))
+    >>> audit.add_score("score", threshold=0.5)
+    >>> audit.add_outcome("truth")
+    >>> audit.set_metrics([Sensitivity()])
+    >>> result = audit.evaluate_metrics("score", n_bootstraps=None)
+    >>> result.to_numeric_dataframe()["estimate"].tolist()
+    [1.0]"""
 
 from model_auditor.core import Auditor
 from model_auditor.schemas import InferenceConfig
