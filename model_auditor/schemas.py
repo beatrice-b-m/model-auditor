@@ -7,6 +7,7 @@ associated metrics at various levels of aggregation.
 
 from __future__ import annotations
 
+from collections.abc import Mapping as _Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
@@ -372,7 +373,7 @@ class FeatureEvaluation:
         self,
         metric_name: str,
         metric_label: str,
-        data: dict[str, float | int | np.integer],
+        data: _Mapping[str, float | int | np.integer],
     ) -> None:
         """Replace one metric across levels, creating missing levels as needed.
 

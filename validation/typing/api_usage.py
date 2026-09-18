@@ -38,6 +38,8 @@ if TYPE_CHECKING:
     assert_type(result.features["region"], FeatureEvaluation)
     level = result.features["region"].levels["North"]
     assert_type(level, LevelEvaluation)
+    existing_updates: dict[str, float] = {"North": 0.5}
+    result.features["region"].update("metric", "Metric", existing_updates)
     assert_type(level.metrics["sensitivity"], LevelMetric)
     assert_type(level.metrics["sensitivity"].interval, tuple[float, float] | None)
     assert_type(result.style_dataframe(rank=True), Styler)
