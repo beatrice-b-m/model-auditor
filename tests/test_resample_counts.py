@@ -162,3 +162,33 @@ def test_index_sampler_matches_frame_sampler(config):
     for _ in range(5):
         expected = data.iloc[positions(index_rng)]
         pd.testing.assert_frame_equal(frames(frame_rng), expected)
+
+
+def test_evaluate_errors_shares_draws_across_features_with_same_rows(error_draws):
+    auditor = make_auditor()
+    rng = np.random.default_rng(3)
+    auditor.data["h"] = rng.choice(["x", "y", "z"], len(auditor.data))
+    auditor.add_feature("h")
+    auditor.evaluate_errors("new", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER)
+    assert error_draws == [len(auditor.data)] * N_BOOTSTRAPS
+
+
+def test_evaluate_errors_draws_separately_for_features_with_other_rows(error_draws):
+    auditor = make_auditor()
+    rng = np.random.default_rng(3)
+    h = rng.choice(["x", "y", "z"], len(auditor.data)).astype(object)
+    h[:10] = None
+    auditor.data["h"] = h
+    auditor.add_feature("h")
+    auditor.evaluate_errors("new", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER)
+    n = len(auditor.data)
+    assert sorted(error_draws) == [n - 10] * N_BOOTSTRAPS + [n] * N_BOOTSTRAPS
+    error_draws.clear()
+    auditor.evaluate_errors(
+        "new",
+        n_bootstraps=N_BOOTSTRAPS,
+        inference=InferenceConfig(
+            random_state=1, resampling="cluster", cluster="cluster", missing="include"
+        ),
+    )
+    assert error_draws == [n] * N_BOOTSTRAPS

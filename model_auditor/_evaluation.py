@@ -340,36 +340,31 @@ def evaluate_feature(
 
 ERROR_GROUPS = ("tp", "tn", "fp", "fn")
 
+ErrorFeatureResult = dict[str, tuple[FeatureEvaluation, dict[str, dict[str, float]]]]
 
-def evaluate_error_features(
+
+def _error_point_estimates(
     data: pd.DataFrame,
+    full: pd.DataFrame,
+    levels: list[str],
     feature: AuditorFeature,
     metric: AuditorErrorMetric,
     n_bootstraps: Optional[int],
     global_total_n: int,
-    inference: InferenceConfig | None = None,
-    groups: tuple[str, ...] = ERROR_GROUPS,
-) -> dict[str, tuple[FeatureEvaluation, dict[str, dict[str, float]]]]:
-    """Confusion-membership enrichment versus rest, not conditional error rates.
+    config: InferenceConfig,
+    groups: tuple[str, ...],
+) -> tuple[ErrorFeatureResult, dict[str, list[str]]]:
+    """Original-table estimates, support and analytic intervals for each group.
 
-    Evaluates every confusion group in ``groups`` for one feature. Point
-    estimates always use the original table. IID auto inference uses a
-    conditional exact interval for the population OR with the sample OR as the
-    reported point estimate. Other designs use diagnosed percentile resampling,
-    and every group is evaluated on the same ``n_bootstraps`` resamples.
-
-    Returns:
-        ``{group: (FeatureEvaluation, support)}`` in ``groups`` order.
+    Returns the per-group results and, per group, the levels still waiting for
+    a resampled interval.
     """
-    config = inference or InferenceConfig()
-    full, categories = _prepare_feature_data(data, feature.name, config.missing)
     full_counts = _level_counts(full, feature.name)
-    levels = categories if categories is not None else list(full_counts)
     level_support = {
         name: support_counts(full.loc[full[feature.name].astype(str) == name])
         for name in levels
     }
-    out = {}
+    out: ErrorFeatureResult = {}
     pending: dict[str, list[str]] = {}
     for group_col in groups:
         group = full[full[group_col] == 1]
@@ -432,49 +427,136 @@ def evaluate_error_features(
         if group_pending:
             pending[group_col] = group_pending
         out[group_col] = (result, support)
-    if not pending:
-        return out
-    if config.resampling == "cluster" and full[config.cluster].nunique() < 2:
-        for group_col, names in pending.items():
-            for name in names:
-                out[group_col][0].levels[name].metrics[
-                    metric.name
-                ].interval_status = "insufficient_clusters"
-        return out
-    samples = {
-        group_col: {name: [] for name in names} for group_col, names in pending.items()
-    }
-    # Count each draw with integer arrays: level codes plus one membership mask
-    # per group. Counts are exact, so the metric sees the same numbers as a
-    # DataFrame groupby of the resampled rows.
-    codes = pd.Categorical(full[feature.name].astype(str), categories=levels).codes
-    position = {name: i for i, name in enumerate(levels)}
-    members = {group_col: full[group_col].to_numpy() == 1 for group_col in pending}
-    rng = np.random.default_rng(config.random_state)
-    sample = make_index_sampler(full, config)
-    for _ in range(n_bootstraps):
-        idx = sample(rng)
-        boot_codes = codes[idx]
-        counts = np.bincount(boot_codes, minlength=len(levels))
-        for group_col, names in pending.items():
-            in_group = members[group_col][idx]
-            group_counts = np.bincount(boot_codes[in_group], minlength=len(levels))
+    return out, pending
+
+
+class _PendingErrorFeature:
+    """One feature's resampling state: level codes and pending sample lists."""
+
+    def __init__(
+        self,
+        full: pd.DataFrame,
+        feature: str,
+        levels: list[str],
+        out: ErrorFeatureResult,
+        pending: dict[str, list[str]],
+    ) -> None:
+        self.out = out
+        self.pending = pending
+        self.n_levels = len(levels)
+        self.position = {name: i for i, name in enumerate(levels)}
+        self.codes = pd.Categorical(full[feature].astype(str), categories=levels).codes
+        self.members = {
+            group_col: full[group_col].to_numpy() == 1 for group_col in pending
+        }
+        self.samples = {
+            group_col: {name: [] for name in names}
+            for group_col, names in pending.items()
+        }
+
+    def add(self, idx: np.ndarray, metric: AuditorErrorMetric) -> None:
+        """Count one resample with integer arrays and record every pending OR."""
+        boot_codes = self.codes[idx]
+        counts = np.bincount(boot_codes, minlength=self.n_levels)
+        for group_col, names in self.pending.items():
+            in_group = self.members[group_col][idx]
+            group_counts = np.bincount(boot_codes[in_group], minlength=self.n_levels)
             group_n = int(in_group.sum())
             for name in names:
-                i = position[name]
-                samples[group_col][name].append(
+                i = self.position[name]
+                self.samples[group_col][name].append(
                     metric.compute(
                         int(group_counts[i]), group_n, int(counts[i]), len(idx)
                     )
                 )
-    for group_col, names in pending.items():
-        for name in names:
-            bootstrap_summary(
-                out[group_col][0].levels[name].metrics[metric.name],
-                np.asarray(samples[group_col][name]),
-                config,
-            )
-    return out
+
+    def summarize(self, metric: AuditorErrorMetric, config: InferenceConfig) -> None:
+        for group_col, names in self.pending.items():
+            for name in names:
+                bootstrap_summary(
+                    self.out[group_col][0].levels[name].metrics[metric.name],
+                    np.asarray(self.samples[group_col][name]),
+                    config,
+                )
+
+    def mark(self, metric: AuditorErrorMetric, status: str) -> None:
+        for group_col, names in self.pending.items():
+            for name in names:
+                self.out[group_col][0].levels[name].metrics[
+                    metric.name
+                ].interval_status = status
+
+
+def evaluate_error_features(
+    data: pd.DataFrame,
+    features: list[AuditorFeature],
+    metric: AuditorErrorMetric,
+    n_bootstraps: Optional[int],
+    global_total_n: int,
+    inference: InferenceConfig | None = None,
+    groups: tuple[str, ...] = ERROR_GROUPS,
+) -> dict[str, ErrorFeatureResult]:
+    """Confusion-membership enrichment versus rest, not conditional error rates.
+
+    Evaluates every confusion group in ``groups`` for every feature. Point
+    estimates always use the original table. IID auto inference uses a
+    conditional exact interval for the population OR with the sample OR as the
+    reported point estimate. Other designs use diagnosed percentile resampling.
+
+    Features that keep the same rows after their missing-value policy share
+    one set of ``n_bootstraps`` resamples, used by all of their groups. Each
+    feature with different rows draws its own set from a fresh generator, so
+    seeded results match evaluating each feature and group separately.
+
+    Returns:
+        ``{feature: {group: (FeatureEvaluation, support)}}`` in input order.
+    """
+    config = inference or InferenceConfig()
+    results: dict[str, ErrorFeatureResult] = {}
+    # Keyed by the rows each feature keeps; insertion order is first use.
+    shared: dict[bytes, tuple[pd.DataFrame, list[_PendingErrorFeature]]] = {}
+    for feature in features:
+        full, categories = _prepare_feature_data(data, feature.name, config.missing)
+        levels = (
+            categories
+            if categories is not None
+            else list(_level_counts(full, feature.name))
+        )
+        out, pending = _error_point_estimates(
+            data,
+            full,
+            levels,
+            feature,
+            metric,
+            n_bootstraps,
+            global_total_n,
+            config,
+            groups,
+        )
+        results[feature.name] = out
+        if not pending:
+            continue
+        kept = (
+            data[feature.name].notna().to_numpy()
+            if config.missing == "exclude"
+            else np.ones(len(data), dtype=bool)
+        )
+        state = _PendingErrorFeature(full, feature.name, levels, out, pending)
+        shared.setdefault(kept.tobytes(), (full, []))[1].append(state)
+    for full, states in shared.values():
+        if config.resampling == "cluster" and full[config.cluster].nunique() < 2:
+            for state in states:
+                state.mark(metric, "insufficient_clusters")
+            continue
+        rng = np.random.default_rng(config.random_state)
+        sample = make_index_sampler(full, config)
+        for _ in range(n_bootstraps):
+            idx = sample(rng)
+            for state in states:
+                state.add(idx, metric)
+        for state in states:
+            state.summarize(metric, config)
+    return results
 
 
 def evaluate_confidence_interval(

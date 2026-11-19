@@ -762,8 +762,9 @@ class Auditor:
         metric = error_metric if error_metric is not None else OddsRatio()
         error_eval.metadata["error_metric"] = metric.name
 
-        # Features outer so each feature's resamples serve all four groups;
-        # groups and support keys are created first to keep TP, TN, FP, FN order.
+        # Each set of resamples serves all four groups and every feature that
+        # keeps the same rows. Groups and support keys are created first to keep
+        # TP, TN, FP, FN order.
         for group_col in ERROR_GROUPS:
             error_eval.groups[group_col] = ScoreEvaluation(
                 name=group_col,
@@ -771,18 +772,18 @@ class Auditor:
                 metadata=deepcopy(error_eval.metadata),
             )
             error_eval.support_data[group_col] = {}
-        for feature in eval_features.values():
-            by_group = evaluate_error_features(
-                data=data_slice,
-                feature=feature,
-                metric=metric,
-                n_bootstraps=n_bootstraps,
-                inference=inference,
-                global_total_n=global_total_n,
-            )
+        by_feature = evaluate_error_features(
+            data=data_slice,
+            features=list(eval_features.values()),
+            metric=metric,
+            n_bootstraps=n_bootstraps,
+            inference=inference,
+            global_total_n=global_total_n,
+        )
+        for feature_name, by_group in by_feature.items():
             for group_col, (feature_eval, support) in by_group.items():
-                error_eval.groups[group_col].features[feature.name] = feature_eval
-                error_eval.support_data[group_col][feature.name] = support
+                error_eval.groups[group_col].features[feature_name] = feature_eval
+                error_eval.support_data[group_col][feature_name] = support
 
         return error_eval
 
