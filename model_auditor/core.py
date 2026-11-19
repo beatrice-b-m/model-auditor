@@ -7,12 +7,16 @@ intervals.
 
 from __future__ import annotations
 
+import inspect
 import warnings
+from collections.abc import Mapping as _Mapping
 from collections.abc import Sequence as _Sequence
 from copy import deepcopy
 from dataclasses import asdict
+from graphlib import CycleError, TopologicalSorter
 from importlib.metadata import version
-from typing import TYPE_CHECKING, Any, Literal, Optional, Type
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -24,6 +28,9 @@ from model_auditor._evaluation import (
     evaluate_confidence_interval,
     evaluate_error_feature,
     evaluate_feature,
+    metric_parameters,
+    metric_scale,
+    metric_value,
     validate_n_bootstraps,
 )
 from model_auditor._thresholds import (
@@ -49,6 +56,7 @@ from model_auditor.schemas import (
     ErrorEvaluation,
     FeatureEvaluation,
     InferenceConfig,
+    LevelMetric,
     ScoreEvaluation,
     ThresholdSpec,
 )
@@ -56,6 +64,39 @@ from model_auditor.utils import collect_metric_inputs
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure
+
+
+_BASE_INPUTS = frozenset({"_truth", "_pred", "_binary_pred"})
+_RESERVED_INPUT_NAMES = frozenset({*_BASE_INPUTS, "overall"})
+_REFERENCE_PREFIX = "__reference_"
+
+
+def _input_dependencies(metric: AuditorMetric) -> list[str]:
+    """Return a metric's direct inputs plus any binomial interval columns."""
+    names = list(metric.inputs)
+    indicator = getattr(metric, "binomial_indicator", None)
+    if indicator is not None:
+        names.append(indicator)
+    columns = getattr(metric, "binomial_columns", None)
+    if columns is not None:
+        names.extend(columns)
+    return names
+
+
+def _record_contrast_scale(
+    result: LevelMetric, metric: AuditorMetric, contrast: str
+) -> None:
+    """Record a non-unit scale on difference contrasts; ratios are scale-free."""
+    scale = metric_scale(metric)
+    if contrast == "difference" and scale != 1.0:
+        result.parameters["scale"] = scale
+
+
+def _cycle_message(error: CycleError) -> str:
+    cycle = error.args[1] if len(error.args) > 1 else []
+    return "Metric inputs form a dependency cycle: " + " -> ".join(
+        repr(name) for name in cycle
+    )
 
 
 class Auditor:
@@ -136,13 +177,16 @@ class Auditor:
         if outcome is not None:
             self.add_outcome(**vars(outcome))
 
+        # initialize registered metric inputs before metrics
+        self._registered_inputs: dict[str, AuditorMetricInput] = dict()
+
         # initialize metrics
         self.metrics: list[AuditorMetric] = list()
         if metrics is not None:
             self.set_metrics(metrics)
 
         # initialize attrs for later
-        self._inputs: list[Type[AuditorMetricInput]] = list()
+        self._inputs: list[AuditorMetricInput] = list()
 
     def add_data(self, data: pd.DataFrame) -> None:
         """Replace evaluation data with a pandas copy and clear the outcome registration.
@@ -259,19 +303,195 @@ class Auditor:
 
         Raises:
             ValueError: Metric names are duplicated, including parameterized metrics
-                whose names collide."""
+                whose names collide, or a metric's optional scale is not a finite
+                positive number."""
         names = [metric.name for metric in metrics]
         if len(names) != len(set(names)):
             raise ValueError(
                 "Metric names must be unique; duplicate names overwrite results."
             )
+        for metric in metrics:
+            metric_scale(metric)
         self.metrics = list(metrics)
 
-    def _requires_threshold(self) -> bool:
-        return any(
-            set(metric.inputs) & {"_binary_pred", "tp", "tn", "fp", "fn"}
-            for metric in self.metrics
+    def register_metric_input(
+        self, metric_input: AuditorMetricInput | type[AuditorMetricInput]
+    ) -> None:
+        """Register a custom per-row metric input for metrics to use by name.
+
+        A registered input adds one column, named ``metric_input.name``, to each
+        private evaluation frame. Metrics can list it in ``inputs`` and name it in
+        ``binomial_indicator`` or ``binomial_columns`` to receive analytic IID
+        Wilson or Clopper-Pearson rate intervals. Inputs are recomputed on every
+        evaluation slice and, in compare_scores, again after the reference score
+        and decisions are swapped in.
+
+        Args:
+            metric_input: A class (instantiated once with no arguments) or an
+                instance, allowing parameterized inputs. It needs ``name`` (the new
+                column), ``label``, ``inputs`` (a list of column names: ``_truth``,
+                ``_pred``, ``_binary_pred``, built-in confusion inputs, other
+                registered inputs, or data columns) and a callable
+                ``data_transform(data)`` that adds the ``name`` column and returns
+                a DataFrame with the same number of rows. ``row_call`` is optional
+                and never used during evaluation.
+
+        Raises:
+            ValueError: The input is malformed; its name is reserved (``_truth``,
+                ``_pred``, ``_binary_pred``, ``overall`` or ``__reference_*``),
+                built in (such as ``tp``), already registered or an existing data
+                column; or registered inputs would form a dependency cycle.
+            TypeError: A class cannot be instantiated without arguments.
+
+        Notes:
+            Each value must depend only on its own row, so resampled rows carry
+            correct values. Transforms receive private frames; they should only add
+            their own column. Registrations persist across add_data() calls; data
+            column and feature collisions are checked again at evaluation time.
+            Registered inputs are listed in ScoreEvaluation.metadata
+            ["metric_inputs"] by name and qualified class name. There is no
+            unregister method; build a new Auditor to drop registrations.
+
+        Example:
+            >>> import pandas as pd
+            >>> from model_auditor import Auditor
+            >>> class DetectedEvent:
+            ...     name, label = "detected_event", "Detected event"
+            ...     inputs = ["_binary_pred", "event"]
+            ...     def data_transform(self, data):
+            ...         hit = (data["_binary_pred"] == 1) & (data["event"] == 1)
+            ...         data[self.name] = hit.astype(int)
+            ...         return data
+            >>> class DetectedEventRate:
+            ...     name, label = "detected_event_rate", "Detected events per 1,000"
+            ...     inputs, ci_eligible = ["detected_event"], True
+            ...     direction, scale = "higher", 1000
+            ...     binomial_indicator = "detected_event"
+            ...     def data_call(self, data):
+            ...         return float(data["detected_event"].mean())
+            >>> frame = pd.DataFrame(
+            ...     {"risk": [0.9, 0.8, 0.2, 0.1], "y": [1, 0, 1, 0], "event": [1, 0, 1, 1]}
+            ... )
+            >>> auditor = Auditor(frame)
+            >>> auditor.add_outcome("y")
+            >>> auditor.add_score("risk", threshold=0.5)
+            >>> auditor.register_metric_input(DetectedEvent)
+            >>> auditor.set_metrics([DetectedEventRate()])
+            >>> result = auditor.evaluate_metrics("risk", n_bootstraps=None)
+            >>> result.features["overall"].levels["Overall"].metrics[
+            ...     "detected_event_rate"
+            ... ].score
+            250.0
+            >>> result.metadata["metric_inputs"][0]["name"]
+            'detected_event'"""
+        instance = metric_input() if inspect.isclass(metric_input) else metric_input
+        name = getattr(instance, "name", None)
+        inputs = getattr(instance, "inputs", None)
+        if not isinstance(name, str) or not name:
+            raise ValueError("Metric input name must be a nonempty string.")
+        if not isinstance(getattr(instance, "label", None), str):
+            raise ValueError(f"Metric input {name!r} label must be a string.")
+        if not isinstance(inputs, (list, tuple)) or not all(
+            isinstance(item, str) for item in inputs
+        ):
+            raise ValueError(
+                f"Metric input {name!r} inputs must be a list of column names."
+            )
+        if not callable(getattr(instance, "data_transform", None)):
+            raise ValueError(f"Metric input {name!r} needs a callable data_transform.")
+        if name in _RESERVED_INPUT_NAMES or name.startswith(_REFERENCE_PREFIX):
+            raise ValueError(f"Metric input name {name!r} is reserved.")
+        if name in collect_metric_inputs():
+            raise ValueError(f"Metric input name {name!r} is a built-in input.")
+        if name in self._registered_inputs:
+            raise ValueError(f"Metric input {name!r} is already registered.")
+        if self.data is not None and name in self.data.columns:
+            raise ValueError(
+                f"Metric input name {name!r} matches an existing data column."
+            )
+        if name in self.features:
+            raise ValueError(f"Metric input name {name!r} matches a feature.")
+        candidate = {**self._registered_inputs, name: instance}
+        graph = {
+            key: [dep for dep in item.inputs if dep in candidate]
+            for key, item in candidate.items()
+        }
+        try:
+            tuple(TopologicalSorter(graph).static_order())
+        except CycleError as error:
+            raise ValueError(_cycle_message(error)) from None
+        self._registered_inputs[name] = instance
+
+    @property
+    def registered_metric_inputs(self) -> _Mapping[str, AuditorMetricInput]:
+        """Read-only mapping from registered input names to their instances.
+
+        The mapping is a snapshot view; use register_metric_input() to add
+        entries. Instances are shared, not copied."""
+        return MappingProxyType(dict(self._registered_inputs))
+
+    def _resolve_inputs(
+        self, *, strict: bool
+    ) -> tuple[list[AuditorMetricInput], set[str], list[str]]:
+        """Resolve the transitive input closure of the configured metrics.
+
+        Returns the input providers in dependency order, every name reached
+        (including base columns) and the plain data columns needed. Non-strict
+        resolution skips unknown names instead of raising.
+        """
+        builtins = collect_metric_inputs()
+        registered = getattr(self, "_registered_inputs", {})
+        columns = set() if self.data is None else set(self.data.columns)
+        pending = sorted(
+            {name for metric in self.metrics for name in _input_dependencies(metric)}
         )
+        seen: set[str] = set()
+        providers: dict[str, AuditorMetricInput] = {}
+        data_columns: list[str] = []
+        while pending:
+            name = pending.pop(0)
+            if name in seen:
+                continue
+            seen.add(name)
+            if name in _BASE_INPUTS:
+                continue
+            if name in builtins:
+                provider = builtins[name]()
+            elif name in registered:
+                if strict and name in columns:
+                    raise ValueError(
+                        f"Registered metric input {name!r} matches a data column; "
+                        "rename the input or the column."
+                    )
+                if strict and name in self.features:
+                    raise ValueError(
+                        f"Registered metric input {name!r} matches a feature name."
+                    )
+                provider = registered[name]
+            elif name in columns:
+                data_columns.append(name)
+                continue
+            elif strict:
+                raise ValueError(f"Unknown metric input {name!r}.")
+            else:
+                continue
+            providers[name] = provider
+            pending.extend(provider.inputs)
+        graph = {
+            name: [dep for dep in provider.inputs if dep in providers]
+            for name, provider in providers.items()
+        }
+        try:
+            order = list(TopologicalSorter(graph).static_order())
+        except CycleError as error:
+            if strict:
+                raise ValueError(_cycle_message(error)) from None
+            order = list(providers)
+        return [providers[name] for name in order], seen, data_columns
+
+    def _requires_threshold(self) -> bool:
+        _, names, _ = self._resolve_inputs(strict=False)
+        return bool(names & {"_binary_pred", "tp", "tn", "fp", "fn"})
 
     def _metadata(
         self,
@@ -289,7 +509,7 @@ class Auditor:
                     {
                         "name": metric.name,
                         "label": metric.label,
-                        "parameters": getattr(metric, "parameters", {}),
+                        "parameters": metric_parameters(metric),
                     }
                     for metric in self.metrics
                 ],
@@ -304,6 +524,20 @@ class Auditor:
                 "interval_scope": "pointwise",
                 "estimand": "row_weighted_fixed_binary_predictions",
                 "selection_adjusted": False,
+                **(
+                    {
+                        "metric_inputs": [
+                            {
+                                "name": name,
+                                "class": f"{type(item).__module__}."
+                                f"{type(item).__qualname__}",
+                            }
+                            for name, item in self._registered_inputs.items()
+                        ]
+                    }
+                    if getattr(self, "_registered_inputs", None)
+                    else {}
+                ),
             }
         )
 
@@ -724,6 +958,14 @@ class Auditor:
         n_bootstraps: Optional[int] = 1000,
         inference: Optional[InferenceConfig] = None,
         cohort: Optional[str] = None,
+        test: Optional[Literal["noninferiority", "superiority", "equivalence"]] = None,
+        test_metrics: Optional[list[str]] = None,
+        margin: Optional[float | _Mapping[str, float]] = None,
+        boundary: Optional[
+            float | tuple[float, float] | _Mapping[str, float | tuple[float, float]]
+        ] = None,
+        alpha: Optional[float] = None,
+        direction: Optional[_Mapping[str, Literal["higher", "lower"]]] = None,
     ) -> ScoreEvaluation:
         """Compare paired scores on the same rows using configured metrics.
 
@@ -735,32 +977,121 @@ class Auditor:
             threshold: Optional override for the score's scalar/conditional policy;
                 None uses its registered threshold. Decision metrics require a policy.
             contrast: "difference" (default) subtracts reference; "ratio" divides by it.
-                Nonfinite operands or a zero ratio denominator produce NaN.
+                Nonfinite operands or a zero ratio denominator produce NaN. A
+                metric's optional scale multiplies difference contrasts and leaves
+                ratio contrasts unchanged.
             n_bootstraps: Positive count, default 1000; None disables intervals.
                 Contrasts use percentile resampling even with method="auto".
             inference: Optional InferenceConfig; None uses defaults. Shared resamples
                 preserve pairing/overlap. Missing features follow this configuration.
             cohort: Optional cohort identifier in provenance; default None.
+            test: None (default) runs no test and leaves outputs unchanged.
+                "noninferiority", "superiority" or "equivalence" (TOST) tests each
+                selected metric's contrast with the same shared resamples as its
+                interval; requires n_bootstraps and alpha.
+            test_metrics: Metric names to test; None (default) tests every
+                configured metric, so each must be interval-eligible and have a
+                higher/lower direction (equivalence accepts any direction).
+            margin: Positive margin on the reported contrast scale (after any
+                metric scale), or a {metric: margin} mapping. Non-inferiority
+                boundary is -margin/+margin for a difference and 1 - margin/
+                1 + margin for a ratio, by direction; equivalence uses both sides.
+                Required for non-inferiority/equivalence unless boundary is given;
+                not allowed for superiority. No default is suggested.
+            boundary: Explicit null boundary instead of margin (for example 0.9
+                for a ratio): a number for non-inferiority, a (lower, upper) pair
+                for equivalence, or a {metric: boundary} mapping. It must lie on
+                the unfavourable side of no difference (0 or 1).
+            alpha: One-sided significance level in (0, 0.5), required with test.
+                Each bound has level 1 - alpha; there is no default.
+            direction: {metric: "higher" | "lower"} overrides of the metric's
+                own direction, for example for a custom metric or a count.
 
         Returns:
             New ScoreEvaluation with original-sample metric contrasts and interval
-            diagnostics. No input data or registrations are changed.
+            diagnostics. No input data or registrations are changed. With test,
+            each tested LevelMetric has a HypothesisTestResult in hypothesis,
+            exports add test columns, and metadata["hypothesis_test"] records the
+            test, alpha, margin, boundary override, and each metric's direction and
+            null boundary.
 
         Raises:
             ValueError: Invalid contrast, no metrics, invalid data/truth/scores,
-                thresholds, bootstrap count or inference inputs.
+                thresholds, bootstrap count or inference inputs; invalid test
+                arguments, including a tested metric without a higher/lower
+                direction, a non-interval-eligible tested metric, a missing or
+                nonpositive margin, a boundary on the wrong side, or test
+                arguments without test.
 
         Notes:
-            Intervals are pointwise, without selection or multiplicity correction.
-            They condition on supplied predictions; evaluate on independent data.
+            Intervals and tests are pointwise, without selection or multiplicity
+            correction. They condition on supplied predictions; evaluate on
+            independent data. A test rejects H0 when its one-sided percentile
+            bound lies strictly on the favourable side of the boundary; the
+            p-value is an approximate resampling value that can disagree with the
+            bound near the boundary for small n_bootstraps. If the interval
+            would be unusable (undefined estimate, insufficient clusters or
+            resamples, too many invalid or degenerate draws), the decision is
+            "undefined" with that reason in decision_status. For a fixed sequence,
+            test non-inferiority, then superiority only if the first rejects.
             Includes overall and all registered features, preserving evaluation order.
-            Identical paired predictions can have a degenerate but valid interval."""
-        from model_auditor._comparisons import contrast_estimate, evaluate_contrast
+            Identical paired predictions can have a degenerate but valid interval.
+
+        Example:
+            Non-inferiority, then superiority, on the same paired contrast:
+
+            >>> import numpy as np
+            >>> import pandas as pd
+            >>> from model_auditor import Auditor, InferenceConfig
+            >>> from model_auditor.metrics import Sensitivity
+            >>> rng = np.random.default_rng(0)
+            >>> y = rng.integers(0, 2, 400)
+            >>> reference = np.where(y == 1, rng.uniform(size=400) < 0.7, 0.0)
+            >>> frame = pd.DataFrame(
+            ...     {"y": y, "ref": reference, "new": np.where(y == 1, 1.0, reference)}
+            ... )
+            >>> audit = Auditor(frame, metrics=[Sensitivity()])
+            >>> audit.add_outcome("y")
+            >>> audit.add_score("new", threshold=0.5)
+            >>> audit.add_score("ref", threshold=0.5)
+            >>> shared = dict(
+            ...     n_bootstraps=200, inference=InferenceConfig(random_state=0), alpha=0.025
+            ... )
+            >>> ni = audit.compare_scores(
+            ...     "new", "ref", test="noninferiority", margin=0.05, **shared
+            ... )
+            >>> overall = ni.features["overall"].levels["Overall"]
+            >>> overall.metrics["sensitivity"].hypothesis.decision
+            'reject_null'
+            >>> sup = audit.compare_scores("new", "ref", test="superiority", **shared)
+            >>> sup.features["overall"].levels["Overall"].metrics[
+            ...     "sensitivity"
+            ... ].hypothesis.decision
+            'reject_null'"""
+        from model_auditor._comparisons import (
+            contrast_estimate,
+            evaluate_contrast,
+            hypothesis_metadata,
+            resolve_tests,
+            run_hypothesis,
+        )
         from model_auditor._evaluation import _prepare_feature_data, support_counts
         from model_auditor.schemas import LevelEvaluation
 
         if contrast not in {"difference", "ratio"} or not self.metrics:
             raise ValueError("Choose difference or ratio and configure metrics first.")
+        validate_n_bootstraps(n_bootstraps)
+        tests = resolve_tests(
+            self.metrics,
+            contrast,
+            n_bootstraps,
+            test=test,
+            test_metrics=test_metrics,
+            margin=margin,
+            boundary=boundary,
+            alpha=alpha,
+            direction=direction,
+        )
         config = inference or InferenceConfig()
         _, threshold, left, features = self._prepare_evaluation(
             score_name,
@@ -800,6 +1131,10 @@ class Auditor:
             contrast=contrast,
             estimand="paired_model_contrast",
         )
+        if tests:
+            result.metadata["hypothesis_test"] = hypothesis_metadata(
+                tests, margin, boundary
+            )
         for feature in features.values():
             data, categories = _prepare_feature_data(
                 paired, feature.name, config.missing
@@ -820,8 +1155,8 @@ class Auditor:
                         reference["_binary_pred"] = boot["__reference_binary"]
                         reference = self._apply_inputs(reference)
                         return contrast_estimate(
-                            metric.data_call(boot),
-                            metric.data_call(reference),
+                            metric_value(metric, boot),
+                            metric_value(metric, reference),
                             contrast,
                         )
 
@@ -836,7 +1171,9 @@ class Auditor:
                         n_bootstraps if metric.ci_eligible else None,
                         config,
                         identical=identical,
+                        test=tests.get(metric.name),
                     )
+                    _record_contrast_scale(level.metrics[metric.name], metric, contrast)
                 fe.levels[str(name)] = level
             if categories is not None:
                 for name in categories:
@@ -847,6 +1184,12 @@ class Auditor:
                         for metric in self.metrics:
                             level.update(metric.name, metric.label, float("nan"))
                             level.metrics[metric.name].status = "undefined"
+                            if metric.name in tests:
+                                hypothesis = run_hypothesis(
+                                    level.metrics[metric.name], tests[metric.name], None
+                                )
+                                hypothesis.decision_status = "undefined_estimate"
+                                level.metrics[metric.name].hypothesis = hypothesis
                         fe.levels[name] = level
                 fe.levels = {name: fe.levels[name] for name in categories}
             result.features[feature.name] = fe
@@ -863,6 +1206,14 @@ class Auditor:
         n_bootstraps: Optional[int] = 1000,
         inference: Optional[InferenceConfig] = None,
         cohort: Optional[str] = None,
+        test: Optional[Literal["noninferiority", "superiority", "equivalence"]] = None,
+        test_metrics: Optional[list[str]] = None,
+        margin: Optional[float | _Mapping[str, float]] = None,
+        boundary: Optional[
+            float | tuple[float, float] | _Mapping[str, float | tuple[float, float]]
+        ] = None,
+        alpha: Optional[float] = None,
+        direction: Optional[_Mapping[str, Literal["higher", "lower"]]] = None,
     ) -> ScoreEvaluation:
         """Compare each subgroup with an observed reference using configured metrics.
 
@@ -875,32 +1226,88 @@ class Auditor:
             threshold: Optional override for the score's scalar/conditional policy;
                 None uses its registered threshold. Decision metrics require a policy.
             contrast: "difference" (default) subtracts reference; "ratio" divides by it.
-                Nonfinite operands or a zero ratio denominator produce NaN.
+                Nonfinite operands or a zero ratio denominator produce NaN. A
+                metric's optional scale multiplies difference contrasts and leaves
+                ratio contrasts unchanged.
             n_bootstraps: Positive count, default 1000; None disables intervals.
                 Contrasts use percentile resampling even with method="auto".
             inference: Optional InferenceConfig; None uses defaults. Shared resamples
                 preserve pairing/overlap. Missing features follow this configuration.
             cohort: Optional cohort identifier in provenance; default None.
+            test: None (default) runs no test and leaves outputs unchanged.
+                "noninferiority", "superiority" or "equivalence" (TOST) tests each
+                selected metric's contrast with the same shared resamples as its
+                interval; requires n_bootstraps and alpha.
+            test_metrics: Metric names to test; None (default) tests every
+                configured metric, so each must be interval-eligible and have a
+                higher/lower direction (equivalence accepts any direction).
+            margin: Positive margin on the reported contrast scale (after any
+                metric scale), or a {metric: margin} mapping. Non-inferiority
+                boundary is -margin/+margin for a difference and 1 - margin/
+                1 + margin for a ratio, by direction; equivalence uses both sides.
+                Required for non-inferiority/equivalence unless boundary is given;
+                not allowed for superiority. No default is suggested.
+            boundary: Explicit null boundary instead of margin (for example 0.9
+                for a ratio): a number for non-inferiority, a (lower, upper) pair
+                for equivalence, or a {metric: boundary} mapping. It must lie on
+                the unfavourable side of no difference (0 or 1).
+            alpha: One-sided significance level in (0, 0.5), required with test.
+                Each bound has level 1 - alpha; there is no default.
+            direction: {metric: "higher" | "lower"} overrides of the metric's
+                own direction, for example for a custom metric or a count.
 
         Returns:
             New ScoreEvaluation with original-sample metric contrasts and interval
-            diagnostics. No input data or registrations are changed.
+            diagnostics. No input data or registrations are changed. With test,
+            each tested LevelMetric has a HypothesisTestResult in hypothesis,
+            exports add test columns, and metadata["hypothesis_test"] records the
+            test, alpha, margin, boundary override, and each metric's direction and
+            null boundary.
 
         Raises:
             ValueError: Invalid contrast, no metrics, invalid data/truth/scores,
-                thresholds, bootstrap count or inference inputs.
+                thresholds, bootstrap count or inference inputs; invalid test
+                arguments, including a tested metric without a higher/lower
+                direction, a non-interval-eligible tested metric, a missing or
+                nonpositive margin, a boundary on the wrong side, or test
+                arguments without test.
 
         Notes:
-            Intervals are pointwise, without selection or multiplicity correction.
-            They condition on supplied predictions; evaluate on independent data.
+            Intervals and tests are pointwise, without selection or multiplicity
+            correction. They condition on supplied predictions; evaluate on
+            independent data. A test rejects H0 when its one-sided percentile
+            bound lies strictly on the favourable side of the boundary; the
+            p-value is an approximate resampling value that can disagree with the
+            bound near the boundary for small n_bootstraps. If the interval
+            would be unusable (undefined estimate, insufficient clusters or
+            resamples, too many invalid or degenerate draws), the decision is
+            "undefined" with that reason in decision_status. For a fixed sequence,
+            test non-inferiority, then superiority only if the first rejects.
             Only the requested feature is returned. FPR/FNR contrasts compare
             class-conditional rates, without implying causal fairness."""
-        from model_auditor._comparisons import contrast_estimate, evaluate_contrast
+        from model_auditor._comparisons import (
+            contrast_estimate,
+            evaluate_contrast,
+            hypothesis_metadata,
+            resolve_tests,
+        )
         from model_auditor._evaluation import _prepare_feature_data, support_counts
         from model_auditor.schemas import LevelEvaluation
 
         if contrast not in {"difference", "ratio"} or not self.metrics:
             raise ValueError("Choose difference or ratio and configure metrics first.")
+        validate_n_bootstraps(n_bootstraps)
+        tests = resolve_tests(
+            self.metrics,
+            contrast,
+            n_bootstraps,
+            test=test,
+            test_metrics=test_metrics,
+            margin=margin,
+            boundary=boundary,
+            alpha=alpha,
+            direction=direction,
+        )
         config = inference or InferenceConfig()
         _, threshold, data, features = self._prepare_evaluation(
             score_name,
@@ -926,6 +1333,10 @@ class Auditor:
             contrast=contrast,
             estimand="subgroup_metric_contrast",
         )
+        if tests:
+            result.metadata["hypothesis_test"] = hypothesis_metadata(
+                tests, margin, boundary
+            )
         fe = FeatureEvaluation(
             feature,
             features[feature].label or feature,
@@ -952,7 +1363,9 @@ class Auditor:
                     if left.empty or right.empty:
                         return float("nan")
                     return contrast_estimate(
-                        metric.data_call(left), metric.data_call(right), contrast
+                        metric_value(metric, left),
+                        metric_value(metric, right),
+                        contrast,
                     )
 
                 level.metrics[metric.name] = evaluate_contrast(
@@ -962,7 +1375,9 @@ class Auditor:
                     metric.label,
                     n_bootstraps if metric.ci_eligible else None,
                     config,
+                    test=tests.get(metric.name),
                 )
+                _record_contrast_scale(level.metrics[metric.name], metric, contrast)
             fe.levels[name] = level
         result.features[feature] = fe
         return result
@@ -1232,29 +1647,12 @@ class Auditor:
         return score, fpr, tpr, thresholds
 
     def _collect_inputs(self) -> None:
-        """
-        Collects the minimum set of metric inputs necessary for evaluation
-        (based on the metrics defined in self.metrics with the .set_metrics() method)
-        """
-        inputs_set: set[str] = set()
-        for metric in self.metrics:
-            inputs_set.update(metric.inputs)
+        """Collect built-in and registered inputs the metrics need, in dependency order.
 
-        inputs_dict: dict[str, Type[AuditorMetricInput]] = collect_metric_inputs()
-
-        # reinit self._inputs and add all necessary inputs to it
-        self._inputs: list[Type[AuditorMetricInput]] = list()
-        for input_name in sorted(inputs_set):
-            if input_name not in {"_truth", "_pred", "_binary_pred"}:
-                if (
-                    input_name not in inputs_dict
-                    and self.data is not None
-                    and input_name in self.data
-                ):
-                    continue
-                if input_name not in inputs_dict:
-                    raise ValueError(f"Unknown metric input {input_name!r}.")
-                self._inputs.append(inputs_dict[input_name])
+        Raises:
+            ValueError: An input name is unknown, a registered input collides with
+                a data column or feature, or inputs form a dependency cycle."""
+        self._inputs, _, _ = self._resolve_inputs(strict=True)
 
     def _apply_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -1267,10 +1665,18 @@ class Auditor:
         Returns:
             pd.DataFrame: Transformed dataframe with metric input columns
         """
-        for input_type in self._inputs:
-            metric_input = input_type()
-            data: pd.DataFrame = metric_input.data_transform(data)
-
+        for metric_input in self._inputs:
+            rows = len(data)
+            data = metric_input.data_transform(data)
+            if (
+                not isinstance(data, pd.DataFrame)
+                or len(data) != rows
+                or metric_input.name not in data.columns
+            ):
+                raise ValueError(
+                    f"Metric input {metric_input.name!r} data_transform must return "
+                    f"a DataFrame with the same rows and a {metric_input.name!r} column."
+                )
         return data
 
     def _add_confusion_columns(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -1323,31 +1729,25 @@ class Auditor:
         if require_threshold or threshold is not None or score.threshold is not None:
             threshold = resolve_threshold(score, threshold)
         columns = self._evaluation_columns(threshold)
+        _, input_names, input_columns = self._resolve_inputs(strict=False)
         if inference is not None and inference.cluster is not None:
             if inference.cluster in {
-                "_truth",
-                "_pred",
-                "_binary_pred",
-                "overall",
+                *_RESERVED_INPUT_NAMES,
                 "tp",
                 "tn",
                 "fp",
                 "fn",
+                *(input_names - set(input_columns)),
+                *self._registered_inputs,
             }:
                 raise ValueError(
                     "Cluster column cannot be a reserved evaluation column."
                 )
             if inference.cluster not in columns:
                 columns.append(inference.cluster)
-        for metric in self.metrics:
-            for name in metric.inputs:
-                if (
-                    name in self.data
-                    and name
-                    not in {"_truth", "_pred", "_binary_pred", "tp", "tn", "fp", "fn"}
-                    and name not in columns
-                ):
-                    columns.append(name)
+        for name in input_columns:
+            if name not in columns:
+                columns.append(name)
         missing = [name for name in [*columns, score.name] if name not in self.data]
         if missing:
             raise ValueError(f"Evaluation columns not found in data: {missing!r}")

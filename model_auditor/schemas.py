@@ -120,6 +120,80 @@ class InferenceConfig:
 
 
 @dataclass
+class HypothesisTestResult:
+    """One-sided or equivalence test of a paired or subgroup contrast.
+
+    Produced by Auditor.compare_scores() and compare_groups() when test is set.
+    Boundaries and bounds are on the reported contrast scale, including any
+    metric scale for difference contrasts. Tests are pointwise: no multiplicity
+    adjustment across metrics, features or levels is applied.
+
+    Args:
+        test: "noninferiority", "superiority" or "equivalence".
+        alpha: One-sided significance level; each bound has level 1 - alpha.
+        direction: "higher" or "lower" (the favourable side of the contrast), or
+            "none" for an equivalence test of a metric without a direction.
+        null_boundary: Boundary of the one-sided null hypothesis; None for
+            equivalence. Non-inferiority uses -margin/+margin (difference) or
+            1 - margin/1 + margin (ratio) unless overridden; superiority uses 0 or 1.
+        one_sided_bound: Lower (higher-is-better) or upper (lower-is-better)
+            percentile bound at level 1 - alpha; None for equivalence or undefined.
+        equivalence_boundaries: (lower, upper) null boundaries for equivalence;
+            None otherwise.
+        equivalence_bounds: (lower, upper) one-sided bounds, each at level
+            1 - alpha, for equivalence (TOST); None otherwise or undefined.
+        p_value: Approximate resampling p-value (k + 1) / (B + 1), where k counts
+            finite resampled contrasts on the null side (ties included) and B the
+            finite resamples; the larger of the two for equivalence. None when
+            undefined. It depends on n_bootstraps; the bound decides.
+        decision: "reject_null", "fail_to_reject" or "undefined" (default).
+        decision_status: Default "not_requested". After a test it is the
+            interval_status of the same resamples: "ok" or
+            "conditional_on_valid_resamples" for a defined decision, otherwise the
+            reason the decision is undefined (for example "insufficient_clusters").
+
+    Notes:
+        H0 is rejected when the bound lies strictly on the favourable side of
+        its boundary (both bounds inside for equivalence). Bounds use the same
+        finite draws and quantile rule as the percentile interval, so with
+        alpha = (1 - confidence_level) / 2 a bound equals an interval end."""
+
+    test: str
+    """"noninferiority", "superiority" or "equivalence"."""
+    alpha: float
+    """One-sided significance level; each bound has level 1 - alpha."""
+    direction: str
+    """"higher", "lower", or "none" (equivalence without a direction)."""
+    null_boundary: Optional[float] = None
+    """Boundary of the one-sided null hypothesis; None for equivalence."""
+    one_sided_bound: Optional[float] = None
+    """Percentile bound at level 1 - alpha on the favourable side's edge;
+    None for equivalence or an undefined decision."""
+    equivalence_boundaries: Optional[tuple[float, float]] = None
+    """(lower, upper) null boundaries for equivalence; None otherwise."""
+    equivalence_bounds: Optional[tuple[float, float]] = None
+    """(lower, upper) bounds, each at level 1 - alpha, for equivalence."""
+    p_value: Optional[float] = None
+    """Approximate resampling p-value (k + 1) / (B + 1); None when undefined."""
+    decision: str = "undefined"
+    """"reject_null", "fail_to_reject" or "undefined" (default)."""
+    decision_status: str = "not_requested"
+    """Interval status of the tested resamples, or why the decision is undefined."""
+
+    def summary(self, n_decimals: int = 3) -> str:
+        """Short text such as "reject_null (p=0.012)" or "undefined (reason)".
+
+        Args:
+            n_decimals: Decimal places for the p-value; default 3.
+
+        Returns:
+            Display string; the stored fields are unchanged."""
+        if self.decision == "undefined" or self.p_value is None:
+            return f"undefined ({self.decision_status})"
+        return f"{self.decision} (p={self.p_value:.{n_decimals}f})"
+
+
+@dataclass
 class LevelMetric:
     """Mutable estimate and interval diagnostics for one metric in one subgroup.
 
@@ -142,9 +216,13 @@ class LevelMetric:
         requested_resamples: Actual attempted bootstrap count; default 0, including
             for analytic intervals that did not require resampling.
         nonfinite_resamples: NaN/infinite bootstrap estimate count; default 0.
-        direction: "higher", "lower", "none" or None (default, unknown); descriptive
-            styling metadata, not a significance or practical-importance claim.
+        direction: "higher", "lower", "none" or None (default, unknown). Used for
+            optional styling ranks; it is not itself a significance or
+            practical-importance claim. Comparison tests read the metric's own
+            direction (or a per-call override), not this field.
         parameters: Metric configuration metadata; new empty dict by default.
+        hypothesis: HypothesisTestResult when a comparison test was requested
+            for this metric; None (default) otherwise.
 
     Notes:
         All arguments are public mutable fields. Dataclasses.asdict() preserves
@@ -180,10 +258,12 @@ class LevelMetric:
     nonfinite_resamples: int = 0
     """NaN/infinite bootstrap estimate count; default 0."""
     direction: Optional[str] = None
-    """"higher", "lower", "none" or None (default, unknown); descriptive
-    styling metadata, not a significance or practical-importance claim."""
+    """"higher", "lower", "none" or None (default, unknown). Used for
+    optional styling ranks; comparison tests read the metric's own direction."""
     parameters: dict[str, Any] = field(default_factory=dict)
     """Metric configuration metadata; new empty dict by default."""
+    hypothesis: Optional[HypothesisTestResult] = None
+    """Comparison hypothesis test for this metric, or None (default)."""
 
 
 @dataclass
@@ -257,6 +337,8 @@ class LevelEvaluation:
         Returns:
             New single-row DataFrame of formatted strings, with metrics as columns
             and the level name as index; absent intervals are omitted from text.
+            A tested comparison metric adds a "<metric> test" column after it,
+            such as "reject_null (p=0.012)".
         """
         metric_data: dict[str, str] = dict()
         for metric in self.metrics.values():
@@ -272,6 +354,10 @@ class LevelEvaluation:
             else:
                 # integer scores (default to comma delimited for now)
                 metric_data[metric_key] = f"{metric.score:,}"
+            if metric.hypothesis is not None:
+                metric_data[f"{metric_key} test"] = metric.hypothesis.summary(
+                    n_decimals
+                )
 
         return pd.DataFrame(metric_data, index=[self.name])
 
@@ -512,6 +598,51 @@ class FeatureEvaluation:
         )
 
 
+_EQUIVALENCE_COLUMNS = (
+    "equivalence_lower_boundary",
+    "equivalence_upper_boundary",
+    "equivalence_lower_bound",
+    "equivalence_upper_bound",
+)
+_HYPOTHESIS_COLUMNS = (
+    "test",
+    "test_alpha",
+    "test_direction",
+    "null_boundary",
+    "one_sided_bound",
+    *_EQUIVALENCE_COLUMNS,
+    "p_value",
+    "decision",
+    "decision_status",
+)
+
+
+def _hypothesis_columns(result: Optional[HypothesisTestResult]) -> dict[str, Any]:
+    nan = float("nan")
+    if result is None:
+        text = {"test", "test_direction", "decision", "decision_status"}
+        return {name: None if name in text else nan for name in _HYPOTHESIS_COLUMNS}
+    boundaries = result.equivalence_boundaries or (nan, nan)
+    bounds = result.equivalence_bounds or (nan, nan)
+    return dict(
+        zip(
+            _HYPOTHESIS_COLUMNS,
+            [
+                result.test,
+                result.alpha,
+                result.direction,
+                nan if result.null_boundary is None else result.null_boundary,
+                nan if result.one_sided_bound is None else result.one_sided_bound,
+                *boundaries,
+                *bounds,
+                nan if result.p_value is None else result.p_value,
+                result.decision,
+                result.decision_status,
+            ],
+        )
+    )
+
+
 @dataclass
 class ScoreEvaluation:
     """Mutable results for a score, comparison, or confusion-group analysis.
@@ -557,9 +688,14 @@ class ScoreEvaluation:
             Columns include score, feature, level, metric, estimate, lower, upper,
             status, interval_status, interval_method, denominator, resample counts,
             direction, parameters, excluded_n, total_n and available support counts.
-            Missing intervals are NaN. Empty results have no fixed column schema.
-            Nested metric parameters and attrs["metadata"] are deep-copied; editing
-            the frame does not update result objects. File formats may drop attrs."""
+            When a comparison test ran, test, test_alpha, test_direction,
+            null_boundary, one_sided_bound, p_value, decision and decision_status
+            follow parameters (equivalence uses lower/upper boundary and bound
+            columns instead of null_boundary and one_sided_bound); untested rows
+            hold None/NaN there. Missing intervals are NaN. Empty results have no
+            fixed column schema. Nested metric parameters and attrs["metadata"]
+            are deep-copied; editing the frame does not update result objects.
+            File formats may drop attrs."""
         from copy import deepcopy
 
         rows = []
@@ -588,12 +724,27 @@ class ScoreEvaluation:
                             "nonfinite_resamples": metric.nonfinite_resamples,
                             "direction": metric.direction,
                             "parameters": deepcopy(metric.parameters),
+                            **_hypothesis_columns(metric.hypothesis),
                             "excluded_n": feature.excluded_n,
                             "total_n": feature.total_n,
                             **level.support,
                         }
                     )
         frame = pd.DataFrame(rows)
+        tests = {
+            metric.hypothesis.test
+            for feature in self.features.values()
+            for level in feature.levels.values()
+            for metric in level.metrics.values()
+            if metric.hypothesis is not None
+        }
+        if tests:
+            drop = [] if "equivalence" in tests else list(_EQUIVALENCE_COLUMNS)
+            if tests == {"equivalence"}:
+                drop += ["null_boundary", "one_sided_bound"]
+            frame = frame.drop(columns=drop, errors="ignore")
+        else:
+            frame = frame.drop(columns=list(_HYPOTHESIS_COLUMNS), errors="ignore")
         frame.attrs["metadata"] = deepcopy(self.metadata)
         return frame
 

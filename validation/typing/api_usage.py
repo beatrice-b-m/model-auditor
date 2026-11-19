@@ -1,5 +1,6 @@
 """Static consumer checks; checked by Pyright, not executed as an evaluation."""
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -10,7 +11,7 @@ from pandas.io.formats.style import Styler
 from typing_extensions import assert_type
 
 from model_auditor import Auditor, InferenceConfig
-from model_auditor.metric_inputs import TruePositives
+from model_auditor.metric_inputs import AuditorMetricInput, TruePositives
 from model_auditor.metrics import ExpectedCost, Sensitivity, nTP
 from model_auditor.plotting import HierarchyPlotter
 from model_auditor.plotting.distributions import plot_score_distributions
@@ -21,6 +22,7 @@ from model_auditor.schemas import (
     ConditionalThreshold,
     ErrorEvaluation,
     FeatureEvaluation,
+    HypothesisTestResult,
     LevelEvaluation,
     LevelMetric,
     ScoreEvaluation,
@@ -34,6 +36,8 @@ if TYPE_CHECKING:
     inference = InferenceConfig(missing="include", random_state=42)
     result = auditor.evaluate_metrics("score", inference=inference)
     assert_type(result, ScoreEvaluation)
+    auditor.register_metric_input(TruePositives)
+    assert_type(auditor.registered_metric_inputs, Mapping[str, AuditorMetricInput])
     assert_type(nTP().data_call(pd.DataFrame()), int | np.integer)
     assert_type(result.features["region"], FeatureEvaluation)
     level = result.features["region"].levels["North"]
@@ -47,6 +51,23 @@ if TYPE_CHECKING:
     assert_type(auditor.evaluate_calibration("score", bins=5), CalibrationEvaluation)
     assert_type(auditor.compare_groups("score", "region", "North"), ScoreEvaluation)
     assert_type(auditor.compare_scores("score", "reference"), ScoreEvaluation)
+    tested = auditor.compare_scores(
+        "score",
+        "reference",
+        test="noninferiority",
+        test_metrics=["sensitivity"],
+        margin={"sensitivity": 0.05},
+        alpha=0.025,
+        direction={"sensitivity": "higher"},
+    )
+    hypothesis = tested.features["overall"].levels["Overall"].metrics["x"].hypothesis
+    assert_type(hypothesis, HypothesisTestResult | None)
+    if hypothesis is not None:
+        assert_type(hypothesis.one_sided_bound, float | None)
+        assert_type(hypothesis.equivalence_bounds, tuple[float, float] | None)
+    auditor.compare_groups(
+        "score", "region", "North", test="equivalence", boundary=(-0.1, 0.1), alpha=0.05
+    )
     assert_type(result.plot_metric_intervals("sensitivity")["region"][0], Figure)
     assert_type(result.plot_metric_intervals("sensitivity")["region"][1], Axes)
     assert_type(plot_metric_intervals(result, "sensitivity")["region"][1], Axes)

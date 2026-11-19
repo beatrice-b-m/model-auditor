@@ -44,6 +44,11 @@ class AuditorMetric(Protocol):
         "none"), parameters (configuration dict), binomial_columns (success and
         failure indicator names), or binomial_indicator (a 0/1 column). The last two
         select analytic IID rate intervals; supply them only for binomial rates.
+        An optional scale (finite positive number, default 1.0) multiplies the
+        reported estimate, interval bounds and difference contrasts, for example
+        scale=1000 for a rate per 1,000 rows; denominators, support counts and
+        ratio contrasts are unchanged, and a non-unit scale is recorded in result
+        parameters and metadata. data_call itself still returns the unscaled value.
         These are optional capabilities, not required protocol members.
         data_call must return a scalar without mutating data; undefined values
         should be NaN. The Auditor skips calls for empty subgroups.
