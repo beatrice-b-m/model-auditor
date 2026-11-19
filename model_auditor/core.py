@@ -24,6 +24,9 @@ from model_auditor._evaluation import (
     evaluate_confidence_interval,
     evaluate_error_feature,
     evaluate_feature,
+    metric_parameters,
+    metric_scale,
+    metric_value,
     validate_n_bootstraps,
 )
 from model_auditor._thresholds import (
@@ -49,6 +52,7 @@ from model_auditor.schemas import (
     ErrorEvaluation,
     FeatureEvaluation,
     InferenceConfig,
+    LevelMetric,
     ScoreEvaluation,
     ThresholdSpec,
 )
@@ -56,6 +60,15 @@ from model_auditor.utils import collect_metric_inputs
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure
+
+
+def _record_contrast_scale(
+    result: LevelMetric, metric: AuditorMetric, contrast: str
+) -> None:
+    """Record a non-unit scale on difference contrasts; ratios are scale-free."""
+    scale = metric_scale(metric)
+    if contrast == "difference" and scale != 1.0:
+        result.parameters["scale"] = scale
 
 
 class Auditor:
@@ -259,12 +272,15 @@ class Auditor:
 
         Raises:
             ValueError: Metric names are duplicated, including parameterized metrics
-                whose names collide."""
+                whose names collide, or a metric's optional scale is not a finite
+                positive number."""
         names = [metric.name for metric in metrics]
         if len(names) != len(set(names)):
             raise ValueError(
                 "Metric names must be unique; duplicate names overwrite results."
             )
+        for metric in metrics:
+            metric_scale(metric)
         self.metrics = list(metrics)
 
     def _requires_threshold(self) -> bool:
@@ -289,7 +305,7 @@ class Auditor:
                     {
                         "name": metric.name,
                         "label": metric.label,
-                        "parameters": getattr(metric, "parameters", {}),
+                        "parameters": metric_parameters(metric),
                     }
                     for metric in self.metrics
                 ],
@@ -735,7 +751,9 @@ class Auditor:
             threshold: Optional override for the score's scalar/conditional policy;
                 None uses its registered threshold. Decision metrics require a policy.
             contrast: "difference" (default) subtracts reference; "ratio" divides by it.
-                Nonfinite operands or a zero ratio denominator produce NaN.
+                Nonfinite operands or a zero ratio denominator produce NaN. A
+                metric's optional scale multiplies difference contrasts and leaves
+                ratio contrasts unchanged.
             n_bootstraps: Positive count, default 1000; None disables intervals.
                 Contrasts use percentile resampling even with method="auto".
             inference: Optional InferenceConfig; None uses defaults. Shared resamples
@@ -820,8 +838,8 @@ class Auditor:
                         reference["_binary_pred"] = boot["__reference_binary"]
                         reference = self._apply_inputs(reference)
                         return contrast_estimate(
-                            metric.data_call(boot),
-                            metric.data_call(reference),
+                            metric_value(metric, boot),
+                            metric_value(metric, reference),
                             contrast,
                         )
 
@@ -837,6 +855,7 @@ class Auditor:
                         config,
                         identical=identical,
                     )
+                    _record_contrast_scale(level.metrics[metric.name], metric, contrast)
                 fe.levels[str(name)] = level
             if categories is not None:
                 for name in categories:
@@ -875,7 +894,9 @@ class Auditor:
             threshold: Optional override for the score's scalar/conditional policy;
                 None uses its registered threshold. Decision metrics require a policy.
             contrast: "difference" (default) subtracts reference; "ratio" divides by it.
-                Nonfinite operands or a zero ratio denominator produce NaN.
+                Nonfinite operands or a zero ratio denominator produce NaN. A
+                metric's optional scale multiplies difference contrasts and leaves
+                ratio contrasts unchanged.
             n_bootstraps: Positive count, default 1000; None disables intervals.
                 Contrasts use percentile resampling even with method="auto".
             inference: Optional InferenceConfig; None uses defaults. Shared resamples
@@ -952,7 +973,9 @@ class Auditor:
                     if left.empty or right.empty:
                         return float("nan")
                     return contrast_estimate(
-                        metric.data_call(left), metric.data_call(right), contrast
+                        metric_value(metric, left),
+                        metric_value(metric, right),
+                        contrast,
                     )
 
                 level.metrics[metric.name] = evaluate_contrast(
@@ -963,6 +986,7 @@ class Auditor:
                     n_bootstraps if metric.ci_eligible else None,
                     config,
                 )
+                _record_contrast_scale(level.metrics[metric.name], metric, contrast)
             fe.levels[name] = level
         result.features[feature] = fe
         return result

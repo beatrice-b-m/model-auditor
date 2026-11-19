@@ -84,6 +84,45 @@ def support_counts(data: pd.DataFrame) -> dict[str, int]:
     return result
 
 
+def metric_scale(metric: AuditorMetric) -> float:
+    """Return a metric's optional constant reporting scale, validated.
+
+    A missing ``scale`` attribute means 1.0. The scale must be a finite,
+    positive real number (booleans are rejected).
+    """
+    scale = getattr(metric, "scale", 1.0)
+    if (
+        isinstance(scale, (bool, np.bool_))
+        or not isinstance(scale, (int, float, np.integer, np.floating))
+        or not np.isfinite(scale)
+        or scale <= 0
+    ):
+        raise ValueError(
+            f"Metric {metric.name!r} scale must be a finite positive number."
+        )
+    return float(scale)
+
+
+def metric_value(metric: AuditorMetric, data: pd.DataFrame) -> float:
+    """Evaluate a metric on prepared rows and apply its reporting scale.
+
+    The raw ``data_call`` result is returned unchanged (including NumPy integer
+    counts) when the scale is 1.0, so unscaled outputs keep their types.
+    """
+    value = metric.data_call(data)
+    scale = metric_scale(metric)
+    return value if scale == 1.0 else value * scale
+
+
+def metric_parameters(metric: AuditorMetric) -> dict:
+    """Copy a metric's parameters, adding ``scale`` only when it is not 1.0."""
+    parameters = deepcopy(getattr(metric, "parameters", {}))
+    scale = metric_scale(metric)
+    if scale != 1.0:
+        parameters["scale"] = scale
+    return parameters
+
+
 def binomial_counts(
     metric: AuditorMetric, data: pd.DataFrame
 ) -> tuple[int, int] | None:
@@ -176,11 +215,12 @@ def evaluate_level(
         level.support["n_clusters"] = data[config.cluster].nunique()
     bootstrap_metrics = []
     for metric in metrics:
-        score = metric.data_call(data) if len(data) else float("nan")
+        scale = metric_scale(metric)
+        score = metric_value(metric, data) if len(data) else float("nan")
         level.update(metric.name, metric.label, score)
         result = level.metrics[metric.name]
         result.direction = getattr(metric, "direction", None)
-        result.parameters = deepcopy(getattr(metric, "parameters", {}))
+        result.parameters = metric_parameters(metric)
         counts = binomial_counts(metric, data)
         result.denominator = counts[1] if counts is not None else None
         if not np.isfinite(score):
@@ -198,11 +238,14 @@ def evaluate_level(
                 ci = binomtest(*counts).proportion_ci(
                     confidence_level=config.confidence_level, method="exact"
                 )
-                result.interval = float(ci.low), float(ci.high)
+                lower, upper = float(ci.low), float(ci.high)
                 result.interval_method = "clopper_pearson"
             else:
-                result.interval = wilson_interval(*counts, config.confidence_level)
+                lower, upper = wilson_interval(*counts, config.confidence_level)
                 result.interval_method = "wilson"
+            result.interval = (
+                (lower, upper) if scale == 1.0 else (lower * scale, upper * scale)
+            )
             result.interval_status = "ok"
         else:
             bootstrap_metrics.append(metric)
@@ -216,7 +259,7 @@ def evaluate_level(
         for _ in range(n_bootstraps):
             boot = resample(data, config, rng)
             for metric in bootstrap_metrics:
-                samples[metric.name].append(metric.data_call(boot))
+                samples[metric.name].append(metric_value(metric, boot))
         for metric in bootstrap_metrics:
             bootstrap_summary(
                 level.metrics[metric.name], np.asarray(samples[metric.name]), config
