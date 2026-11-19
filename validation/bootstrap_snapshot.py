@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import math
-from dataclasses import fields, is_dataclass
+from dataclasses import fields, is_dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -80,6 +80,29 @@ def snapshot_auditor() -> Auditor:
         auditor.add_score(score, threshold=0.5)
     auditor.add_feature("site")
     auditor.add_feature("tier")
+    return auditor
+
+
+def missing_auditor() -> Auditor:
+    """Snapshot cohort plus features with missing values.
+
+    ``region`` is a string feature and ``band`` a categorical one; both have
+    missing rows in different places, so each feature keeps different rows.
+    """
+    data = snapshot_data()
+    rng = np.random.default_rng(11)
+    region = rng.choice(["north", "south", "east"], len(data)).astype(object)
+    region[rng.uniform(size=len(data)) < 0.15] = None
+    band = pd.Categorical(rng.choice(["a", "b"], len(data)), categories=["a", "b", "c"])
+    band[rng.uniform(size=len(data)) < 0.1] = np.nan
+    data["region"] = region
+    data["band"] = band
+    auditor = Auditor(data=data, metrics=[Sensitivity(), FPR()])
+    auditor.add_outcome("y")
+    auditor.add_score("new", threshold=0.5)
+    auditor.add_feature("site")
+    auditor.add_feature("region")
+    auditor.add_feature("band")
     return auditor
 
 
@@ -180,6 +203,21 @@ def build_snapshot() -> dict:
         out[f"compare_groups_ratio/{config_name}"] = _levels(
             auditor.compare_groups("new", "site", "s1", contrast="ratio", **shared)
         )
+    missing = missing_auditor()
+    for policy in ("exclude", "include"):
+        for config_name in ("iid_bootstrap", "cluster"):
+            config = replace(CONFIGS[config_name], missing=policy)
+            errors = missing.evaluate_errors(
+                "new", n_bootstraps=N_BOOTSTRAPS, inference=config
+            )
+            key = f"evaluate_errors_missing/{policy}/{config_name}"
+            out[key] = {
+                "groups": {
+                    group: _levels(evaluation)
+                    for group, evaluation in errors.groups.items()
+                },
+                "support": _encode(errors.support_data),
+            }
     return out
 
 
