@@ -153,15 +153,15 @@ def wilson_interval(
     return float(max(0, center - radius)), float(min(1, center + radius))
 
 
-def make_sampler(
+def make_index_sampler(
     data: pd.DataFrame, config: InferenceConfig
-) -> Callable[[np.random.Generator], pd.DataFrame]:
-    """Build a resampler for ``data`` that groups rows once, not on every draw.
+) -> Callable[[np.random.Generator], np.ndarray]:
+    """Build a resampler of row positions for ``data``, grouping rows once.
 
-    Each call of the returned function draws shared row indices, whole clusters,
-    or truth-stratified observations from ``rng`` and returns a new DataFrame.
-    Group order and generator calls are fixed, so a seeded generator gives the
-    same draws as regrouping on every call.
+    Each call of the returned function draws shared row positions, whole
+    clusters, or truth-stratified observations from ``rng`` and returns their
+    positions in ``data``. Group order and generator calls are fixed, so a
+    seeded generator gives the same draws as regrouping on every call.
 
     Raises:
         ValueError: Cluster resampling with a missing cluster column or
@@ -174,26 +174,44 @@ def make_sampler(
             data.groupby(config.cluster, sort=False, observed=True).indices.values()
         )
 
-        def draw(rng: np.random.Generator) -> pd.DataFrame:
-            indices = np.concatenate(
+        def draw(rng: np.random.Generator) -> np.ndarray:
+            return np.concatenate(
                 [clusters[i] for i in rng.integers(len(clusters), size=len(clusters))]
             )
-            return data.iloc[indices].copy()
 
     elif config.resampling == "stratified":
         strata = list(data.groupby("_truth", sort=False).indices.values())
 
-        def draw(rng: np.random.Generator) -> pd.DataFrame:
-            indices = np.concatenate(
+        def draw(rng: np.random.Generator) -> np.ndarray:
+            return np.concatenate(
                 [rng.choice(group, size=len(group), replace=True) for group in strata]
             )
-            return data.iloc[indices].copy()
 
     else:
         n = len(data)
 
-        def draw(rng: np.random.Generator) -> pd.DataFrame:
-            return data.iloc[rng.integers(n, size=n)].copy()
+        def draw(rng: np.random.Generator) -> np.ndarray:
+            return rng.integers(n, size=n)
+
+    return draw
+
+
+def make_sampler(
+    data: pd.DataFrame, config: InferenceConfig
+) -> Callable[[np.random.Generator], pd.DataFrame]:
+    """Build a resampler for ``data`` that groups rows once, not on every draw.
+
+    Each call of the returned function takes the positions drawn by
+    ``make_index_sampler`` and returns those rows as a new DataFrame.
+
+    Raises:
+        ValueError: Cluster resampling with a missing cluster column or
+            missing cluster IDs.
+    """
+    positions = make_index_sampler(data, config)
+
+    def draw(rng: np.random.Generator) -> pd.DataFrame:
+        return data.iloc[positions(rng)].copy()
 
     return draw
 
@@ -426,21 +444,27 @@ def evaluate_error_features(
     samples = {
         group_col: {name: [] for name in names} for group_col, names in pending.items()
     }
+    # Count each draw with integer arrays: level codes plus one membership mask
+    # per group. Counts are exact, so the metric sees the same numbers as a
+    # DataFrame groupby of the resampled rows.
+    codes = pd.Categorical(full[feature.name].astype(str), categories=levels).codes
+    position = {name: i for i, name in enumerate(levels)}
+    members = {group_col: full[group_col].to_numpy() == 1 for group_col in pending}
     rng = np.random.default_rng(config.random_state)
-    sample = make_sampler(full, config)
+    sample = make_index_sampler(full, config)
     for _ in range(n_bootstraps):
-        boot = sample(rng)
-        counts = _level_counts(boot, feature.name)
+        idx = sample(rng)
+        boot_codes = codes[idx]
+        counts = np.bincount(boot_codes, minlength=len(levels))
         for group_col, names in pending.items():
-            boot_group = boot[boot[group_col] == 1]
-            group_counts = _level_counts(boot_group, feature.name)
+            in_group = members[group_col][idx]
+            group_counts = np.bincount(boot_codes[in_group], minlength=len(levels))
+            group_n = int(in_group.sum())
             for name in names:
+                i = position[name]
                 samples[group_col][name].append(
                     metric.compute(
-                        group_counts.get(name, 0),
-                        len(boot_group),
-                        counts.get(name, 0),
-                        len(boot),
+                        int(group_counts[i]), group_n, int(counts[i]), len(idx)
                     )
                 )
     for group_col, names in pending.items():

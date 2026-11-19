@@ -115,7 +115,7 @@ def error_draws(monkeypatch):
     from model_auditor import _evaluation
 
     calls = []
-    original = _evaluation.make_sampler
+    original = _evaluation.make_index_sampler
 
     def counting(data, config):
         sample = original(data, config)
@@ -126,7 +126,7 @@ def error_draws(monkeypatch):
 
         return draw
 
-    monkeypatch.setattr(_evaluation, "make_sampler", counting)
+    monkeypatch.setattr(_evaluation, "make_index_sampler", counting)
     return calls
 
 
@@ -140,3 +140,25 @@ def test_evaluate_errors_draws_once_per_feature_for_all_groups(error_draws):
 def test_evaluate_errors_groups_clusters_once_per_feature(cluster_groupbys):
     make_auditor().evaluate_errors("new", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER)
     assert len(cluster_groupbys) == 1
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        InferenceConfig(random_state=5),
+        InferenceConfig(random_state=5, resampling="stratified"),
+        CLUSTER,
+    ],
+    ids=["iid", "stratified", "cluster"],
+)
+def test_index_sampler_matches_frame_sampler(config):
+    from model_auditor._evaluation import make_index_sampler, make_sampler
+
+    data = make_auditor().data.assign(_truth=lambda d: d["y"])
+    positions = make_index_sampler(data, config)
+    frames = make_sampler(data, config)
+    index_rng = np.random.default_rng(config.random_state)
+    frame_rng = np.random.default_rng(config.random_state)
+    for _ in range(5):
+        expected = data.iloc[positions(index_rng)]
+        pd.testing.assert_frame_equal(frames(frame_rng), expected)
