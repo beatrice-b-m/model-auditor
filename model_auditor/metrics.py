@@ -50,8 +50,9 @@ class AuditorMetric(Protocol):
         ratio contrasts are unchanged, and a non-unit scale is recorded in result
         parameters and metadata. data_call itself still returns the unscaled value.
         These are optional capabilities, not required protocol members.
-        data_call must return a scalar without mutating data; undefined values
-        should be NaN. The Auditor skips calls for empty subgroups.
+        data_call must return a scalar without mutating data, because every
+        metric on a level reads the same resampled rows; undefined values should
+        be NaN. The Auditor skips calls for empty subgroups.
 
     Example:
         >>> class Accuracy:
