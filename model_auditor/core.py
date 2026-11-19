@@ -13,6 +13,7 @@ from collections.abc import Mapping as _Mapping
 from collections.abc import Sequence as _Sequence
 from copy import deepcopy
 from dataclasses import asdict
+from functools import partial
 from graphlib import CycleError, TopologicalSorter
 from importlib.metadata import version
 from types import MappingProxyType
@@ -1069,8 +1070,9 @@ class Auditor:
             ... ].hypothesis.decision
             'reject_null'"""
         from model_auditor._comparisons import (
+            ContrastSpec,
             contrast_estimate,
-            evaluate_contrast,
+            evaluate_contrasts,
             hypothesis_metadata,
             resolve_tests,
             run_hypothesis,
@@ -1135,6 +1137,19 @@ class Auditor:
             result.metadata["hypothesis_test"] = hypothesis_metadata(
                 tests, margin, boundary
             )
+
+        def prepare_pair(boot):
+            reference = boot.copy()
+            reference["_pred"] = boot["__reference_score"]
+            reference["_binary_pred"] = boot["__reference_binary"]
+            return boot, self._apply_inputs(reference)
+
+        def paired_contrast(metric, pair):
+            boot, reference = pair
+            return contrast_estimate(
+                metric_value(metric, boot), metric_value(metric, reference), contrast
+            )
+
         for feature in features.values():
             data, categories = _prepare_feature_data(
                 paired, feature.name, config.missing
@@ -1147,32 +1162,29 @@ class Auditor:
             )
             for name, group in data.groupby(feature.name, observed=True):
                 level = LevelEvaluation(str(name), support=support_counts(group))
-                for metric in self.metrics:
-
-                    def statistic(boot, metric=metric):
-                        reference = boot.copy()
-                        reference["_pred"] = boot["__reference_score"]
-                        reference["_binary_pred"] = boot["__reference_binary"]
-                        reference = self._apply_inputs(reference)
-                        return contrast_estimate(
-                            metric_value(metric, boot),
-                            metric_value(metric, reference),
-                            contrast,
-                        )
-
-                    identical = group["_pred"].equals(
-                        group["__reference_score"]
-                    ) and group["_binary_pred"].equals(group["__reference_binary"])
-                    level.metrics[metric.name] = evaluate_contrast(
+                identical = group["_pred"].equals(group["__reference_score"]) and group[
+                    "_binary_pred"
+                ].equals(group["__reference_binary"])
+                level.metrics.update(
+                    evaluate_contrasts(
                         group,
-                        statistic,
-                        metric.name,
-                        metric.label,
-                        n_bootstraps if metric.ci_eligible else None,
+                        prepare_pair,
+                        {
+                            metric.name: ContrastSpec(
+                                metric.name,
+                                metric.label,
+                                partial(paired_contrast, metric),
+                                metric.ci_eligible,
+                                tests.get(metric.name),
+                            )
+                            for metric in self.metrics
+                        },
+                        n_bootstraps,
                         config,
                         identical=identical,
-                        test=tests.get(metric.name),
                     )
+                )
+                for metric in self.metrics:
                     _record_contrast_scale(level.metrics[metric.name], metric, contrast)
                 fe.levels[str(name)] = level
             if categories is not None:
@@ -1286,8 +1298,9 @@ class Auditor:
             Only the requested feature is returned. FPR/FNR contrasts compare
             class-conditional rates, without implying causal fairness."""
         from model_auditor._comparisons import (
+            ContrastSpec,
             contrast_estimate,
-            evaluate_contrast,
+            evaluate_contrasts,
             hypothesis_metadata,
             resolve_tests,
         )
@@ -1348,35 +1361,47 @@ class Auditor:
             if categories is not None
             else sorted(data[feature].astype(str).unique())
         )
-        for name in names:
-            if name == reference:
-                continue
+
+        def prepare_labels(boot):
+            labels = boot[feature].astype(str)
+            return boot, labels, boot.loc[labels == reference]
+
+        def group_contrast(metric, name, prepared):
+            boot, labels, right = prepared
+            left = boot.loc[labels == name]
+            if left.empty or right.empty:
+                return float("nan")
+            return contrast_estimate(
+                metric_value(metric, left), metric_value(metric, right), contrast
+            )
+
+        # Every level contrasts against the same reference rows, so all levels and
+        # metrics share one set of whole-dataset resamples.
+        levels = [name for name in names if name != reference]
+        contrasts = evaluate_contrasts(
+            data,
+            prepare_labels,
+            {
+                (name, metric.name): ContrastSpec(
+                    metric.name,
+                    metric.label,
+                    partial(group_contrast, metric, name),
+                    metric.ci_eligible,
+                    tests.get(metric.name),
+                )
+                for name in levels
+                for metric in self.metrics
+            },
+            n_bootstraps,
+            config,
+        )
+        for name in levels:
             level = LevelEvaluation(
                 name,
                 support=support_counts(data.loc[data[feature].astype(str) == name]),
             )
             for metric in self.metrics:
-
-                def statistic(boot, metric=metric, name=name):
-                    left = boot.loc[boot[feature].astype(str) == name]
-                    right = boot.loc[boot[feature].astype(str) == reference]
-                    if left.empty or right.empty:
-                        return float("nan")
-                    return contrast_estimate(
-                        metric_value(metric, left),
-                        metric_value(metric, right),
-                        contrast,
-                    )
-
-                level.metrics[metric.name] = evaluate_contrast(
-                    data,
-                    statistic,
-                    metric.name,
-                    metric.label,
-                    n_bootstraps if metric.ci_eligible else None,
-                    config,
-                    test=tests.get(metric.name),
-                )
+                level.metrics[metric.name] = contrasts[name, metric.name]
                 _record_contrast_scale(level.metrics[metric.name], metric, contrast)
             fe.levels[name] = level
         result.features[feature] = fe

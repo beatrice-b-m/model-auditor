@@ -1,8 +1,8 @@
 """Shared-resample contrasts for fixed binary model and subgroup comparisons."""
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Hashable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -274,37 +274,78 @@ def run_hypothesis(
     return outcome
 
 
-def evaluate_contrast(
+@dataclass(frozen=True)
+class ContrastSpec:
+    """One contrast evaluated on a shared prepared frame.
+
+    ``statistic`` receives the output of the call's ``prepare`` step, for the
+    original rows and for every resample. ``resample`` is False for metrics
+    that are not interval-eligible or when intervals are disabled.
+    """
+
+    name: str
+    label: str
+    statistic: Callable[[Any], float]
+    resample: bool
+    test: Optional[HypothesisSpec] = None
+
+
+def evaluate_contrasts(
     data: pd.DataFrame,
-    statistic: Callable,
-    name: str,
-    label: str,
+    prepare: Callable[[pd.DataFrame], Any],
+    specs: Mapping[Hashable, ContrastSpec],
     n_bootstraps: int | None,
     config: InferenceConfig,
     *,
     identical: bool = False,
-    test: Optional[HypothesisSpec] = None,
-) -> LevelMetric:
-    """Pointwise contrast interval; shared rows retain overlap and model pairing.
+) -> dict[Hashable, LevelMetric]:
+    """Pointwise contrast intervals from one shared set of resamples.
 
-    With a test spec, the one-sided bound and p-value reuse the interval's finite
-    resampled contrasts, so they agree with the interval at matched levels.
+    Shared rows retain overlap and model pairing. Each of the ``n_bootstraps``
+    resamples is drawn and prepared once, then every pending contrast is
+    evaluated on it, so all contrasts see the same draws. With a test spec, the
+    one-sided bound and p-value reuse the interval's finite resampled
+    contrasts, so they agree with the interval at matched levels.
+
+    Statistics must not mutate the prepared frame, because it is shared.
     """
-    estimate = statistic(data)
-    result = LevelMetric(name, label, estimate)
-    samples = None
-    if not np.isfinite(estimate):
-        result.status = "undefined"
-        result.interval_status = "undefined_estimate"
-    elif n_bootstraps is None:
-        pass
-    elif config.resampling == "cluster" and data[config.cluster].nunique() < 2:
-        result.interval_status = "insufficient_clusters"
-    else:
+    prepared = prepare(data)
+    results: dict[Hashable, LevelMetric] = {}
+    pending = []
+    for key, spec in specs.items():
+        estimate = spec.statistic(prepared)
+        result = LevelMetric(spec.name, spec.label, estimate)
+        results[key] = result
+        if not np.isfinite(estimate):
+            result.status = "undefined"
+            result.interval_status = "undefined_estimate"
+        elif n_bootstraps is not None and spec.resample:
+            pending.append(key)
+    samples: dict[Hashable, np.ndarray] = {}
+    if (
+        pending
+        and config.resampling == "cluster"
+        and data[config.cluster].nunique() < 2
+    ):
+        for key in pending:
+            results[key].interval_status = "insufficient_clusters"
+    elif pending:
+        assert n_bootstraps is not None
         rng = np.random.default_rng(config.random_state)
         sample = make_sampler(data, config)
-        samples = np.asarray([statistic(sample(rng)) for _ in range(n_bootstraps)])
-        bootstrap_summary(result, samples, config, allow_degenerate=identical)
-    if test is not None:
-        result.hypothesis = run_hypothesis(result, test, samples)
-    return result
+        draws: dict[Hashable, list] = {key: [] for key in pending}
+        for _ in range(n_bootstraps):
+            boot = prepare(sample(rng))
+            for key in pending:
+                draws[key].append(specs[key].statistic(boot))
+        for key in pending:
+            samples[key] = np.asarray(draws[key])
+            bootstrap_summary(
+                results[key], samples[key], config, allow_degenerate=identical
+            )
+    for key, spec in specs.items():
+        if spec.test is not None:
+            results[key].hypothesis = run_hypothesis(
+                results[key], spec.test, samples.get(key)
+            )
+    return results
