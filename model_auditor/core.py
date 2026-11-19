@@ -7,12 +7,16 @@ intervals.
 
 from __future__ import annotations
 
+import inspect
 import warnings
+from collections.abc import Mapping as _Mapping
 from collections.abc import Sequence as _Sequence
 from copy import deepcopy
 from dataclasses import asdict
+from graphlib import CycleError, TopologicalSorter
 from importlib.metadata import version
-from typing import TYPE_CHECKING, Any, Literal, Optional, Type
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -62,6 +66,23 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
 
 
+_BASE_INPUTS = frozenset({"_truth", "_pred", "_binary_pred"})
+_RESERVED_INPUT_NAMES = frozenset({*_BASE_INPUTS, "overall"})
+_REFERENCE_PREFIX = "__reference_"
+
+
+def _input_dependencies(metric: AuditorMetric) -> list[str]:
+    """Return a metric's direct inputs plus any binomial interval columns."""
+    names = list(metric.inputs)
+    indicator = getattr(metric, "binomial_indicator", None)
+    if indicator is not None:
+        names.append(indicator)
+    columns = getattr(metric, "binomial_columns", None)
+    if columns is not None:
+        names.extend(columns)
+    return names
+
+
 def _record_contrast_scale(
     result: LevelMetric, metric: AuditorMetric, contrast: str
 ) -> None:
@@ -69,6 +90,13 @@ def _record_contrast_scale(
     scale = metric_scale(metric)
     if contrast == "difference" and scale != 1.0:
         result.parameters["scale"] = scale
+
+
+def _cycle_message(error: CycleError) -> str:
+    cycle = error.args[1] if len(error.args) > 1 else []
+    return "Metric inputs form a dependency cycle: " + " -> ".join(
+        repr(name) for name in cycle
+    )
 
 
 class Auditor:
@@ -149,13 +177,16 @@ class Auditor:
         if outcome is not None:
             self.add_outcome(**vars(outcome))
 
+        # initialize registered metric inputs before metrics
+        self._registered_inputs: dict[str, AuditorMetricInput] = dict()
+
         # initialize metrics
         self.metrics: list[AuditorMetric] = list()
         if metrics is not None:
             self.set_metrics(metrics)
 
         # initialize attrs for later
-        self._inputs: list[Type[AuditorMetricInput]] = list()
+        self._inputs: list[AuditorMetricInput] = list()
 
     def add_data(self, data: pd.DataFrame) -> None:
         """Replace evaluation data with a pandas copy and clear the outcome registration.
@@ -283,11 +314,184 @@ class Auditor:
             metric_scale(metric)
         self.metrics = list(metrics)
 
-    def _requires_threshold(self) -> bool:
-        return any(
-            set(metric.inputs) & {"_binary_pred", "tp", "tn", "fp", "fn"}
-            for metric in self.metrics
+    def register_metric_input(
+        self, metric_input: AuditorMetricInput | type[AuditorMetricInput]
+    ) -> None:
+        """Register a custom per-row metric input for metrics to use by name.
+
+        A registered input adds one column, named ``metric_input.name``, to each
+        private evaluation frame. Metrics can list it in ``inputs`` and name it in
+        ``binomial_indicator`` or ``binomial_columns`` to receive analytic IID
+        Wilson or Clopper-Pearson rate intervals. Inputs are recomputed on every
+        evaluation slice and, in compare_scores, again after the reference score
+        and decisions are swapped in.
+
+        Args:
+            metric_input: A class (instantiated once with no arguments) or an
+                instance, allowing parameterized inputs. It needs ``name`` (the new
+                column), ``label``, ``inputs`` (a list of column names: ``_truth``,
+                ``_pred``, ``_binary_pred``, built-in confusion inputs, other
+                registered inputs, or data columns) and a callable
+                ``data_transform(data)`` that adds the ``name`` column and returns
+                a DataFrame with the same number of rows. ``row_call`` is optional
+                and never used during evaluation.
+
+        Raises:
+            ValueError: The input is malformed; its name is reserved (``_truth``,
+                ``_pred``, ``_binary_pred``, ``overall`` or ``__reference_*``),
+                built in (such as ``tp``), already registered or an existing data
+                column; or registered inputs would form a dependency cycle.
+            TypeError: A class cannot be instantiated without arguments.
+
+        Notes:
+            Each value must depend only on its own row, so resampled rows carry
+            correct values. Transforms receive private frames; they should only add
+            their own column. Registrations persist across add_data() calls; data
+            column and feature collisions are checked again at evaluation time.
+            Registered inputs are listed in ScoreEvaluation.metadata
+            ["metric_inputs"] by name and qualified class name. There is no
+            unregister method; build a new Auditor to drop registrations.
+
+        Example:
+            >>> import pandas as pd
+            >>> from model_auditor import Auditor
+            >>> class DetectedEvent:
+            ...     name, label = "detected_event", "Detected event"
+            ...     inputs = ["_binary_pred", "event"]
+            ...     def data_transform(self, data):
+            ...         hit = (data["_binary_pred"] == 1) & (data["event"] == 1)
+            ...         data[self.name] = hit.astype(int)
+            ...         return data
+            >>> class DetectedEventRate:
+            ...     name, label = "detected_event_rate", "Detected events per 1,000"
+            ...     inputs, ci_eligible = ["detected_event"], True
+            ...     direction, scale = "higher", 1000
+            ...     binomial_indicator = "detected_event"
+            ...     def data_call(self, data):
+            ...         return float(data["detected_event"].mean())
+            >>> frame = pd.DataFrame(
+            ...     {"risk": [0.9, 0.8, 0.2, 0.1], "y": [1, 0, 1, 0], "event": [1, 0, 1, 1]}
+            ... )
+            >>> auditor = Auditor(frame)
+            >>> auditor.add_outcome("y")
+            >>> auditor.add_score("risk", threshold=0.5)
+            >>> auditor.register_metric_input(DetectedEvent)
+            >>> auditor.set_metrics([DetectedEventRate()])
+            >>> result = auditor.evaluate_metrics("risk", n_bootstraps=None)
+            >>> result.features["overall"].levels["Overall"].metrics[
+            ...     "detected_event_rate"
+            ... ].score
+            250.0
+            >>> result.metadata["metric_inputs"][0]["name"]
+            'detected_event'"""
+        instance = metric_input() if inspect.isclass(metric_input) else metric_input
+        name = getattr(instance, "name", None)
+        inputs = getattr(instance, "inputs", None)
+        if not isinstance(name, str) or not name:
+            raise ValueError("Metric input name must be a nonempty string.")
+        if not isinstance(getattr(instance, "label", None), str):
+            raise ValueError(f"Metric input {name!r} label must be a string.")
+        if not isinstance(inputs, (list, tuple)) or not all(
+            isinstance(item, str) for item in inputs
+        ):
+            raise ValueError(
+                f"Metric input {name!r} inputs must be a list of column names."
+            )
+        if not callable(getattr(instance, "data_transform", None)):
+            raise ValueError(f"Metric input {name!r} needs a callable data_transform.")
+        if name in _RESERVED_INPUT_NAMES or name.startswith(_REFERENCE_PREFIX):
+            raise ValueError(f"Metric input name {name!r} is reserved.")
+        if name in collect_metric_inputs():
+            raise ValueError(f"Metric input name {name!r} is a built-in input.")
+        if name in self._registered_inputs:
+            raise ValueError(f"Metric input {name!r} is already registered.")
+        if self.data is not None and name in self.data.columns:
+            raise ValueError(
+                f"Metric input name {name!r} matches an existing data column."
+            )
+        if name in self.features:
+            raise ValueError(f"Metric input name {name!r} matches a feature.")
+        candidate = {**self._registered_inputs, name: instance}
+        graph = {
+            key: [dep for dep in item.inputs if dep in candidate]
+            for key, item in candidate.items()
+        }
+        try:
+            tuple(TopologicalSorter(graph).static_order())
+        except CycleError as error:
+            raise ValueError(_cycle_message(error)) from None
+        self._registered_inputs[name] = instance
+
+    @property
+    def registered_metric_inputs(self) -> _Mapping[str, AuditorMetricInput]:
+        """Read-only mapping from registered input names to their instances.
+
+        The mapping is a snapshot view; use register_metric_input() to add
+        entries. Instances are shared, not copied."""
+        return MappingProxyType(dict(self._registered_inputs))
+
+    def _resolve_inputs(
+        self, *, strict: bool
+    ) -> tuple[list[AuditorMetricInput], set[str], list[str]]:
+        """Resolve the transitive input closure of the configured metrics.
+
+        Returns the input providers in dependency order, every name reached
+        (including base columns) and the plain data columns needed. Non-strict
+        resolution skips unknown names instead of raising.
+        """
+        builtins = collect_metric_inputs()
+        registered = getattr(self, "_registered_inputs", {})
+        columns = set() if self.data is None else set(self.data.columns)
+        pending = sorted(
+            {name for metric in self.metrics for name in _input_dependencies(metric)}
         )
+        seen: set[str] = set()
+        providers: dict[str, AuditorMetricInput] = {}
+        data_columns: list[str] = []
+        while pending:
+            name = pending.pop(0)
+            if name in seen:
+                continue
+            seen.add(name)
+            if name in _BASE_INPUTS:
+                continue
+            if name in builtins:
+                provider = builtins[name]()
+            elif name in registered:
+                if strict and name in columns:
+                    raise ValueError(
+                        f"Registered metric input {name!r} matches a data column; "
+                        "rename the input or the column."
+                    )
+                if strict and name in self.features:
+                    raise ValueError(
+                        f"Registered metric input {name!r} matches a feature name."
+                    )
+                provider = registered[name]
+            elif name in columns:
+                data_columns.append(name)
+                continue
+            elif strict:
+                raise ValueError(f"Unknown metric input {name!r}.")
+            else:
+                continue
+            providers[name] = provider
+            pending.extend(provider.inputs)
+        graph = {
+            name: [dep for dep in provider.inputs if dep in providers]
+            for name, provider in providers.items()
+        }
+        try:
+            order = list(TopologicalSorter(graph).static_order())
+        except CycleError as error:
+            if strict:
+                raise ValueError(_cycle_message(error)) from None
+            order = list(providers)
+        return [providers[name] for name in order], seen, data_columns
+
+    def _requires_threshold(self) -> bool:
+        _, names, _ = self._resolve_inputs(strict=False)
+        return bool(names & {"_binary_pred", "tp", "tn", "fp", "fn"})
 
     def _metadata(
         self,
@@ -320,6 +524,20 @@ class Auditor:
                 "interval_scope": "pointwise",
                 "estimand": "row_weighted_fixed_binary_predictions",
                 "selection_adjusted": False,
+                **(
+                    {
+                        "metric_inputs": [
+                            {
+                                "name": name,
+                                "class": f"{type(item).__module__}."
+                                f"{type(item).__qualname__}",
+                            }
+                            for name, item in self._registered_inputs.items()
+                        ]
+                    }
+                    if getattr(self, "_registered_inputs", None)
+                    else {}
+                ),
             }
         )
 
@@ -1256,29 +1474,12 @@ class Auditor:
         return score, fpr, tpr, thresholds
 
     def _collect_inputs(self) -> None:
-        """
-        Collects the minimum set of metric inputs necessary for evaluation
-        (based on the metrics defined in self.metrics with the .set_metrics() method)
-        """
-        inputs_set: set[str] = set()
-        for metric in self.metrics:
-            inputs_set.update(metric.inputs)
+        """Collect built-in and registered inputs the metrics need, in dependency order.
 
-        inputs_dict: dict[str, Type[AuditorMetricInput]] = collect_metric_inputs()
-
-        # reinit self._inputs and add all necessary inputs to it
-        self._inputs: list[Type[AuditorMetricInput]] = list()
-        for input_name in sorted(inputs_set):
-            if input_name not in {"_truth", "_pred", "_binary_pred"}:
-                if (
-                    input_name not in inputs_dict
-                    and self.data is not None
-                    and input_name in self.data
-                ):
-                    continue
-                if input_name not in inputs_dict:
-                    raise ValueError(f"Unknown metric input {input_name!r}.")
-                self._inputs.append(inputs_dict[input_name])
+        Raises:
+            ValueError: An input name is unknown, a registered input collides with
+                a data column or feature, or inputs form a dependency cycle."""
+        self._inputs, _, _ = self._resolve_inputs(strict=True)
 
     def _apply_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -1291,10 +1492,18 @@ class Auditor:
         Returns:
             pd.DataFrame: Transformed dataframe with metric input columns
         """
-        for input_type in self._inputs:
-            metric_input = input_type()
-            data: pd.DataFrame = metric_input.data_transform(data)
-
+        for metric_input in self._inputs:
+            rows = len(data)
+            data = metric_input.data_transform(data)
+            if (
+                not isinstance(data, pd.DataFrame)
+                or len(data) != rows
+                or metric_input.name not in data.columns
+            ):
+                raise ValueError(
+                    f"Metric input {metric_input.name!r} data_transform must return "
+                    f"a DataFrame with the same rows and a {metric_input.name!r} column."
+                )
         return data
 
     def _add_confusion_columns(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -1347,31 +1556,25 @@ class Auditor:
         if require_threshold or threshold is not None or score.threshold is not None:
             threshold = resolve_threshold(score, threshold)
         columns = self._evaluation_columns(threshold)
+        _, input_names, input_columns = self._resolve_inputs(strict=False)
         if inference is not None and inference.cluster is not None:
             if inference.cluster in {
-                "_truth",
-                "_pred",
-                "_binary_pred",
-                "overall",
+                *_RESERVED_INPUT_NAMES,
                 "tp",
                 "tn",
                 "fp",
                 "fn",
+                *(input_names - set(input_columns)),
+                *self._registered_inputs,
             }:
                 raise ValueError(
                     "Cluster column cannot be a reserved evaluation column."
                 )
             if inference.cluster not in columns:
                 columns.append(inference.cluster)
-        for metric in self.metrics:
-            for name in metric.inputs:
-                if (
-                    name in self.data
-                    and name
-                    not in {"_truth", "_pred", "_binary_pred", "tp", "tn", "fp", "fn"}
-                    and name not in columns
-                ):
-                    columns.append(name)
+        for name in input_columns:
+            if name not in columns:
+                columns.append(name)
         missing = [name for name in [*columns, score.name] if name not in self.data]
         if missing:
             raise ValueError(f"Evaluation columns not found in data: {missing!r}")

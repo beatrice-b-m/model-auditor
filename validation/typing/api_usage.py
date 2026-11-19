@@ -1,5 +1,6 @@
 """Static consumer checks; checked by Pyright, not executed as an evaluation."""
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -10,7 +11,7 @@ from pandas.io.formats.style import Styler
 from typing_extensions import assert_type
 
 from model_auditor import Auditor, InferenceConfig
-from model_auditor.metric_inputs import TruePositives
+from model_auditor.metric_inputs import AuditorMetricInput, TruePositives
 from model_auditor.metrics import ExpectedCost, Sensitivity, nTP
 from model_auditor.plotting import HierarchyPlotter
 from model_auditor.plotting.distributions import plot_score_distributions
@@ -34,6 +35,8 @@ if TYPE_CHECKING:
     inference = InferenceConfig(missing="include", random_state=42)
     result = auditor.evaluate_metrics("score", inference=inference)
     assert_type(result, ScoreEvaluation)
+    auditor.register_metric_input(TruePositives)
+    assert_type(auditor.registered_metric_inputs, Mapping[str, AuditorMetricInput])
     assert_type(nTP().data_call(pd.DataFrame()), int | np.integer)
     assert_type(result.features["region"], FeatureEvaluation)
     level = result.features["region"].levels["North"]
