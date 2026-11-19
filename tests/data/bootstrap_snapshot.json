@@ -30987,6 +30987,1616 @@
 }
 }
 },
+"evaluate_errors_support/cluster": {
+"fn": {
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"low": {
+"n": 10,
+"pct_group": {
+"float": "0x1.e79e79e79e79ep-2"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-5"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+},
+"tier": {
+"high": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"low": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tn": {
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+},
+"tier": {
+"high": {
+"n": 63,
+"pct_group": {
+"float": "0x1.304d4873ecadep-1"
+},
+"pct_overall": {
+"float": "0x1.0cccccccccccdp-2"
+}
+},
+"low": {
+"n": 43,
+"pct_group": {
+"float": "0x1.9f656f1826a44p-2"
+},
+"pct_overall": {
+"float": "0x1.6eeeeeeeeeeefp-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tp": {
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 42,
+"pct_group": {
+"float": "0x1.269349a4d2693p-1"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-3"
+}
+},
+"low": {
+"n": 31,
+"pct_group": {
+"float": "0x1.b2d96cb65b2d9p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+},
+"evaluate_errors_support/cluster_str": {
+"fn": {
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"low": {
+"n": 10,
+"pct_group": {
+"float": "0x1.e79e79e79e79ep-2"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-5"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+},
+"tier": {
+"high": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"low": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tn": {
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+},
+"tier": {
+"high": {
+"n": 63,
+"pct_group": {
+"float": "0x1.304d4873ecadep-1"
+},
+"pct_overall": {
+"float": "0x1.0cccccccccccdp-2"
+}
+},
+"low": {
+"n": 43,
+"pct_group": {
+"float": "0x1.9f656f1826a44p-2"
+},
+"pct_overall": {
+"float": "0x1.6eeeeeeeeeeefp-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tp": {
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 42,
+"pct_group": {
+"float": "0x1.269349a4d2693p-1"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-3"
+}
+},
+"low": {
+"n": 31,
+"pct_group": {
+"float": "0x1.b2d96cb65b2d9p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+},
+"evaluate_errors_support/iid": {
+"fn": {
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"low": {
+"n": 10,
+"pct_group": {
+"float": "0x1.e79e79e79e79ep-2"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-5"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+},
+"tier": {
+"high": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"low": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tn": {
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+},
+"tier": {
+"high": {
+"n": 63,
+"pct_group": {
+"float": "0x1.304d4873ecadep-1"
+},
+"pct_overall": {
+"float": "0x1.0cccccccccccdp-2"
+}
+},
+"low": {
+"n": 43,
+"pct_group": {
+"float": "0x1.9f656f1826a44p-2"
+},
+"pct_overall": {
+"float": "0x1.6eeeeeeeeeeefp-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tp": {
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 42,
+"pct_group": {
+"float": "0x1.269349a4d2693p-1"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-3"
+}
+},
+"low": {
+"n": 31,
+"pct_group": {
+"float": "0x1.b2d96cb65b2d9p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+},
+"evaluate_errors_support/iid_bootstrap": {
+"fn": {
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"low": {
+"n": 10,
+"pct_group": {
+"float": "0x1.e79e79e79e79ep-2"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-5"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+},
+"tier": {
+"high": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"low": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tn": {
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+},
+"tier": {
+"high": {
+"n": 63,
+"pct_group": {
+"float": "0x1.304d4873ecadep-1"
+},
+"pct_overall": {
+"float": "0x1.0cccccccccccdp-2"
+}
+},
+"low": {
+"n": 43,
+"pct_group": {
+"float": "0x1.9f656f1826a44p-2"
+},
+"pct_overall": {
+"float": "0x1.6eeeeeeeeeeefp-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tp": {
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 42,
+"pct_group": {
+"float": "0x1.269349a4d2693p-1"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-3"
+}
+},
+"low": {
+"n": 31,
+"pct_group": {
+"float": "0x1.b2d96cb65b2d9p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+},
+"evaluate_errors_support/stratified": {
+"fn": {
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"low": {
+"n": 10,
+"pct_group": {
+"float": "0x1.e79e79e79e79ep-2"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-5"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+},
+"tier": {
+"high": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"low": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tn": {
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+},
+"tier": {
+"high": {
+"n": 63,
+"pct_group": {
+"float": "0x1.304d4873ecadep-1"
+},
+"pct_overall": {
+"float": "0x1.0cccccccccccdp-2"
+}
+},
+"low": {
+"n": 43,
+"pct_group": {
+"float": "0x1.9f656f1826a44p-2"
+},
+"pct_overall": {
+"float": "0x1.6eeeeeeeeeeefp-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tp": {
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 42,
+"pct_group": {
+"float": "0x1.269349a4d2693p-1"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-3"
+}
+},
+"low": {
+"n": 31,
+"pct_group": {
+"float": "0x1.b2d96cb65b2d9p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+},
 "evaluate_metrics/cluster": {
 "overall": {
 "Overall": {

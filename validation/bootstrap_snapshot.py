@@ -164,6 +164,7 @@ def build_snapshot() -> dict:
         out[f"evaluate_errors/{config_name}"] = {
             group: _levels(evaluation) for group, evaluation in errors.groups.items()
         }
+        out[f"evaluate_errors_support/{config_name}"] = _encode(errors.support_data)
         tests = TESTS if config_name in TESTED_CONFIGS else {"none": TESTS["none"]}
         for test_name, test in tests.items():
             out[f"compare_scores/{config_name}/{test_name}"] = _levels(
