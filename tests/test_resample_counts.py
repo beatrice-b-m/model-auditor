@@ -54,15 +54,56 @@ def test_evaluate_metrics_groups_clusters_once_per_level(cluster_groupbys):
     assert len(cluster_groupbys) == 3
 
 
-def test_compare_scores_groups_clusters_once_per_level_and_metric(cluster_groupbys):
+def test_compare_scores_groups_clusters_once_per_level(cluster_groupbys):
     make_auditor().compare_scores(
         "new", "ref", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER
     )
-    assert len(cluster_groupbys) == 3 * 3
+    assert len(cluster_groupbys) == 3
 
 
-def test_compare_groups_groups_clusters_once_per_level_and_metric(cluster_groupbys):
+def test_compare_groups_groups_clusters_once_per_call(cluster_groupbys):
     make_auditor().compare_groups(
         "new", "g", "a", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER
     )
-    assert len(cluster_groupbys) == 1 * 3
+    assert len(cluster_groupbys) == 1
+
+
+@pytest.fixture
+def draws(monkeypatch):
+    """Count resamples drawn by contrast evaluation."""
+    from model_auditor import _comparisons
+
+    calls = []
+    original = _comparisons.make_sampler
+
+    def counting(data, config):
+        sample = original(data, config)
+
+        def draw(rng):
+            calls.append(len(data))
+            return sample(rng)
+
+        return draw
+
+    monkeypatch.setattr(_comparisons, "make_sampler", counting)
+    return calls
+
+
+@pytest.mark.parametrize("n_metrics", [1, 3])
+def test_compare_scores_draws_once_per_level_for_all_metrics(draws, n_metrics):
+    auditor = make_auditor()
+    auditor.set_metrics([Sensitivity(), FPR(), AUROC()][:n_metrics])
+    auditor.compare_scores("new", "ref", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER)
+    assert len(draws) == 3 * N_BOOTSTRAPS
+
+
+@pytest.mark.parametrize("n_metrics", [1, 3])
+def test_compare_groups_draws_once_per_call_for_all_levels(draws, n_metrics):
+    rng = np.random.default_rng(2)
+    auditor = make_auditor()
+    auditor.data["g"] = rng.choice(["a", "b", "c", "d"], len(auditor.data))
+    auditor.set_metrics([Sensitivity(), FPR(), AUROC()][:n_metrics])
+    auditor.compare_groups(
+        "new", "g", "a", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER
+    )
+    assert draws == [len(auditor.data)] * N_BOOTSTRAPS
