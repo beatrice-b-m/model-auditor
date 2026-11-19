@@ -153,15 +153,15 @@ def wilson_interval(
     return float(max(0, center - radius)), float(min(1, center + radius))
 
 
-def make_sampler(
+def make_index_sampler(
     data: pd.DataFrame, config: InferenceConfig
-) -> Callable[[np.random.Generator], pd.DataFrame]:
-    """Build a resampler for ``data`` that groups rows once, not on every draw.
+) -> Callable[[np.random.Generator], np.ndarray]:
+    """Build a resampler of row positions for ``data``, grouping rows once.
 
-    Each call of the returned function draws shared row indices, whole clusters,
-    or truth-stratified observations from ``rng`` and returns a new DataFrame.
-    Group order and generator calls are fixed, so a seeded generator gives the
-    same draws as regrouping on every call.
+    Each call of the returned function draws shared row positions, whole
+    clusters, or truth-stratified observations from ``rng`` and returns their
+    positions in ``data``. Group order and generator calls are fixed, so a
+    seeded generator gives the same draws as regrouping on every call.
 
     Raises:
         ValueError: Cluster resampling with a missing cluster column or
@@ -174,26 +174,44 @@ def make_sampler(
             data.groupby(config.cluster, sort=False, observed=True).indices.values()
         )
 
-        def draw(rng: np.random.Generator) -> pd.DataFrame:
-            indices = np.concatenate(
+        def draw(rng: np.random.Generator) -> np.ndarray:
+            return np.concatenate(
                 [clusters[i] for i in rng.integers(len(clusters), size=len(clusters))]
             )
-            return data.iloc[indices].copy()
 
     elif config.resampling == "stratified":
         strata = list(data.groupby("_truth", sort=False).indices.values())
 
-        def draw(rng: np.random.Generator) -> pd.DataFrame:
-            indices = np.concatenate(
+        def draw(rng: np.random.Generator) -> np.ndarray:
+            return np.concatenate(
                 [rng.choice(group, size=len(group), replace=True) for group in strata]
             )
-            return data.iloc[indices].copy()
 
     else:
         n = len(data)
 
-        def draw(rng: np.random.Generator) -> pd.DataFrame:
-            return data.iloc[rng.integers(n, size=n)].copy()
+        def draw(rng: np.random.Generator) -> np.ndarray:
+            return rng.integers(n, size=n)
+
+    return draw
+
+
+def make_sampler(
+    data: pd.DataFrame, config: InferenceConfig
+) -> Callable[[np.random.Generator], pd.DataFrame]:
+    """Build a resampler for ``data`` that groups rows once, not on every draw.
+
+    Each call of the returned function takes the positions drawn by
+    ``make_index_sampler`` and returns those rows as a new DataFrame.
+
+    Raises:
+        ValueError: Cluster resampling with a missing cluster column or
+            missing cluster IDs.
+    """
+    positions = make_index_sampler(data, config)
+
+    def draw(rng: np.random.Generator) -> pd.DataFrame:
+        return data.iloc[positions(rng)].copy()
 
     return draw
 
@@ -320,114 +338,225 @@ def evaluate_feature(
     return result
 
 
-def evaluate_error_feature(
+ERROR_GROUPS = ("tp", "tn", "fp", "fn")
+
+ErrorFeatureResult = dict[str, tuple[FeatureEvaluation, dict[str, dict[str, float]]]]
+
+
+def _error_point_estimates(
     data: pd.DataFrame,
-    group_col: str,
+    full: pd.DataFrame,
+    levels: list[str],
     feature: AuditorFeature,
     metric: AuditorErrorMetric,
     n_bootstraps: Optional[int],
     global_total_n: int,
-    inference: InferenceConfig | None = None,
-) -> tuple[FeatureEvaluation, dict[str, dict[str, float]]]:
-    """Confusion-membership enrichment versus rest, not conditional error rates.
+    config: InferenceConfig,
+    groups: tuple[str, ...],
+) -> tuple[ErrorFeatureResult, dict[str, list[str]]]:
+    """Original-table estimates, support and analytic intervals for each group.
 
-    Point estimates always use the original table. IID auto inference uses a
-    conditional exact interval for the population OR with the sample OR as the
-    reported point estimate. Other designs use diagnosed percentile resampling.
+    Returns the per-group results and, per group, the levels still waiting for
+    a resampled interval.
     """
-    config = inference or InferenceConfig()
-    full, categories = _prepare_feature_data(data, feature.name, config.missing)
     full_counts = _level_counts(full, feature.name)
-    group = full[full[group_col] == 1]
-    group_counts = _level_counts(group, feature.name)
-    levels = categories if categories is not None else list(full_counts)
-    result = FeatureEvaluation(
-        feature.name,
-        feature.label or feature.name,
-        excluded_n=len(data) - len(full),
-        total_n=len(data),
-    )
-    support = {}
-    for name in levels:
-        count, group_count = full_counts.get(name, 0), group_counts.get(name, 0)
-        estimate = metric.compute(group_count, len(group), count, len(full))
-        result.update(metric.name, metric.label, {name: estimate})
-        level = result.levels[name]
-        level.support = support_counts(full.loc[full[feature.name].astype(str) == name])
-        lm = level.metrics[metric.name]
-        lm.status = (
-            "undefined"
-            if np.isnan(estimate)
-            else "unbounded"
-            if np.isinf(estimate)
-            else "ok"
-        )
-        lm.direction = "none"
-        support[name] = {
-            "n": group_count,
-            "pct_overall": group_count / global_total_n
-            if global_total_n
-            else float("nan"),
-            "pct_group": group_count / len(group) if len(group) else float("nan"),
-        }
-        if np.isnan(estimate):
-            lm.interval_status = "undefined_estimate"
-        elif (
-            n_bootstraps is not None
-            and metric.ci_eligible
-            and config.method == "auto"
-            and config.resampling == "iid"
-            and type(metric) is OddsRatio
-        ):
-            a, b = group_count, count - group_count
-            c = len(group) - group_count
-            d = len(full) - count - c
-            ci = odds_ratio([[a, b], [c, d]], kind="conditional").confidence_interval(
-                confidence_level=config.confidence_level
-            )
-            lm.interval = float(ci.low), float(ci.high)
-            lm.interval_method = "conditional_exact"
-            lm.interval_status = "ok"
-    pending = [
-        name
+    level_support = {
+        name: support_counts(full.loc[full[feature.name].astype(str) == name])
         for name in levels
-        if n_bootstraps is not None
-        and metric.ci_eligible
-        and result.levels[name].metrics[metric.name].interval_status == "not_requested"
-    ]
-    if pending:
-        if config.resampling == "cluster" and full[config.cluster].nunique() < 2:
-            for name in pending:
-                result.levels[name].metrics[
-                    metric.name
-                ].interval_status = "insufficient_clusters"
-            return result, support
-        samples = {name: [] for name in pending}
-        rng = np.random.default_rng(config.random_state)
-        sample = make_sampler(full, config)
-        for _ in range(n_bootstraps):
-            boot = sample(rng)
-            boot_group = boot[boot[group_col] == 1]
-            counts, group_counts = (
-                _level_counts(boot, feature.name),
-                _level_counts(boot_group, feature.name),
+    }
+    out: ErrorFeatureResult = {}
+    pending: dict[str, list[str]] = {}
+    for group_col in groups:
+        group = full[full[group_col] == 1]
+        group_counts = _level_counts(group, feature.name)
+        result = FeatureEvaluation(
+            feature.name,
+            feature.label or feature.name,
+            excluded_n=len(data) - len(full),
+            total_n=len(data),
+        )
+        support = {}
+        for name in levels:
+            count, group_count = full_counts.get(name, 0), group_counts.get(name, 0)
+            estimate = metric.compute(group_count, len(group), count, len(full))
+            result.update(metric.name, metric.label, {name: estimate})
+            level = result.levels[name]
+            level.support = deepcopy(level_support[name])
+            lm = level.metrics[metric.name]
+            lm.status = (
+                "undefined"
+                if np.isnan(estimate)
+                else "unbounded"
+                if np.isinf(estimate)
+                else "ok"
             )
-            for name in pending:
-                samples[name].append(
+            lm.direction = "none"
+            support[name] = {
+                "n": group_count,
+                "pct_overall": group_count / global_total_n
+                if global_total_n
+                else float("nan"),
+                "pct_group": group_count / len(group) if len(group) else float("nan"),
+            }
+            if np.isnan(estimate):
+                lm.interval_status = "undefined_estimate"
+            elif (
+                n_bootstraps is not None
+                and metric.ci_eligible
+                and config.method == "auto"
+                and config.resampling == "iid"
+                and type(metric) is OddsRatio
+            ):
+                a, b = group_count, count - group_count
+                c = len(group) - group_count
+                d = len(full) - count - c
+                ci = odds_ratio(
+                    [[a, b], [c, d]], kind="conditional"
+                ).confidence_interval(confidence_level=config.confidence_level)
+                lm.interval = float(ci.low), float(ci.high)
+                lm.interval_method = "conditional_exact"
+                lm.interval_status = "ok"
+        group_pending = [
+            name
+            for name in levels
+            if n_bootstraps is not None
+            and metric.ci_eligible
+            and result.levels[name].metrics[metric.name].interval_status
+            == "not_requested"
+        ]
+        if group_pending:
+            pending[group_col] = group_pending
+        out[group_col] = (result, support)
+    return out, pending
+
+
+class _PendingErrorFeature:
+    """One feature's resampling state: level codes and pending sample lists."""
+
+    def __init__(
+        self,
+        full: pd.DataFrame,
+        feature: str,
+        levels: list[str],
+        out: ErrorFeatureResult,
+        pending: dict[str, list[str]],
+    ) -> None:
+        self.out = out
+        self.pending = pending
+        self.n_levels = len(levels)
+        self.position = {name: i for i, name in enumerate(levels)}
+        self.codes = pd.Categorical(full[feature].astype(str), categories=levels).codes
+        self.members = {
+            group_col: full[group_col].to_numpy() == 1 for group_col in pending
+        }
+        self.samples = {
+            group_col: {name: [] for name in names}
+            for group_col, names in pending.items()
+        }
+
+    def add(self, idx: np.ndarray, metric: AuditorErrorMetric) -> None:
+        """Count one resample with integer arrays and record every pending OR."""
+        boot_codes = self.codes[idx]
+        counts = np.bincount(boot_codes, minlength=self.n_levels)
+        for group_col, names in self.pending.items():
+            in_group = self.members[group_col][idx]
+            group_counts = np.bincount(boot_codes[in_group], minlength=self.n_levels)
+            group_n = int(in_group.sum())
+            for name in names:
+                i = self.position[name]
+                self.samples[group_col][name].append(
                     metric.compute(
-                        group_counts.get(name, 0),
-                        len(boot_group),
-                        counts.get(name, 0),
-                        len(boot),
+                        int(group_counts[i]), group_n, int(counts[i]), len(idx)
                     )
                 )
-        for name in pending:
-            bootstrap_summary(
-                result.levels[name].metrics[metric.name],
-                np.asarray(samples[name]),
-                config,
-            )
-    return result, support
+
+    def summarize(self, metric: AuditorErrorMetric, config: InferenceConfig) -> None:
+        for group_col, names in self.pending.items():
+            for name in names:
+                bootstrap_summary(
+                    self.out[group_col][0].levels[name].metrics[metric.name],
+                    np.asarray(self.samples[group_col][name]),
+                    config,
+                )
+
+    def mark(self, metric: AuditorErrorMetric, status: str) -> None:
+        for group_col, names in self.pending.items():
+            for name in names:
+                self.out[group_col][0].levels[name].metrics[
+                    metric.name
+                ].interval_status = status
+
+
+def evaluate_error_features(
+    data: pd.DataFrame,
+    features: list[AuditorFeature],
+    metric: AuditorErrorMetric,
+    n_bootstraps: Optional[int],
+    global_total_n: int,
+    inference: InferenceConfig | None = None,
+    groups: tuple[str, ...] = ERROR_GROUPS,
+) -> dict[str, ErrorFeatureResult]:
+    """Confusion-membership enrichment versus rest, not conditional error rates.
+
+    Evaluates every confusion group in ``groups`` for every feature. Point
+    estimates always use the original table. IID auto inference uses a
+    conditional exact interval for the population OR with the sample OR as the
+    reported point estimate. Other designs use diagnosed percentile resampling.
+
+    Features that keep the same rows after their missing-value policy share
+    one set of ``n_bootstraps`` resamples, used by all of their groups. Each
+    feature with different rows draws its own set from a fresh generator, so
+    seeded results match evaluating each feature and group separately.
+
+    Returns:
+        ``{feature: {group: (FeatureEvaluation, support)}}`` in input order.
+    """
+    config = inference or InferenceConfig()
+    results: dict[str, ErrorFeatureResult] = {}
+    # Keyed by the rows each feature keeps; insertion order is first use.
+    shared: dict[bytes, tuple[pd.DataFrame, list[_PendingErrorFeature]]] = {}
+    for feature in features:
+        full, categories = _prepare_feature_data(data, feature.name, config.missing)
+        levels = (
+            categories
+            if categories is not None
+            else list(_level_counts(full, feature.name))
+        )
+        out, pending = _error_point_estimates(
+            data,
+            full,
+            levels,
+            feature,
+            metric,
+            n_bootstraps,
+            global_total_n,
+            config,
+            groups,
+        )
+        results[feature.name] = out
+        if not pending:
+            continue
+        kept = (
+            data[feature.name].notna().to_numpy()
+            if config.missing == "exclude"
+            else np.ones(len(data), dtype=bool)
+        )
+        state = _PendingErrorFeature(full, feature.name, levels, out, pending)
+        shared.setdefault(kept.tobytes(), (full, []))[1].append(state)
+    for full, states in shared.values():
+        if config.resampling == "cluster" and full[config.cluster].nunique() < 2:
+            for state in states:
+                state.mark(metric, "insufficient_clusters")
+            continue
+        rng = np.random.default_rng(config.random_state)
+        sample = make_index_sampler(full, config)
+        for _ in range(n_bootstraps):
+            idx = sample(rng)
+            for state in states:
+                state.add(idx, metric)
+        for state in states:
+            state.summarize(metric, config)
+    return results
 
 
 def evaluate_confidence_interval(

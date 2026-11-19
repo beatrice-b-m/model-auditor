@@ -26,8 +26,9 @@ from sklearn.metrics import roc_curve
 from tqdm.auto import tqdm
 
 from model_auditor._evaluation import (
+    ERROR_GROUPS,
     evaluate_confidence_interval,
-    evaluate_error_feature,
+    evaluate_error_features,
     evaluate_feature,
     metric_parameters,
     metric_scale,
@@ -761,28 +762,28 @@ class Auditor:
         metric = error_metric if error_metric is not None else OddsRatio()
         error_eval.metadata["error_metric"] = metric.name
 
-        for group_col in ("tp", "tn", "fp", "fn"):
-            group_eval = ScoreEvaluation(
+        # Each set of resamples serves all four groups and every feature that
+        # keeps the same rows. Groups and support keys are created first to keep
+        # TP, TN, FP, FN order.
+        for group_col in ERROR_GROUPS:
+            error_eval.groups[group_col] = ScoreEvaluation(
                 name=group_col,
                 label=group_col.upper(),
                 metadata=deepcopy(error_eval.metadata),
             )
-            for feature in eval_features.values():
-                feature_eval, support = evaluate_error_feature(
-                    data=data_slice,
-                    group_col=group_col,
-                    feature=feature,
-                    metric=metric,
-                    n_bootstraps=n_bootstraps,
-                    inference=inference,
-                    global_total_n=global_total_n,
-                )
-                group_eval.features[feature.name] = feature_eval
-                # Accumulate per-feature support counts into the error evaluation's sidecar.
-                error_eval.support_data.setdefault(group_col, {})[feature.name] = (
-                    support
-                )
-            error_eval.groups[group_col] = group_eval
+            error_eval.support_data[group_col] = {}
+        by_feature = evaluate_error_features(
+            data=data_slice,
+            features=list(eval_features.values()),
+            metric=metric,
+            n_bootstraps=n_bootstraps,
+            inference=inference,
+            global_total_n=global_total_n,
+        )
+        for feature_name, by_group in by_feature.items():
+            for group_col, (feature_eval, support) in by_group.items():
+                error_eval.groups[group_col].features[feature_name] = feature_eval
+                error_eval.support_data[group_col][feature_name] = support
 
         return error_eval
 

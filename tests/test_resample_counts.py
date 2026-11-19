@@ -107,3 +107,88 @@ def test_compare_groups_draws_once_per_call_for_all_levels(draws, n_metrics):
         "new", "g", "a", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER
     )
     assert draws == [len(auditor.data)] * N_BOOTSTRAPS
+
+
+@pytest.fixture
+def error_draws(monkeypatch):
+    """Count resamples drawn by error evaluation."""
+    from model_auditor import _evaluation
+
+    calls = []
+    original = _evaluation.make_index_sampler
+
+    def counting(data, config):
+        sample = original(data, config)
+
+        def draw(rng):
+            calls.append(len(data))
+            return sample(rng)
+
+        return draw
+
+    monkeypatch.setattr(_evaluation, "make_index_sampler", counting)
+    return calls
+
+
+def test_evaluate_errors_draws_once_per_feature_for_all_groups(error_draws):
+    make_auditor().evaluate_errors("new", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER)
+    # Only g resamples (overall has no "rest", so its OR is undefined), and
+    # its draws are shared by TP, TN, FP and FN.
+    assert len(error_draws) == N_BOOTSTRAPS
+
+
+def test_evaluate_errors_groups_clusters_once_per_feature(cluster_groupbys):
+    make_auditor().evaluate_errors("new", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER)
+    assert len(cluster_groupbys) == 1
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        InferenceConfig(random_state=5),
+        InferenceConfig(random_state=5, resampling="stratified"),
+        CLUSTER,
+    ],
+    ids=["iid", "stratified", "cluster"],
+)
+def test_index_sampler_matches_frame_sampler(config):
+    from model_auditor._evaluation import make_index_sampler, make_sampler
+
+    data = make_auditor().data.assign(_truth=lambda d: d["y"])
+    positions = make_index_sampler(data, config)
+    frames = make_sampler(data, config)
+    index_rng = np.random.default_rng(config.random_state)
+    frame_rng = np.random.default_rng(config.random_state)
+    for _ in range(5):
+        expected = data.iloc[positions(index_rng)]
+        pd.testing.assert_frame_equal(frames(frame_rng), expected)
+
+
+def test_evaluate_errors_shares_draws_across_features_with_same_rows(error_draws):
+    auditor = make_auditor()
+    rng = np.random.default_rng(3)
+    auditor.data["h"] = rng.choice(["x", "y", "z"], len(auditor.data))
+    auditor.add_feature("h")
+    auditor.evaluate_errors("new", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER)
+    assert error_draws == [len(auditor.data)] * N_BOOTSTRAPS
+
+
+def test_evaluate_errors_draws_separately_for_features_with_other_rows(error_draws):
+    auditor = make_auditor()
+    rng = np.random.default_rng(3)
+    h = rng.choice(["x", "y", "z"], len(auditor.data)).astype(object)
+    h[:10] = None
+    auditor.data["h"] = h
+    auditor.add_feature("h")
+    auditor.evaluate_errors("new", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER)
+    n = len(auditor.data)
+    assert sorted(error_draws) == [n - 10] * N_BOOTSTRAPS + [n] * N_BOOTSTRAPS
+    error_draws.clear()
+    auditor.evaluate_errors(
+        "new",
+        n_bootstraps=N_BOOTSTRAPS,
+        inference=InferenceConfig(
+            random_state=1, resampling="cluster", cluster="cluster", missing="include"
+        ),
+    )
+    assert error_draws == [n] * N_BOOTSTRAPS

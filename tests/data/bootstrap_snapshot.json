@@ -30987,6 +30987,10264 @@
 }
 }
 },
+"evaluate_errors_missing/exclude/cluster": {
+"groups": {
+"fn": {
+"band": {
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.4fd10e2a3e0fep-1"
+},
+{
+"float": "0x1.2a7fa10531b74p+2"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.e52196047a670p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.b71ab77cec2bep-3"
+},
+{
+"float": "0x1.8fe3168cdf9b8p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0e2dafa7c7494p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.8ea850b7a3419p-2"
+},
+{
+"float": "0x1.5733d57499efcp+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.af8af8af8af8bp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.577f1b0f4a23fp-1"
+},
+{
+"float": "0x1.e9209dd5f4f75p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.3f4fd3f4fd3f5p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.f08bd4b4ae02ep-4"
+},
+{
+"float": "0x1.4c3a83a83a83bp+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.de0a72f053978p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.c4567b5264465p-1"
+},
+{
+"float": "0x1.3bec352f8c52ep+2"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.e947ae147ae14p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.266ce4c6ce4c8p-1"
+},
+{
+"float": "0x1.a772cb6d05f6bp+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.aa5a5a5a5a5a6p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "cluster_percentile",
+"interval_status": "too_many_invalid_resamples",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 10,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.3680d3680d368p-2"
+},
+"status": "ok",
+"valid_resamples": 20
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "cluster_percentile",
+"interval_status": "degenerate_distribution",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x0.0p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+},
+"fp": {
+"band": {
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.6789fc0a98ab1p-2"
+},
+{
+"float": "0x1.78bef651aafd3p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.e9bd37a6f4deap-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.5c29c7272ebbap-1"
+},
+{
+"float": "0x1.6cc761faad796p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0ba2e8ba2e8bap+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.8e4f6d7f607e9p-2"
+},
+{
+"float": "0x1.9bc5bf3d7127ep+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.ccccccccccccdp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.8b2c0815d6b2dp-1"
+},
+{
+"float": "0x1.c1216a8f216a7p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.7904a7904a790p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.6a8c6b731187cp-2"
+},
+{
+"float": "0x1.829d5d14a3728p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.6fd662d5457b0p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.9df99b04ea2f2p-2"
+},
+{
+"float": "0x1.66fbece6a0e73p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b864407292cc1p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.b4566a2daac97p-2"
+},
+{
+"float": "0x1.f42d79a8e24cap+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.05ed097b425edp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "cluster_percentile",
+"interval_status": "too_many_invalid_resamples",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 10,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.31674c59d3167p-2"
+},
+"status": "ok",
+"valid_resamples": 20
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.44ac354ac354bp+0"
+},
+{
+"float": "0x1.04a2222222221p+2"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.1e49aa28ca1f1p+1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+},
+"tn": {
+"band": {
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.1bb521ef0ef6ap-1"
+},
+{
+"float": "0x1.1b23e0e585bf8p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.df7df7df7df7ep-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.cf00544b3000cp-2"
+},
+{
+"float": "0x1.ce3ca611eb4a3p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.115b1e5f75271p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.96452c780402bp-2"
+},
+{
+"float": "0x1.69152c4e9e2aep+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.6c7ec7ec7ec7fp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.5dd8cb520eb06p-2"
+},
+{
+"float": "0x1.5b0d7da4a7173p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.9a6eb9a6eb9a7p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.0e503ec66fc50p+0"
+},
+{
+"float": "0x1.06a9a7ed58aa9p+2"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.c9cecb785a6e6p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.036ba52d9aa8cp-2"
+},
+{
+"float": "0x1.b114567a75bb9p-1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.bfddae46ff76cp-2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.e8b136af13e47p-2"
+},
+{
+"float": "0x1.64550d8e6fe1cp+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b5e4044e1b5e4p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "cluster_percentile",
+"interval_status": "too_many_invalid_resamples",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 10,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.4fa4fa4fa4fa5p+0"
+},
+"status": "ok",
+"valid_resamples": 20
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.1cc822b861bc5p+1"
+},
+{
+"float": "0x1.debad3e7c2245p+2"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0d867f8bf0489p+2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+},
+"tp": {
+"band": {
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.dbbb1fde83790p-2"
+},
+{
+"float": "0x1.960e06b64139ep+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.bce59fce59fcep-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.42d9c4e21f965p-1"
+},
+{
+"float": "0x1.1437c973e9af6p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.269cae16c3f63p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.db3b58ad75488p-1"
+},
+{
+"float": "0x1.9065abecc296dp+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.be20a5edf28e8p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.95a51e686a261p-2"
+},
+{
+"float": "0x1.bf4df80ed0607p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.c4ec4ec4ec4ecp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.bdcec8e6bb8a6p-3"
+},
+{
+"float": "0x1.14317232aa742p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.3abe601463649p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.412c113a981c6p+0"
+},
+{
+"float": "0x1.6214114114111p+2"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.134acc60ebfbdp+1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.0307c3f8cf376p-1"
+},
+{
+"float": "0x1.1d4d7e3705ab7p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.ecd8efb11d33fp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "cluster_percentile",
+"interval_status": "too_many_invalid_resamples",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 10,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b00e5f36cb00ep+0"
+},
+"status": "ok",
+"valid_resamples": 20
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "cluster_percentile",
+"interval_status": "degenerate_distribution",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x0.0p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+}
+},
+"support": {
+"fn": {
+"band": {
+"a": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-1"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"b": {
+"n": 7,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-6"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"region": {
+"east": {
+"n": 6,
+"pct_group": {
+"float": "0x1.3333333333333p-2"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-6"
+}
+},
+"north": {
+"n": 8,
+"pct_group": {
+"float": "0x1.999999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-5"
+}
+},
+"south": {
+"n": 6,
+"pct_group": {
+"float": "0x1.3333333333333p-2"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-6"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"band": {
+"a": {
+"n": 19,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.4444444444444p-4"
+}
+},
+"b": {
+"n": 19,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.4444444444444p-4"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"region": {
+"east": {
+"n": 11,
+"pct_group": {
+"float": "0x1.41d41d41d41d4p-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"north": {
+"n": 15,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.0000000000000p-4"
+}
+},
+"south": {
+"n": 9,
+"pct_group": {
+"float": "0x1.0750750750750p-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+}
+},
+"tn": {
+"band": {
+"a": {
+"n": 48,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-3"
+}
+},
+"b": {
+"n": 48,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-3"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"region": {
+"east": {
+"n": 26,
+"pct_group": {
+"float": "0x1.2b2564ac9592bp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-4"
+}
+},
+"north": {
+"n": 29,
+"pct_group": {
+"float": "0x1.4da9b536a6d4ep-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"south": {
+"n": 34,
+"pct_group": {
+"float": "0x1.8730e61cc3987p-2"
+},
+"pct_overall": {
+"float": "0x1.2222222222222p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+}
+},
+"tp": {
+"band": {
+"a": {
+"n": 31,
+"pct_group": {
+"float": "0x1.f000000000000p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"b": {
+"n": 33,
+"pct_group": {
+"float": "0x1.0800000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.199999999999ap-3"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"region": {
+"east": {
+"n": 23,
+"pct_group": {
+"float": "0x1.b425ed097b426p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"north": {
+"n": 18,
+"pct_group": {
+"float": "0x1.5555555555555p-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-4"
+}
+},
+"south": {
+"n": 13,
+"pct_group": {
+"float": "0x1.ed097b425ed09p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+}
+},
+"evaluate_errors_missing/exclude/iid_bootstrap": {
+"groups": {
+"fn": {
+"band": {
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.56c05deca42b7p-1"
+},
+{
+"float": "0x1.b229629629623p+2"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.e52196047a670p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.3e410122b34a1p-3"
+},
+{
+"float": "0x1.7ebf7187ca92ep+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0e2dafa7c7494p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.84d402f89f5e1p-3"
+},
+{
+"float": "0x1.c7230c9a70410p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.af8af8af8af8bp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.191bf2c1ddf83p-1"
+},
+{
+"float": "0x1.99a76e3f092cep+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.3f4fd3f4fd3f5p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.38f7fd36aed8cp-2"
+},
+{
+"float": "0x1.1cae15eb59875p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.de0a72f053978p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.503668b7d6499p+0"
+},
+{
+"float": "0x1.65a5174b16710p+3"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.e947ae147ae14p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.dff8bf143b93bp-2"
+},
+{
+"float": "0x1.51da1a6955d50p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.aa5a5a5a5a5a6p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x0.0p+0"
+},
+{
+"float": "0x1.c28c563e57806p-1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.3680d3680d368p-2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "iid_percentile",
+"interval_status": "degenerate_distribution",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x0.0p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+},
+"fp": {
+"band": {
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.1eb4dce90d47ep-1"
+},
+{
+"float": "0x1.22b78e58a6125p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.e9bd37a6f4deap-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.011a69236dc08p-1"
+},
+{
+"float": "0x1.cc4a423ff8f46p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0ba2e8ba2e8bap+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.7f11b9eb63598p-2"
+},
+{
+"float": "0x1.e9f34ea1a9ae5p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.ccccccccccccdp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.d993c464f19a8p-2"
+},
+{
+"float": "0x1.6d3a06d3a06d2p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.7904a7904a790p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.10a09f5f4b4a1p-2"
+},
+{
+"float": "0x1.6b7396a36a595p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.6fd662d5457b0p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.fe64bea2732adp-2"
+},
+{
+"float": "0x1.593fa97b9ddebp+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b864407292cc1p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.1f51f1512c377p-1"
+},
+{
+"float": "0x1.1d7f76ece61c0p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.05ed097b425edp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x0.0p+0"
+},
+{
+"float": "0x1.c76faa2dd6107p-1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.31674c59d3167p-2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.bfa17e8d629b9p-1"
+},
+{
+"float": "0x1.083796ac9dfd1p+2"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.1e49aa28ca1f1p+1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+},
+"tn": {
+"band": {
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.f0a5fdc9a661fp-2"
+},
+{
+"float": "0x1.7e50c2ce2cdccp+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.df7df7df7df7ep-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.56ef0b953c43dp-1"
+},
+{
+"float": "0x1.080e4254b7348p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.115b1e5f75271p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.911ba2c010a57p-2"
+},
+{
+"float": "0x1.59ade63a30176p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.6c7ec7ec7ec7fp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.d7fe64cb31981p-2"
+},
+{
+"float": "0x1.396d7cc31074cp+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.9a6eb9a6eb9a7p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.0a720b4d3a646p+0"
+},
+{
+"float": "0x1.85d04008d5148p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.c9cecb785a6e6p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.d6f9e5ba49065p-3"
+},
+{
+"float": "0x1.431af05c670c0p-1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.bfddae46ff76cp-2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.df83b5245ea1cp-2"
+},
+{
+"float": "0x1.7bdd8c1eb9322p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b5e4044e1b5e4p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.43aa0682187fap-1"
+},
+{
+"float": "0x1.693743cc06fc8p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.4fa4fa4fa4fa5p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.334871be8d472p+1"
+},
+{
+"float": "0x1.61d474a579f03p+3"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0d867f8bf0489p+2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+},
+"tp": {
+"band": {
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.115c355ac184ep-1"
+},
+{
+"float": "0x1.cb22d39e62786p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.bce59fce59fcep-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.1d7e2a4c43abep-1"
+},
+{
+"float": "0x1.dfd34dbd0af4ap+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.269cae16c3f63p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.a21d70b48b215p-1"
+},
+{
+"float": "0x1.610b140c3d7efp+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.be20a5edf28e8p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.b619bd3ad0fb4p-2"
+},
+{
+"float": "0x1.a50a241cb118ep+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.c4ec4ec4ec4ecp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.05813ca245c08p-2"
+},
+{
+"float": "0x1.8f54caa1ff74fp+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.3abe601463649p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.222cd5f575568p+0"
+},
+{
+"float": "0x1.c1080a5c91d3ep+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.134acc60ebfbdp+1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.f3d0eec3d00c7p-2"
+},
+{
+"float": "0x1.e4d2b73a148b5p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.ecd8efb11d33fp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.f4638e38e38e4p-1"
+},
+{
+"float": "0x1.a51511b02163cp+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b00e5f36cb00ep+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "iid_percentile",
+"interval_status": "degenerate_distribution",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x0.0p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+}
+},
+"support": {
+"fn": {
+"band": {
+"a": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-1"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"b": {
+"n": 7,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-6"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"region": {
+"east": {
+"n": 6,
+"pct_group": {
+"float": "0x1.3333333333333p-2"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-6"
+}
+},
+"north": {
+"n": 8,
+"pct_group": {
+"float": "0x1.999999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-5"
+}
+},
+"south": {
+"n": 6,
+"pct_group": {
+"float": "0x1.3333333333333p-2"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-6"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"band": {
+"a": {
+"n": 19,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.4444444444444p-4"
+}
+},
+"b": {
+"n": 19,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.4444444444444p-4"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"region": {
+"east": {
+"n": 11,
+"pct_group": {
+"float": "0x1.41d41d41d41d4p-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"north": {
+"n": 15,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.0000000000000p-4"
+}
+},
+"south": {
+"n": 9,
+"pct_group": {
+"float": "0x1.0750750750750p-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+}
+},
+"tn": {
+"band": {
+"a": {
+"n": 48,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-3"
+}
+},
+"b": {
+"n": 48,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-3"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"region": {
+"east": {
+"n": 26,
+"pct_group": {
+"float": "0x1.2b2564ac9592bp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-4"
+}
+},
+"north": {
+"n": 29,
+"pct_group": {
+"float": "0x1.4da9b536a6d4ep-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"south": {
+"n": 34,
+"pct_group": {
+"float": "0x1.8730e61cc3987p-2"
+},
+"pct_overall": {
+"float": "0x1.2222222222222p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+}
+},
+"tp": {
+"band": {
+"a": {
+"n": 31,
+"pct_group": {
+"float": "0x1.f000000000000p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"b": {
+"n": 33,
+"pct_group": {
+"float": "0x1.0800000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.199999999999ap-3"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"region": {
+"east": {
+"n": 23,
+"pct_group": {
+"float": "0x1.b425ed097b426p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"north": {
+"n": 18,
+"pct_group": {
+"float": "0x1.5555555555555p-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-4"
+}
+},
+"south": {
+"n": 13,
+"pct_group": {
+"float": "0x1.ed097b425ed09p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+}
+},
+"evaluate_errors_missing/include/cluster": {
+"groups": {
+"fn": {
+"band": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x0.0p+0"
+},
+{
+"float": "0x1.54469a57b2d3bp+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.e2be2be2be2bep-2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 22,
+"n_neg": 12,
+"n_pos": 10,
+"n_pred_neg": 11,
+"n_pred_pos": 11
+}
+},
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.913d7a3e0a472p-1"
+},
+{
+"float": "0x1.13ed524df9a29p+2"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.00d0fac687d63p+1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.27e1368387d7ep-2"
+},
+{
+"float": "0x1.99dac37dac378p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.30a3d70a3d70ap-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x0.0p+0"
+},
+{
+"float": "0x1.f72fca0de0a97p-1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.bc90dbc90dbc9p-3"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 42,
+"n_neg": 22,
+"n_pos": 20,
+"n_pred_neg": 18,
+"n_pred_pos": 24
+}
+},
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.04fb2e2768a48p-2"
+},
+{
+"float": "0x1.6fbbe3fdc5330p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0f5c28f5c28f6p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.4c734437d4268p-1"
+},
+{
+"float": "0x1.4ad03df4d03ddp+2"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.8eed94028a7b4p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.5e58bf258bf26p-2"
+},
+{
+"float": "0x1.3d8bfce3f2634p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.2a0ea0ea0ea0fp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.c4567b5264465p-1"
+},
+{
+"float": "0x1.3bec352f8c52ep+2"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.e947ae147ae14p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.266ce4c6ce4c8p-1"
+},
+{
+"float": "0x1.a772cb6d05f6bp+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.aa5a5a5a5a5a6p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "cluster_percentile",
+"interval_status": "too_many_invalid_resamples",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 10,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.3680d3680d368p-2"
+},
+"status": "ok",
+"valid_resamples": 20
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "cluster_percentile",
+"interval_status": "degenerate_distribution",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x0.0p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+},
+"fp": {
+"band": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x0.0p+0"
+},
+{
+"float": "0x1.8220edba8753ap+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.e50d79435e50dp-2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 22,
+"n_neg": 12,
+"n_pos": 10,
+"n_pred_neg": 11,
+"n_pred_pos": 11
+}
+},
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.68696dd05a653p-1"
+},
+{
+"float": "0x1.cf87cef979f88p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0fe68f1b07f34p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.0b91aaf076c83p-1"
+},
+{
+"float": "0x1.02bf78c459125p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.26c9b26c9b26dp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.badad485417e4p-3"
+},
+{
+"float": "0x1.7b4004754ea55p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.42395403f4239p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 42,
+"n_neg": 22,
+"n_pos": 20,
+"n_pred_neg": 18,
+"n_pred_pos": 24
+}
+},
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.5e57236cd318ap-1"
+},
+{
+"float": "0x1.c0f0726a8a0bfp+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0000000000000p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.87c44d1c65fc5p-1"
+},
+{
+"float": "0x1.59253225cd91ap+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.94f2094f2094fp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.762d66a2ada6ep-2"
+},
+{
+"float": "0x1.0170b9d68d958p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.9c47ac7c06db1p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.9df99b04ea2f2p-2"
+},
+{
+"float": "0x1.66fbece6a0e73p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b864407292cc1p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.b4566a2daac97p-2"
+},
+{
+"float": "0x1.f42d79a8e24cap+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.05ed097b425edp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "cluster_percentile",
+"interval_status": "too_many_invalid_resamples",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 10,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.31674c59d3167p-2"
+},
+"status": "ok",
+"valid_resamples": 20
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.44ac354ac354bp+0"
+},
+{
+"float": "0x1.04a2222222221p+2"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.1e49aa28ca1f1p+1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+},
+"tn": {
+"band": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.b7b1d2e1c49aep-2"
+},
+{
+"float": "0x1.878f71d12e3aap+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0f1c71c71c71cp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 22,
+"n_neg": 12,
+"n_pos": 10,
+"n_pred_neg": 11,
+"n_pred_pos": 11
+}
+},
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.279b0c12136f6p-1"
+},
+{
+"float": "0x1.b5b6b7b008da6p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.dd87c6d4b3ea2p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.2bf3dcf516bf4p-1"
+},
+{
+"float": "0x1.d3f8b8fabc376p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0d50f1c93d31dp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.0042bfe7ba377p-1"
+},
+{
+"float": "0x1.b871f2e949872p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.aa65f0951ce11p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 42,
+"n_neg": 22,
+"n_pos": 20,
+"n_pred_neg": 18,
+"n_pred_pos": 24
+}
+},
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.ea4f40cb49b4bp-2"
+},
+{
+"float": "0x1.47f817dec2fafp+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.870a3d70a3d71p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.9a220072a8fa0p-2"
+},
+{
+"float": "0x1.feb14c5c73dbbp+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b565c47aee90dp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.20b66ee82f35fp+0"
+},
+{
+"float": "0x1.7fa27da72762fp+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.c9a69a69a69a7p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.036ba52d9aa8cp-2"
+},
+{
+"float": "0x1.b114567a75bb9p-1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.bfddae46ff76cp-2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.e8b136af13e47p-2"
+},
+{
+"float": "0x1.64550d8e6fe1cp+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b5e4044e1b5e4p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "cluster_percentile",
+"interval_status": "too_many_invalid_resamples",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 10,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.4fa4fa4fa4fa5p+0"
+},
+"status": "ok",
+"valid_resamples": 20
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.1cc822b861bc5p+1"
+},
+{
+"float": "0x1.debad3e7c2245p+2"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0d867f8bf0489p+2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+},
+"tp": {
+"band": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.32549202a67dap-1"
+},
+{
+"float": "0x1.b7de3190b4ff7p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.aa76276276276p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 22,
+"n_neg": 12,
+"n_pos": 10,
+"n_pred_neg": 11,
+"n_pred_pos": 11
+}
+},
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.e37c0f372afbap-2"
+},
+{
+"float": "0x1.52d6b2b5d6f56p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.9af8af8af8af9p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.0455482570812p-1"
+},
+{
+"float": "0x1.d5fac730dd222p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.096d51a4ab96dp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.b91130b2aaca6p-1"
+},
+{
+"float": "0x1.fb547da170ce2p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.19f89467e251ap+1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 42,
+"n_neg": 22,
+"n_pos": 20,
+"n_pred_neg": 18,
+"n_pred_pos": 24
+}
+},
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.3a81a45d2799cp-1"
+},
+{
+"float": "0x1.59e0ea0ea0ea0p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.5396441b9fcabp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.a70f953d8cf34p-2"
+},
+{
+"float": "0x1.38b934049e619p+0"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.7292cc157b864p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.2c85b5b5939d6p-2"
+},
+{
+"float": "0x1.9f5957f043bf0p-1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0b25449d6e693p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.412c113a981c6p+0"
+},
+{
+"float": "0x1.6214114114111p+2"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.134acc60ebfbdp+1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.0307c3f8cf376p-1"
+},
+{
+"float": "0x1.1d4d7e3705ab7p+1"
+}
+],
+"interval_method": "cluster_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.ecd8efb11d33fp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "cluster_percentile",
+"interval_status": "too_many_invalid_resamples",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 10,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b00e5f36cb00ep+0"
+},
+"status": "ok",
+"valid_resamples": 20
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "cluster_percentile",
+"interval_status": "degenerate_distribution",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x0.0p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+}
+},
+"support": {
+"fn": {
+"band": {
+"(Missing)": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"a": {
+"n": 13,
+"pct_group": {
+"float": "0x1.3cf3cf3cf3cf4p-1"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"b": {
+"n": 7,
+"pct_group": {
+"float": "0x1.5555555555555p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-6"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"region": {
+"(Missing)": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"east": {
+"n": 6,
+"pct_group": {
+"float": "0x1.2492492492492p-2"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-6"
+}
+},
+"north": {
+"n": 8,
+"pct_group": {
+"float": "0x1.8618618618618p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-5"
+}
+},
+"south": {
+"n": 6,
+"pct_group": {
+"float": "0x1.2492492492492p-2"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-6"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"band": {
+"(Missing)": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"a": {
+"n": 19,
+"pct_group": {
+"float": "0x1.e666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.4444444444444p-4"
+}
+},
+"b": {
+"n": 19,
+"pct_group": {
+"float": "0x1.e666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.4444444444444p-4"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"region": {
+"(Missing)": {
+"n": 5,
+"pct_group": {
+"float": "0x1.0000000000000p-3"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-6"
+}
+},
+"east": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"north": {
+"n": 15,
+"pct_group": {
+"float": "0x1.8000000000000p-2"
+},
+"pct_overall": {
+"float": "0x1.0000000000000p-4"
+}
+},
+"south": {
+"n": 9,
+"pct_group": {
+"float": "0x1.ccccccccccccdp-3"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+}
+},
+"tn": {
+"band": {
+"(Missing)": {
+"n": 10,
+"pct_group": {
+"float": "0x1.826a439f656f2p-4"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-5"
+}
+},
+"a": {
+"n": 48,
+"pct_group": {
+"float": "0x1.cfb2b78c13522p-2"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-3"
+}
+},
+"b": {
+"n": 48,
+"pct_group": {
+"float": "0x1.cfb2b78c13522p-2"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-3"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"region": {
+"(Missing)": {
+"n": 17,
+"pct_group": {
+"float": "0x1.4873ecade304dp-3"
+},
+"pct_overall": {
+"float": "0x1.2222222222222p-4"
+}
+},
+"east": {
+"n": 26,
+"pct_group": {
+"float": "0x1.f656f1826a43ap-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-4"
+}
+},
+"north": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"south": {
+"n": 34,
+"pct_group": {
+"float": "0x1.4873ecade304dp-2"
+},
+"pct_overall": {
+"float": "0x1.2222222222222p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+}
+},
+"tp": {
+"band": {
+"(Missing)": {
+"n": 9,
+"pct_group": {
+"float": "0x1.f8fc7e3f1f8fcp-4"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"a": {
+"n": 31,
+"pct_group": {
+"float": "0x1.b2d96cb65b2d9p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"b": {
+"n": 33,
+"pct_group": {
+"float": "0x1.cee773b9dcee7p-2"
+},
+"pct_overall": {
+"float": "0x1.199999999999ap-3"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"region": {
+"(Missing)": {
+"n": 19,
+"pct_group": {
+"float": "0x1.0a8542a150a85p-2"
+},
+"pct_overall": {
+"float": "0x1.4444444444444p-4"
+}
+},
+"east": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"north": {
+"n": 18,
+"pct_group": {
+"float": "0x1.f8fc7e3f1f8fcp-3"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-4"
+}
+},
+"south": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+}
+},
+"evaluate_errors_missing/include/iid_bootstrap": {
+"groups": {
+"fn": {
+"band": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x0.0p+0"
+},
+{
+"float": "0x1.1b3257bcf4ca1p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.e2be2be2be2bep-2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 22,
+"n_neg": 12,
+"n_pos": 10,
+"n_pred_neg": 11,
+"n_pred_pos": 11
+}
+},
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.df9d94628e49fp-1"
+},
+{
+"float": "0x1.9ac210be37f19p+2"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.00d0fac687d63p+1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.a2aa22258bdc9p-3"
+},
+{
+"float": "0x1.54aedfa2aedfap+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.30a3d70a3d70ap-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x0.0p+0"
+},
+{
+"float": "0x1.c5b97530eca84p-1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.bc90dbc90dbc9p-3"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 42,
+"n_neg": 22,
+"n_pos": 20,
+"n_pred_neg": 18,
+"n_pred_pos": 24
+}
+},
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.80f2b9d6480f8p-3"
+},
+{
+"float": "0x1.0469c2c522149p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0f5c28f5c28f6p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.f4842c7e7cca7p-2"
+},
+{
+"float": "0x1.323ba67050210p+2"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.8eed94028a7b4p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.3f5757575757bp-2"
+},
+{
+"float": "0x1.4c21cbc5cada3p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.2a0ea0ea0ea0fp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.503668b7d6499p+0"
+},
+{
+"float": "0x1.65a5174b16710p+3"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.e947ae147ae14p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.dff8bf143b93bp-2"
+},
+{
+"float": "0x1.51da1a6955d50p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.aa5a5a5a5a5a6p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x0.0p+0"
+},
+{
+"float": "0x1.c28c563e57806p-1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.3680d3680d368p-2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "iid_percentile",
+"interval_status": "degenerate_distribution",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x0.0p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+},
+"fp": {
+"band": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x0.0p+0"
+},
+{
+"float": "0x1.47716eca4a1fcp+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.e50d79435e50dp-2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 22,
+"n_neg": 12,
+"n_pos": 10,
+"n_pred_neg": 11,
+"n_pred_pos": 11
+}
+},
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.3c18962caca28p-1"
+},
+{
+"float": "0x1.5b0bda65308c1p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0fe68f1b07f34p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.0be859fbd9750p-1"
+},
+{
+"float": "0x1.29ab379ab379bp+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.26c9b26c9b26dp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.7d26f4e3e7744p-3"
+},
+{
+"float": "0x1.4c88ce9f09745p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.42395403f4239p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 42,
+"n_neg": 22,
+"n_pos": 20,
+"n_pred_neg": 18,
+"n_pred_pos": 24
+}
+},
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.a12c17b5ebae1p-2"
+},
+{
+"float": "0x1.22b173bf391a8p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0000000000000p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.c1dfb9b30ec40p-1"
+},
+{
+"float": "0x1.72caa4850bce6p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.94f2094f2094fp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.a308bc47ae0d9p-2"
+},
+{
+"float": "0x1.9d08bdd08bdd0p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.9c47ac7c06db1p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.fe64bea2732adp-2"
+},
+{
+"float": "0x1.593fa97b9ddebp+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b864407292cc1p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.1f51f1512c377p-1"
+},
+{
+"float": "0x1.1d7f76ece61c0p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.05ed097b425edp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x0.0p+0"
+},
+{
+"float": "0x1.c76faa2dd6107p-1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.31674c59d3167p-2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.bfa17e8d629b9p-1"
+},
+{
+"float": "0x1.083796ac9dfd1p+2"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.1e49aa28ca1f1p+1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+},
+"tn": {
+"band": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.0d872a2661098p-1"
+},
+{
+"float": "0x1.0086e3b240b6dp+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0f1c71c71c71cp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 22,
+"n_neg": 12,
+"n_pos": 10,
+"n_pred_neg": 11,
+"n_pred_pos": 11
+}
+},
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.2b6a0083d7e8cp-1"
+},
+{
+"float": "0x1.4e85fd22e3f33p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.dd87c6d4b3ea2p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.682caabe3a41dp-1"
+},
+{
+"float": "0x1.db573b966bf77p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0d50f1c93d31dp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.dad2c47218960p-2"
+},
+{
+"float": "0x1.97c369869b50cp+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.aa65f0951ce11p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 42,
+"n_neg": 22,
+"n_pos": 20,
+"n_pred_neg": 18,
+"n_pred_pos": 24
+}
+},
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.e51b70dc18d88p-2"
+},
+{
+"float": "0x1.4b40cfce80b3fp+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.870a3d70a3d71p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.0c7dc0e088c72p-1"
+},
+{
+"float": "0x1.887a6da0d4073p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b565c47aee90dp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.a1b2a228d3d7ep-1"
+},
+{
+"float": "0x1.5fd66dd4d6d98p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.c9a69a69a69a7p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.d6f9e5ba49065p-3"
+},
+{
+"float": "0x1.431af05c670c0p-1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.bfddae46ff76cp-2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.df83b5245ea1cp-2"
+},
+{
+"float": "0x1.7bdd8c1eb9322p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b5e4044e1b5e4p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.43aa0682187fap-1"
+},
+{
+"float": "0x1.693743cc06fc8p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.4fa4fa4fa4fa5p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.334871be8d472p+1"
+},
+{
+"float": "0x1.61d474a579f03p+3"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0d867f8bf0489p+2"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+},
+"tp": {
+"band": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.6fbad2407643fp-1"
+},
+{
+"float": "0x1.a74e46770fcb3p+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.aa76276276276p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 22,
+"n_neg": 12,
+"n_pos": 10,
+"n_pred_neg": 11,
+"n_pred_pos": 11
+}
+},
+"a": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.2aed5205a2748p-1"
+},
+{
+"float": "0x1.2c3dec937b499p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.9af8af8af8af9p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 111,
+"n_neg": 67,
+"n_pos": 44,
+"n_pred_neg": 61,
+"n_pred_pos": 50
+}
+},
+"b": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.2ce0c3a2afd97p-1"
+},
+{
+"float": "0x1.8a821a03821a0p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.096d51a4ab96dp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 107,
+"n_neg": 67,
+"n_pos": 40,
+"n_pred_neg": 55,
+"n_pred_pos": 52
+}
+},
+"c": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 0,
+"n_neg": 0,
+"n_pos": 0,
+"n_pred_neg": 0,
+"n_pred_pos": 0
+}
+}
+},
+"overall": {
+"Overall": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": null,
+"interval_status": "undefined_estimate",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 0,
+"score": {
+"float": "nan"
+},
+"status": "undefined",
+"valid_resamples": 0
+}
+},
+"support": {
+"n": 240,
+"n_neg": 146,
+"n_pos": 94,
+"n_pred_neg": 127,
+"n_pred_pos": 113
+}
+}
+},
+"region": {
+"(Missing)": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.18e50d09227dbp+0"
+},
+{
+"float": "0x1.19962eb16a9bap+2"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.19f89467e251ap+1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 42,
+"n_neg": 22,
+"n_pos": 20,
+"n_pred_neg": 18,
+"n_pred_pos": 24
+}
+},
+"east": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.bd56638040b1ap-1"
+},
+{
+"float": "0x1.46c7f90c84b6ep+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.5396441b9fcabp+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 66,
+"n_neg": 37,
+"n_pos": 29,
+"n_pred_neg": 32,
+"n_pred_pos": 34
+}
+},
+"north": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.523a170a5ba9fp-2"
+},
+{
+"float": "0x1.1a67bf9ace0e9p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.7292cc157b864p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 70,
+"n_neg": 44,
+"n_pos": 26,
+"n_pred_neg": 37,
+"n_pred_pos": 33
+}
+},
+"south": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.4912763bfad40p-2"
+},
+{
+"float": "0x1.e43b990ee643bp-1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.0b25449d6e693p-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 62,
+"n_neg": 43,
+"n_pos": 19,
+"n_pred_neg": 40,
+"n_pred_pos": 22
+}
+}
+},
+"site": {
+"s1": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.222cd5f575568p+0"
+},
+{
+"float": "0x1.c1080a5c91d3ep+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.134acc60ebfbdp+1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 91,
+"n_neg": 43,
+"n_pos": 48,
+"n_pred_neg": 40,
+"n_pred_pos": 51
+}
+},
+"s2": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.f3d0eec3d00c7p-2"
+},
+{
+"float": "0x1.e4d2b73a148b5p+0"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.ecd8efb11d33fp-1"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 77,
+"n_neg": 45,
+"n_pos": 32,
+"n_pred_neg": 41,
+"n_pred_pos": 36
+}
+},
+"s3": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": [
+{
+"float": "0x1.f4638e38e38e4p-1"
+},
+{
+"float": "0x1.a51511b02163cp+1"
+}
+],
+"interval_method": "iid_percentile",
+"interval_status": "ok",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x1.b00e5f36cb00ep+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 32,
+"n_neg": 18,
+"n_pos": 14,
+"n_pred_neg": 17,
+"n_pred_pos": 15
+}
+},
+"s4": {
+"metrics": {
+"odds_ratio": {
+"denominator": null,
+"direction": "none",
+"hypothesis": null,
+"interval": null,
+"interval_method": "iid_percentile",
+"interval_status": "degenerate_distribution",
+"label": "Odds Ratio",
+"name": "odds_ratio",
+"nonfinite_resamples": 0,
+"parameters": {},
+"requested_resamples": 30,
+"score": {
+"float": "0x0.0p+0"
+},
+"status": "ok",
+"valid_resamples": 30
+}
+},
+"support": {
+"n": 40,
+"n_neg": 40,
+"n_pos": 0,
+"n_pred_neg": 29,
+"n_pred_pos": 11
+}
+}
+}
+}
+},
+"support": {
+"fn": {
+"band": {
+"(Missing)": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"a": {
+"n": 13,
+"pct_group": {
+"float": "0x1.3cf3cf3cf3cf4p-1"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"b": {
+"n": 7,
+"pct_group": {
+"float": "0x1.5555555555555p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-6"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"region": {
+"(Missing)": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"east": {
+"n": 6,
+"pct_group": {
+"float": "0x1.2492492492492p-2"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-6"
+}
+},
+"north": {
+"n": 8,
+"pct_group": {
+"float": "0x1.8618618618618p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-5"
+}
+},
+"south": {
+"n": 6,
+"pct_group": {
+"float": "0x1.2492492492492p-2"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-6"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"band": {
+"(Missing)": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"a": {
+"n": 19,
+"pct_group": {
+"float": "0x1.e666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.4444444444444p-4"
+}
+},
+"b": {
+"n": 19,
+"pct_group": {
+"float": "0x1.e666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.4444444444444p-4"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"region": {
+"(Missing)": {
+"n": 5,
+"pct_group": {
+"float": "0x1.0000000000000p-3"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-6"
+}
+},
+"east": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"north": {
+"n": 15,
+"pct_group": {
+"float": "0x1.8000000000000p-2"
+},
+"pct_overall": {
+"float": "0x1.0000000000000p-4"
+}
+},
+"south": {
+"n": 9,
+"pct_group": {
+"float": "0x1.ccccccccccccdp-3"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+}
+},
+"tn": {
+"band": {
+"(Missing)": {
+"n": 10,
+"pct_group": {
+"float": "0x1.826a439f656f2p-4"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-5"
+}
+},
+"a": {
+"n": 48,
+"pct_group": {
+"float": "0x1.cfb2b78c13522p-2"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-3"
+}
+},
+"b": {
+"n": 48,
+"pct_group": {
+"float": "0x1.cfb2b78c13522p-2"
+},
+"pct_overall": {
+"float": "0x1.999999999999ap-3"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"region": {
+"(Missing)": {
+"n": 17,
+"pct_group": {
+"float": "0x1.4873ecade304dp-3"
+},
+"pct_overall": {
+"float": "0x1.2222222222222p-4"
+}
+},
+"east": {
+"n": 26,
+"pct_group": {
+"float": "0x1.f656f1826a43ap-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-4"
+}
+},
+"north": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"south": {
+"n": 34,
+"pct_group": {
+"float": "0x1.4873ecade304dp-2"
+},
+"pct_overall": {
+"float": "0x1.2222222222222p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+}
+},
+"tp": {
+"band": {
+"(Missing)": {
+"n": 9,
+"pct_group": {
+"float": "0x1.f8fc7e3f1f8fcp-4"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"a": {
+"n": 31,
+"pct_group": {
+"float": "0x1.b2d96cb65b2d9p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"b": {
+"n": 33,
+"pct_group": {
+"float": "0x1.cee773b9dcee7p-2"
+},
+"pct_overall": {
+"float": "0x1.199999999999ap-3"
+}
+},
+"c": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"region": {
+"(Missing)": {
+"n": 19,
+"pct_group": {
+"float": "0x1.0a8542a150a85p-2"
+},
+"pct_overall": {
+"float": "0x1.4444444444444p-4"
+}
+},
+"east": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"north": {
+"n": 18,
+"pct_group": {
+"float": "0x1.f8fc7e3f1f8fcp-3"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-4"
+}
+},
+"south": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+}
+},
+"evaluate_errors_support/cluster": {
+"fn": {
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"low": {
+"n": 10,
+"pct_group": {
+"float": "0x1.e79e79e79e79ep-2"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-5"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+},
+"tier": {
+"high": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"low": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tn": {
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+},
+"tier": {
+"high": {
+"n": 63,
+"pct_group": {
+"float": "0x1.304d4873ecadep-1"
+},
+"pct_overall": {
+"float": "0x1.0cccccccccccdp-2"
+}
+},
+"low": {
+"n": 43,
+"pct_group": {
+"float": "0x1.9f656f1826a44p-2"
+},
+"pct_overall": {
+"float": "0x1.6eeeeeeeeeeefp-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tp": {
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 42,
+"pct_group": {
+"float": "0x1.269349a4d2693p-1"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-3"
+}
+},
+"low": {
+"n": 31,
+"pct_group": {
+"float": "0x1.b2d96cb65b2d9p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+},
+"evaluate_errors_support/cluster_str": {
+"fn": {
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"low": {
+"n": 10,
+"pct_group": {
+"float": "0x1.e79e79e79e79ep-2"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-5"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+},
+"tier": {
+"high": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"low": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tn": {
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+},
+"tier": {
+"high": {
+"n": 63,
+"pct_group": {
+"float": "0x1.304d4873ecadep-1"
+},
+"pct_overall": {
+"float": "0x1.0cccccccccccdp-2"
+}
+},
+"low": {
+"n": 43,
+"pct_group": {
+"float": "0x1.9f656f1826a44p-2"
+},
+"pct_overall": {
+"float": "0x1.6eeeeeeeeeeefp-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tp": {
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 42,
+"pct_group": {
+"float": "0x1.269349a4d2693p-1"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-3"
+}
+},
+"low": {
+"n": 31,
+"pct_group": {
+"float": "0x1.b2d96cb65b2d9p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+},
+"evaluate_errors_support/iid": {
+"fn": {
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"low": {
+"n": 10,
+"pct_group": {
+"float": "0x1.e79e79e79e79ep-2"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-5"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+},
+"tier": {
+"high": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"low": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tn": {
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+},
+"tier": {
+"high": {
+"n": 63,
+"pct_group": {
+"float": "0x1.304d4873ecadep-1"
+},
+"pct_overall": {
+"float": "0x1.0cccccccccccdp-2"
+}
+},
+"low": {
+"n": 43,
+"pct_group": {
+"float": "0x1.9f656f1826a44p-2"
+},
+"pct_overall": {
+"float": "0x1.6eeeeeeeeeeefp-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tp": {
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 42,
+"pct_group": {
+"float": "0x1.269349a4d2693p-1"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-3"
+}
+},
+"low": {
+"n": 31,
+"pct_group": {
+"float": "0x1.b2d96cb65b2d9p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+},
+"evaluate_errors_support/iid_bootstrap": {
+"fn": {
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"low": {
+"n": 10,
+"pct_group": {
+"float": "0x1.e79e79e79e79ep-2"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-5"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+},
+"tier": {
+"high": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"low": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tn": {
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+},
+"tier": {
+"high": {
+"n": 63,
+"pct_group": {
+"float": "0x1.304d4873ecadep-1"
+},
+"pct_overall": {
+"float": "0x1.0cccccccccccdp-2"
+}
+},
+"low": {
+"n": 43,
+"pct_group": {
+"float": "0x1.9f656f1826a44p-2"
+},
+"pct_overall": {
+"float": "0x1.6eeeeeeeeeeefp-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tp": {
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 42,
+"pct_group": {
+"float": "0x1.269349a4d2693p-1"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-3"
+}
+},
+"low": {
+"n": 31,
+"pct_group": {
+"float": "0x1.b2d96cb65b2d9p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+},
+"evaluate_errors_support/stratified": {
+"fn": {
+"overall": {
+"Overall": {
+"n": 21,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-4"
+}
+}
+},
+"site": {
+"s1": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"s2": {
+"n": 9,
+"pct_group": {
+"float": "0x1.b6db6db6db6dbp-2"
+},
+"pct_overall": {
+"float": "0x1.3333333333333p-5"
+}
+},
+"s3": {
+"n": 1,
+"pct_group": {
+"float": "0x1.8618618618618p-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-8"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 11,
+"pct_group": {
+"float": "0x1.0c30c30c30c31p-1"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+},
+"low": {
+"n": 10,
+"pct_group": {
+"float": "0x1.e79e79e79e79ep-2"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-5"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"fp": {
+"overall": {
+"Overall": {
+"n": 40,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-3"
+}
+}
+},
+"site": {
+"s1": {
+"n": 14,
+"pct_group": {
+"float": "0x1.6666666666666p-2"
+},
+"pct_overall": {
+"float": "0x1.ddddddddddddep-5"
+}
+},
+"s2": {
+"n": 13,
+"pct_group": {
+"float": "0x1.4cccccccccccdp-2"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s3": {
+"n": 2,
+"pct_group": {
+"float": "0x1.999999999999ap-5"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-7"
+}
+},
+"s4": {
+"n": 11,
+"pct_group": {
+"float": "0x1.199999999999ap-2"
+},
+"pct_overall": {
+"float": "0x1.7777777777777p-5"
+}
+}
+},
+"tier": {
+"high": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"low": {
+"n": 20,
+"pct_group": {
+"float": "0x1.0000000000000p-1"
+},
+"pct_overall": {
+"float": "0x1.5555555555555p-4"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tn": {
+"overall": {
+"Overall": {
+"n": 106,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.c444444444444p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+},
+"s2": {
+"n": 32,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-2"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-3"
+}
+},
+"s3": {
+"n": 16,
+"pct_group": {
+"float": "0x1.3521cfb2b78c1p-3"
+},
+"pct_overall": {
+"float": "0x1.1111111111111p-4"
+}
+},
+"s4": {
+"n": 29,
+"pct_group": {
+"float": "0x1.1826a439f656fp-2"
+},
+"pct_overall": {
+"float": "0x1.eeeeeeeeeeeefp-4"
+}
+}
+},
+"tier": {
+"high": {
+"n": 63,
+"pct_group": {
+"float": "0x1.304d4873ecadep-1"
+},
+"pct_overall": {
+"float": "0x1.0cccccccccccdp-2"
+}
+},
+"low": {
+"n": 43,
+"pct_group": {
+"float": "0x1.9f656f1826a44p-2"
+},
+"pct_overall": {
+"float": "0x1.6eeeeeeeeeeefp-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+},
+"tp": {
+"overall": {
+"Overall": {
+"n": 73,
+"pct_group": {
+"float": "0x1.0000000000000p+0"
+},
+"pct_overall": {
+"float": "0x1.3777777777777p-2"
+}
+}
+},
+"site": {
+"s1": {
+"n": 37,
+"pct_group": {
+"float": "0x1.0381c0e070382p-1"
+},
+"pct_overall": {
+"float": "0x1.3bbbbbbbbbbbcp-3"
+}
+},
+"s2": {
+"n": 23,
+"pct_group": {
+"float": "0x1.42a150a8542a1p-2"
+},
+"pct_overall": {
+"float": "0x1.8888888888889p-4"
+}
+},
+"s3": {
+"n": 13,
+"pct_group": {
+"float": "0x1.6cb65b2d96cb6p-3"
+},
+"pct_overall": {
+"float": "0x1.bbbbbbbbbbbbcp-5"
+}
+},
+"s4": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+},
+"tier": {
+"high": {
+"n": 42,
+"pct_group": {
+"float": "0x1.269349a4d2693p-1"
+},
+"pct_overall": {
+"float": "0x1.6666666666666p-3"
+}
+},
+"low": {
+"n": 31,
+"pct_group": {
+"float": "0x1.b2d96cb65b2d9p-2"
+},
+"pct_overall": {
+"float": "0x1.0888888888889p-3"
+}
+},
+"mid": {
+"n": 0,
+"pct_group": {
+"float": "0x0.0p+0"
+},
+"pct_overall": {
+"float": "0x0.0p+0"
+}
+}
+}
+}
+},
 "evaluate_metrics/cluster": {
 "overall": {
 "Overall": {
