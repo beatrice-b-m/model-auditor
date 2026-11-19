@@ -958,6 +958,14 @@ class Auditor:
         n_bootstraps: Optional[int] = 1000,
         inference: Optional[InferenceConfig] = None,
         cohort: Optional[str] = None,
+        test: Optional[Literal["noninferiority", "superiority", "equivalence"]] = None,
+        test_metrics: Optional[list[str]] = None,
+        margin: Optional[float | _Mapping[str, float]] = None,
+        boundary: Optional[
+            float | tuple[float, float] | _Mapping[str, float | tuple[float, float]]
+        ] = None,
+        alpha: Optional[float] = None,
+        direction: Optional[_Mapping[str, Literal["higher", "lower"]]] = None,
     ) -> ScoreEvaluation:
         """Compare paired scores on the same rows using configured metrics.
 
@@ -977,26 +985,113 @@ class Auditor:
             inference: Optional InferenceConfig; None uses defaults. Shared resamples
                 preserve pairing/overlap. Missing features follow this configuration.
             cohort: Optional cohort identifier in provenance; default None.
+            test: None (default) runs no test and leaves outputs unchanged.
+                "noninferiority", "superiority" or "equivalence" (TOST) tests each
+                selected metric's contrast with the same shared resamples as its
+                interval; requires n_bootstraps and alpha.
+            test_metrics: Metric names to test; None (default) tests every
+                configured metric, so each must be interval-eligible and have a
+                higher/lower direction (equivalence accepts any direction).
+            margin: Positive margin on the reported contrast scale (after any
+                metric scale), or a {metric: margin} mapping. Non-inferiority
+                boundary is -margin/+margin for a difference and 1 - margin/
+                1 + margin for a ratio, by direction; equivalence uses both sides.
+                Required for non-inferiority/equivalence unless boundary is given;
+                not allowed for superiority. No default is suggested.
+            boundary: Explicit null boundary instead of margin (for example 0.9
+                for a ratio): a number for non-inferiority, a (lower, upper) pair
+                for equivalence, or a {metric: boundary} mapping. It must lie on
+                the unfavourable side of no difference (0 or 1).
+            alpha: One-sided significance level in (0, 0.5), required with test.
+                Each bound has level 1 - alpha; there is no default.
+            direction: {metric: "higher" | "lower"} overrides of the metric's
+                own direction, for example for a custom metric or a count.
 
         Returns:
             New ScoreEvaluation with original-sample metric contrasts and interval
-            diagnostics. No input data or registrations are changed.
+            diagnostics. No input data or registrations are changed. With test,
+            each tested LevelMetric has a HypothesisTestResult in hypothesis,
+            exports add test columns, and metadata["hypothesis_test"] records the
+            test, alpha, margin, boundary override, and each metric's direction and
+            null boundary.
 
         Raises:
             ValueError: Invalid contrast, no metrics, invalid data/truth/scores,
-                thresholds, bootstrap count or inference inputs.
+                thresholds, bootstrap count or inference inputs; invalid test
+                arguments, including a tested metric without a higher/lower
+                direction, a non-interval-eligible tested metric, a missing or
+                nonpositive margin, a boundary on the wrong side, or test
+                arguments without test.
 
         Notes:
-            Intervals are pointwise, without selection or multiplicity correction.
-            They condition on supplied predictions; evaluate on independent data.
+            Intervals and tests are pointwise, without selection or multiplicity
+            correction. They condition on supplied predictions; evaluate on
+            independent data. A test rejects H0 when its one-sided percentile
+            bound lies strictly on the favourable side of the boundary; the
+            p-value is an approximate resampling value that can disagree with the
+            bound near the boundary for small n_bootstraps. If the interval
+            would be unusable (undefined estimate, insufficient clusters or
+            resamples, too many invalid or degenerate draws), the decision is
+            "undefined" with that reason in decision_status. For a fixed sequence,
+            test non-inferiority, then superiority only if the first rejects.
             Includes overall and all registered features, preserving evaluation order.
-            Identical paired predictions can have a degenerate but valid interval."""
-        from model_auditor._comparisons import contrast_estimate, evaluate_contrast
+            Identical paired predictions can have a degenerate but valid interval.
+
+        Example:
+            Non-inferiority, then superiority, on the same paired contrast:
+
+            >>> import numpy as np
+            >>> import pandas as pd
+            >>> from model_auditor import Auditor, InferenceConfig
+            >>> from model_auditor.metrics import Sensitivity
+            >>> rng = np.random.default_rng(0)
+            >>> y = rng.integers(0, 2, 400)
+            >>> reference = np.where(y == 1, rng.uniform(size=400) < 0.7, 0.0)
+            >>> frame = pd.DataFrame(
+            ...     {"y": y, "ref": reference, "new": np.where(y == 1, 1.0, reference)}
+            ... )
+            >>> audit = Auditor(frame, metrics=[Sensitivity()])
+            >>> audit.add_outcome("y")
+            >>> audit.add_score("new", threshold=0.5)
+            >>> audit.add_score("ref", threshold=0.5)
+            >>> shared = dict(
+            ...     n_bootstraps=200, inference=InferenceConfig(random_state=0), alpha=0.025
+            ... )
+            >>> ni = audit.compare_scores(
+            ...     "new", "ref", test="noninferiority", margin=0.05, **shared
+            ... )
+            >>> overall = ni.features["overall"].levels["Overall"]
+            >>> overall.metrics["sensitivity"].hypothesis.decision
+            'reject_null'
+            >>> sup = audit.compare_scores("new", "ref", test="superiority", **shared)
+            >>> sup.features["overall"].levels["Overall"].metrics[
+            ...     "sensitivity"
+            ... ].hypothesis.decision
+            'reject_null'"""
+        from model_auditor._comparisons import (
+            contrast_estimate,
+            evaluate_contrast,
+            hypothesis_metadata,
+            resolve_tests,
+            run_hypothesis,
+        )
         from model_auditor._evaluation import _prepare_feature_data, support_counts
         from model_auditor.schemas import LevelEvaluation
 
         if contrast not in {"difference", "ratio"} or not self.metrics:
             raise ValueError("Choose difference or ratio and configure metrics first.")
+        validate_n_bootstraps(n_bootstraps)
+        tests = resolve_tests(
+            self.metrics,
+            contrast,
+            n_bootstraps,
+            test=test,
+            test_metrics=test_metrics,
+            margin=margin,
+            boundary=boundary,
+            alpha=alpha,
+            direction=direction,
+        )
         config = inference or InferenceConfig()
         _, threshold, left, features = self._prepare_evaluation(
             score_name,
@@ -1036,6 +1131,10 @@ class Auditor:
             contrast=contrast,
             estimand="paired_model_contrast",
         )
+        if tests:
+            result.metadata["hypothesis_test"] = hypothesis_metadata(
+                tests, margin, boundary
+            )
         for feature in features.values():
             data, categories = _prepare_feature_data(
                 paired, feature.name, config.missing
@@ -1072,6 +1171,7 @@ class Auditor:
                         n_bootstraps if metric.ci_eligible else None,
                         config,
                         identical=identical,
+                        test=tests.get(metric.name),
                     )
                     _record_contrast_scale(level.metrics[metric.name], metric, contrast)
                 fe.levels[str(name)] = level
@@ -1084,6 +1184,12 @@ class Auditor:
                         for metric in self.metrics:
                             level.update(metric.name, metric.label, float("nan"))
                             level.metrics[metric.name].status = "undefined"
+                            if metric.name in tests:
+                                hypothesis = run_hypothesis(
+                                    level.metrics[metric.name], tests[metric.name], None
+                                )
+                                hypothesis.decision_status = "undefined_estimate"
+                                level.metrics[metric.name].hypothesis = hypothesis
                         fe.levels[name] = level
                 fe.levels = {name: fe.levels[name] for name in categories}
             result.features[feature.name] = fe
@@ -1100,6 +1206,14 @@ class Auditor:
         n_bootstraps: Optional[int] = 1000,
         inference: Optional[InferenceConfig] = None,
         cohort: Optional[str] = None,
+        test: Optional[Literal["noninferiority", "superiority", "equivalence"]] = None,
+        test_metrics: Optional[list[str]] = None,
+        margin: Optional[float | _Mapping[str, float]] = None,
+        boundary: Optional[
+            float | tuple[float, float] | _Mapping[str, float | tuple[float, float]]
+        ] = None,
+        alpha: Optional[float] = None,
+        direction: Optional[_Mapping[str, Literal["higher", "lower"]]] = None,
     ) -> ScoreEvaluation:
         """Compare each subgroup with an observed reference using configured metrics.
 
@@ -1120,26 +1234,80 @@ class Auditor:
             inference: Optional InferenceConfig; None uses defaults. Shared resamples
                 preserve pairing/overlap. Missing features follow this configuration.
             cohort: Optional cohort identifier in provenance; default None.
+            test: None (default) runs no test and leaves outputs unchanged.
+                "noninferiority", "superiority" or "equivalence" (TOST) tests each
+                selected metric's contrast with the same shared resamples as its
+                interval; requires n_bootstraps and alpha.
+            test_metrics: Metric names to test; None (default) tests every
+                configured metric, so each must be interval-eligible and have a
+                higher/lower direction (equivalence accepts any direction).
+            margin: Positive margin on the reported contrast scale (after any
+                metric scale), or a {metric: margin} mapping. Non-inferiority
+                boundary is -margin/+margin for a difference and 1 - margin/
+                1 + margin for a ratio, by direction; equivalence uses both sides.
+                Required for non-inferiority/equivalence unless boundary is given;
+                not allowed for superiority. No default is suggested.
+            boundary: Explicit null boundary instead of margin (for example 0.9
+                for a ratio): a number for non-inferiority, a (lower, upper) pair
+                for equivalence, or a {metric: boundary} mapping. It must lie on
+                the unfavourable side of no difference (0 or 1).
+            alpha: One-sided significance level in (0, 0.5), required with test.
+                Each bound has level 1 - alpha; there is no default.
+            direction: {metric: "higher" | "lower"} overrides of the metric's
+                own direction, for example for a custom metric or a count.
 
         Returns:
             New ScoreEvaluation with original-sample metric contrasts and interval
-            diagnostics. No input data or registrations are changed.
+            diagnostics. No input data or registrations are changed. With test,
+            each tested LevelMetric has a HypothesisTestResult in hypothesis,
+            exports add test columns, and metadata["hypothesis_test"] records the
+            test, alpha, margin, boundary override, and each metric's direction and
+            null boundary.
 
         Raises:
             ValueError: Invalid contrast, no metrics, invalid data/truth/scores,
-                thresholds, bootstrap count or inference inputs.
+                thresholds, bootstrap count or inference inputs; invalid test
+                arguments, including a tested metric without a higher/lower
+                direction, a non-interval-eligible tested metric, a missing or
+                nonpositive margin, a boundary on the wrong side, or test
+                arguments without test.
 
         Notes:
-            Intervals are pointwise, without selection or multiplicity correction.
-            They condition on supplied predictions; evaluate on independent data.
+            Intervals and tests are pointwise, without selection or multiplicity
+            correction. They condition on supplied predictions; evaluate on
+            independent data. A test rejects H0 when its one-sided percentile
+            bound lies strictly on the favourable side of the boundary; the
+            p-value is an approximate resampling value that can disagree with the
+            bound near the boundary for small n_bootstraps. If the interval
+            would be unusable (undefined estimate, insufficient clusters or
+            resamples, too many invalid or degenerate draws), the decision is
+            "undefined" with that reason in decision_status. For a fixed sequence,
+            test non-inferiority, then superiority only if the first rejects.
             Only the requested feature is returned. FPR/FNR contrasts compare
             class-conditional rates, without implying causal fairness."""
-        from model_auditor._comparisons import contrast_estimate, evaluate_contrast
+        from model_auditor._comparisons import (
+            contrast_estimate,
+            evaluate_contrast,
+            hypothesis_metadata,
+            resolve_tests,
+        )
         from model_auditor._evaluation import _prepare_feature_data, support_counts
         from model_auditor.schemas import LevelEvaluation
 
         if contrast not in {"difference", "ratio"} or not self.metrics:
             raise ValueError("Choose difference or ratio and configure metrics first.")
+        validate_n_bootstraps(n_bootstraps)
+        tests = resolve_tests(
+            self.metrics,
+            contrast,
+            n_bootstraps,
+            test=test,
+            test_metrics=test_metrics,
+            margin=margin,
+            boundary=boundary,
+            alpha=alpha,
+            direction=direction,
+        )
         config = inference or InferenceConfig()
         _, threshold, data, features = self._prepare_evaluation(
             score_name,
@@ -1165,6 +1333,10 @@ class Auditor:
             contrast=contrast,
             estimand="subgroup_metric_contrast",
         )
+        if tests:
+            result.metadata["hypothesis_test"] = hypothesis_metadata(
+                tests, margin, boundary
+            )
         fe = FeatureEvaluation(
             feature,
             features[feature].label or feature,
@@ -1203,6 +1375,7 @@ class Auditor:
                     metric.label,
                     n_bootstraps if metric.ci_eligible else None,
                     config,
+                    test=tests.get(metric.name),
                 )
                 _record_contrast_scale(level.metrics[metric.name], metric, contrast)
             fe.levels[name] = level

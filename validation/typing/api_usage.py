@@ -22,6 +22,7 @@ from model_auditor.schemas import (
     ConditionalThreshold,
     ErrorEvaluation,
     FeatureEvaluation,
+    HypothesisTestResult,
     LevelEvaluation,
     LevelMetric,
     ScoreEvaluation,
@@ -50,6 +51,23 @@ if TYPE_CHECKING:
     assert_type(auditor.evaluate_calibration("score", bins=5), CalibrationEvaluation)
     assert_type(auditor.compare_groups("score", "region", "North"), ScoreEvaluation)
     assert_type(auditor.compare_scores("score", "reference"), ScoreEvaluation)
+    tested = auditor.compare_scores(
+        "score",
+        "reference",
+        test="noninferiority",
+        test_metrics=["sensitivity"],
+        margin={"sensitivity": 0.05},
+        alpha=0.025,
+        direction={"sensitivity": "higher"},
+    )
+    hypothesis = tested.features["overall"].levels["Overall"].metrics["x"].hypothesis
+    assert_type(hypothesis, HypothesisTestResult | None)
+    if hypothesis is not None:
+        assert_type(hypothesis.one_sided_bound, float | None)
+        assert_type(hypothesis.equivalence_bounds, tuple[float, float] | None)
+    auditor.compare_groups(
+        "score", "region", "North", test="equivalence", boundary=(-0.1, 0.1), alpha=0.05
+    )
     assert_type(result.plot_metric_intervals("sensitivity")["region"][0], Figure)
     assert_type(result.plot_metric_intervals("sensitivity")["region"][1], Axes)
     assert_type(plot_metric_intervals(result, "sensitivity")["region"][1], Axes)
