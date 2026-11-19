@@ -21,16 +21,16 @@ def is_metric_input_valid(cls: object) -> bool:
         cls: Object to inspect; nonclasses return False. No instantiation occurs.
 
     Returns:
-        True if the class has name, label, inputs attributes and
-        row_call, data_transform methods; False otherwise. This checks presence
-        and callability, not signatures, types or numerical correctness.
+        True if the class has name, label, inputs attributes and a callable
+        data_transform method; False otherwise. row_call is optional because
+        evaluation only uses data_transform. This checks presence and
+        callability, not signatures, types or numerical correctness.
     """
     return (
         inspect.isclass(cls)
         and hasattr(cls, "name")
         and hasattr(cls, "label")
         and hasattr(cls, "inputs")
-        and callable(getattr(cls, "row_call", None))
         and callable(getattr(cls, "data_transform", None))
     )
 

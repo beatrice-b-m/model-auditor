@@ -7,7 +7,9 @@ true negatives, and false negatives from prediction data.
 Built-in transforms compute vectorized 0/1 indicators and mutate the supplied
 DataFrame by adding or replacing a column. Auditor uses these on private slices.
 Direct callers should pass a copy when they need to preserve their input.
-row_call remains available for individual rows and custom input implementations.
+row_call remains available for individual rows and custom input implementations;
+it is optional for custom inputs, because evaluation only calls data_transform.
+Register custom inputs with Auditor.register_metric_input().
 """
 
 from typing import Protocol, Union, runtime_checkable
@@ -25,7 +27,16 @@ class AuditorMetricInput(Protocol):
     Attributes:
         name: Column name to use when adding this input to a DataFrame.
         label: Human-readable display name.
-        inputs: List of column names required to compute this input.
+        inputs: List of column names required to compute this input. Names may
+            be base columns, built-in inputs, registered inputs or data columns;
+            the Auditor applies inputs in dependency order.
+
+    Notes:
+        Evaluation calls only data_transform. row_call is an optional per-row
+        helper: subclasses inherit a placeholder and may override it, and
+        structural implementations registered with
+        Auditor.register_metric_input() need not define it. Values must depend
+        only on their own row.
     """
 
     name: str
