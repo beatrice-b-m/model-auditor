@@ -7,7 +7,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from model_auditor._evaluation import bootstrap_summary, resample
+from model_auditor._evaluation import bootstrap_summary, make_sampler
 from model_auditor.metrics import AuditorMetric
 from model_auditor.schemas import HypothesisTestResult, InferenceConfig, LevelMetric
 
@@ -302,9 +302,8 @@ def evaluate_contrast(
         result.interval_status = "insufficient_clusters"
     else:
         rng = np.random.default_rng(config.random_state)
-        samples = np.asarray(
-            [statistic(resample(data, config, rng)) for _ in range(n_bootstraps)]
-        )
+        sample = make_sampler(data, config)
+        samples = np.asarray([statistic(sample(rng)) for _ in range(n_bootstraps)])
         bootstrap_summary(result, samples, config, allow_degenerate=identical)
     if test is not None:
         result.hypothesis = run_hypothesis(result, test, samples)

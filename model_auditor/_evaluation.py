@@ -1,5 +1,6 @@
 """Binary subgroup estimates and inference, independent of Auditor state."""
 
+from collections.abc import Callable
 from copy import deepcopy
 from typing import Optional
 
@@ -152,27 +153,49 @@ def wilson_interval(
     return float(max(0, center - radius)), float(min(1, center + radius))
 
 
-def resample(
-    data: pd.DataFrame, config: InferenceConfig, rng: np.random.Generator
-) -> pd.DataFrame:
-    """Draw shared row indices, whole clusters, or truth-stratified observations."""
+def make_sampler(
+    data: pd.DataFrame, config: InferenceConfig
+) -> Callable[[np.random.Generator], pd.DataFrame]:
+    """Build a resampler for ``data`` that groups rows once, not on every draw.
+
+    Each call of the returned function draws shared row indices, whole clusters,
+    or truth-stratified observations from ``rng`` and returns a new DataFrame.
+    Group order and generator calls are fixed, so a seeded generator gives the
+    same draws as regrouping on every call.
+
+    Raises:
+        ValueError: Cluster resampling with a missing cluster column or
+            missing cluster IDs.
+    """
     if config.resampling == "cluster":
         if config.cluster not in data or data[config.cluster].isna().any():
             raise ValueError("Cluster IDs must exist and have no missing values.")
-        groups = list(
+        clusters = list(
             data.groupby(config.cluster, sort=False, observed=True).indices.values()
         )
-        indices = np.concatenate(
-            [groups[i] for i in rng.integers(len(groups), size=len(groups))]
-        )
+
+        def draw(rng: np.random.Generator) -> pd.DataFrame:
+            indices = np.concatenate(
+                [clusters[i] for i in rng.integers(len(clusters), size=len(clusters))]
+            )
+            return data.iloc[indices].copy()
+
     elif config.resampling == "stratified":
-        groups = data.groupby("_truth", sort=False).indices.values()
-        indices = np.concatenate(
-            [rng.choice(group, size=len(group), replace=True) for group in groups]
-        )
+        strata = list(data.groupby("_truth", sort=False).indices.values())
+
+        def draw(rng: np.random.Generator) -> pd.DataFrame:
+            indices = np.concatenate(
+                [rng.choice(group, size=len(group), replace=True) for group in strata]
+            )
+            return data.iloc[indices].copy()
+
     else:
-        indices = rng.integers(len(data), size=len(data))
-    return data.iloc[indices].copy()
+        n = len(data)
+
+        def draw(rng: np.random.Generator) -> pd.DataFrame:
+            return data.iloc[rng.integers(n, size=n)].copy()
+
+    return draw
 
 
 def bootstrap_summary(
@@ -255,9 +278,10 @@ def evaluate_level(
                 level.metrics[metric.name].interval_status = "insufficient_clusters"
             return level
         rng = np.random.default_rng(config.random_state)
+        sample = make_sampler(data, config)
         samples = {metric.name: [] for metric in bootstrap_metrics}
         for _ in range(n_bootstraps):
-            boot = resample(data, config, rng)
+            boot = sample(rng)
             for metric in bootstrap_metrics:
                 samples[metric.name].append(metric_value(metric, boot))
         for metric in bootstrap_metrics:
@@ -380,8 +404,9 @@ def evaluate_error_feature(
             return result, support
         samples = {name: [] for name in pending}
         rng = np.random.default_rng(config.random_state)
+        sample = make_sampler(full, config)
         for _ in range(n_bootstraps):
-            boot = resample(full, config, rng)
+            boot = sample(rng)
             boot_group = boot[boot[group_col] == 1]
             counts, group_counts = (
                 _level_counts(boot, feature.name),
