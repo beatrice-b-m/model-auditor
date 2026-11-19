@@ -320,100 +320,122 @@ def evaluate_feature(
     return result
 
 
-def evaluate_error_feature(
+ERROR_GROUPS = ("tp", "tn", "fp", "fn")
+
+
+def evaluate_error_features(
     data: pd.DataFrame,
-    group_col: str,
     feature: AuditorFeature,
     metric: AuditorErrorMetric,
     n_bootstraps: Optional[int],
     global_total_n: int,
     inference: InferenceConfig | None = None,
-) -> tuple[FeatureEvaluation, dict[str, dict[str, float]]]:
+    groups: tuple[str, ...] = ERROR_GROUPS,
+) -> dict[str, tuple[FeatureEvaluation, dict[str, dict[str, float]]]]:
     """Confusion-membership enrichment versus rest, not conditional error rates.
 
-    Point estimates always use the original table. IID auto inference uses a
+    Evaluates every confusion group in ``groups`` for one feature. Point
+    estimates always use the original table. IID auto inference uses a
     conditional exact interval for the population OR with the sample OR as the
-    reported point estimate. Other designs use diagnosed percentile resampling.
+    reported point estimate. Other designs use diagnosed percentile resampling,
+    and every group is evaluated on the same ``n_bootstraps`` resamples.
+
+    Returns:
+        ``{group: (FeatureEvaluation, support)}`` in ``groups`` order.
     """
     config = inference or InferenceConfig()
     full, categories = _prepare_feature_data(data, feature.name, config.missing)
     full_counts = _level_counts(full, feature.name)
-    group = full[full[group_col] == 1]
-    group_counts = _level_counts(group, feature.name)
     levels = categories if categories is not None else list(full_counts)
-    result = FeatureEvaluation(
-        feature.name,
-        feature.label or feature.name,
-        excluded_n=len(data) - len(full),
-        total_n=len(data),
-    )
-    support = {}
-    for name in levels:
-        count, group_count = full_counts.get(name, 0), group_counts.get(name, 0)
-        estimate = metric.compute(group_count, len(group), count, len(full))
-        result.update(metric.name, metric.label, {name: estimate})
-        level = result.levels[name]
-        level.support = support_counts(full.loc[full[feature.name].astype(str) == name])
-        lm = level.metrics[metric.name]
-        lm.status = (
-            "undefined"
-            if np.isnan(estimate)
-            else "unbounded"
-            if np.isinf(estimate)
-            else "ok"
-        )
-        lm.direction = "none"
-        support[name] = {
-            "n": group_count,
-            "pct_overall": group_count / global_total_n
-            if global_total_n
-            else float("nan"),
-            "pct_group": group_count / len(group) if len(group) else float("nan"),
-        }
-        if np.isnan(estimate):
-            lm.interval_status = "undefined_estimate"
-        elif (
-            n_bootstraps is not None
-            and metric.ci_eligible
-            and config.method == "auto"
-            and config.resampling == "iid"
-            and type(metric) is OddsRatio
-        ):
-            a, b = group_count, count - group_count
-            c = len(group) - group_count
-            d = len(full) - count - c
-            ci = odds_ratio([[a, b], [c, d]], kind="conditional").confidence_interval(
-                confidence_level=config.confidence_level
-            )
-            lm.interval = float(ci.low), float(ci.high)
-            lm.interval_method = "conditional_exact"
-            lm.interval_status = "ok"
-    pending = [
-        name
+    level_support = {
+        name: support_counts(full.loc[full[feature.name].astype(str) == name])
         for name in levels
-        if n_bootstraps is not None
-        and metric.ci_eligible
-        and result.levels[name].metrics[metric.name].interval_status == "not_requested"
-    ]
-    if pending:
-        if config.resampling == "cluster" and full[config.cluster].nunique() < 2:
-            for name in pending:
-                result.levels[name].metrics[
+    }
+    out = {}
+    pending: dict[str, list[str]] = {}
+    for group_col in groups:
+        group = full[full[group_col] == 1]
+        group_counts = _level_counts(group, feature.name)
+        result = FeatureEvaluation(
+            feature.name,
+            feature.label or feature.name,
+            excluded_n=len(data) - len(full),
+            total_n=len(data),
+        )
+        support = {}
+        for name in levels:
+            count, group_count = full_counts.get(name, 0), group_counts.get(name, 0)
+            estimate = metric.compute(group_count, len(group), count, len(full))
+            result.update(metric.name, metric.label, {name: estimate})
+            level = result.levels[name]
+            level.support = deepcopy(level_support[name])
+            lm = level.metrics[metric.name]
+            lm.status = (
+                "undefined"
+                if np.isnan(estimate)
+                else "unbounded"
+                if np.isinf(estimate)
+                else "ok"
+            )
+            lm.direction = "none"
+            support[name] = {
+                "n": group_count,
+                "pct_overall": group_count / global_total_n
+                if global_total_n
+                else float("nan"),
+                "pct_group": group_count / len(group) if len(group) else float("nan"),
+            }
+            if np.isnan(estimate):
+                lm.interval_status = "undefined_estimate"
+            elif (
+                n_bootstraps is not None
+                and metric.ci_eligible
+                and config.method == "auto"
+                and config.resampling == "iid"
+                and type(metric) is OddsRatio
+            ):
+                a, b = group_count, count - group_count
+                c = len(group) - group_count
+                d = len(full) - count - c
+                ci = odds_ratio(
+                    [[a, b], [c, d]], kind="conditional"
+                ).confidence_interval(confidence_level=config.confidence_level)
+                lm.interval = float(ci.low), float(ci.high)
+                lm.interval_method = "conditional_exact"
+                lm.interval_status = "ok"
+        group_pending = [
+            name
+            for name in levels
+            if n_bootstraps is not None
+            and metric.ci_eligible
+            and result.levels[name].metrics[metric.name].interval_status
+            == "not_requested"
+        ]
+        if group_pending:
+            pending[group_col] = group_pending
+        out[group_col] = (result, support)
+    if not pending:
+        return out
+    if config.resampling == "cluster" and full[config.cluster].nunique() < 2:
+        for group_col, names in pending.items():
+            for name in names:
+                out[group_col][0].levels[name].metrics[
                     metric.name
                 ].interval_status = "insufficient_clusters"
-            return result, support
-        samples = {name: [] for name in pending}
-        rng = np.random.default_rng(config.random_state)
-        sample = make_sampler(full, config)
-        for _ in range(n_bootstraps):
-            boot = sample(rng)
+        return out
+    samples = {
+        group_col: {name: [] for name in names} for group_col, names in pending.items()
+    }
+    rng = np.random.default_rng(config.random_state)
+    sample = make_sampler(full, config)
+    for _ in range(n_bootstraps):
+        boot = sample(rng)
+        counts = _level_counts(boot, feature.name)
+        for group_col, names in pending.items():
             boot_group = boot[boot[group_col] == 1]
-            counts, group_counts = (
-                _level_counts(boot, feature.name),
-                _level_counts(boot_group, feature.name),
-            )
-            for name in pending:
-                samples[name].append(
+            group_counts = _level_counts(boot_group, feature.name)
+            for name in names:
+                samples[group_col][name].append(
                     metric.compute(
                         group_counts.get(name, 0),
                         len(boot_group),
@@ -421,13 +443,14 @@ def evaluate_error_feature(
                         len(boot),
                     )
                 )
-        for name in pending:
+    for group_col, names in pending.items():
+        for name in names:
             bootstrap_summary(
-                result.levels[name].metrics[metric.name],
-                np.asarray(samples[name]),
+                out[group_col][0].levels[name].metrics[metric.name],
+                np.asarray(samples[group_col][name]),
                 config,
             )
-    return result, support
+    return out
 
 
 def evaluate_confidence_interval(

@@ -107,3 +107,36 @@ def test_compare_groups_draws_once_per_call_for_all_levels(draws, n_metrics):
         "new", "g", "a", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER
     )
     assert draws == [len(auditor.data)] * N_BOOTSTRAPS
+
+
+@pytest.fixture
+def error_draws(monkeypatch):
+    """Count resamples drawn by error evaluation."""
+    from model_auditor import _evaluation
+
+    calls = []
+    original = _evaluation.make_sampler
+
+    def counting(data, config):
+        sample = original(data, config)
+
+        def draw(rng):
+            calls.append(len(data))
+            return sample(rng)
+
+        return draw
+
+    monkeypatch.setattr(_evaluation, "make_sampler", counting)
+    return calls
+
+
+def test_evaluate_errors_draws_once_per_feature_for_all_groups(error_draws):
+    make_auditor().evaluate_errors("new", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER)
+    # Only g resamples (overall has no "rest", so its OR is undefined), and
+    # its draws are shared by TP, TN, FP and FN.
+    assert len(error_draws) == N_BOOTSTRAPS
+
+
+def test_evaluate_errors_groups_clusters_once_per_feature(cluster_groupbys):
+    make_auditor().evaluate_errors("new", n_bootstraps=N_BOOTSTRAPS, inference=CLUSTER)
+    assert len(cluster_groupbys) == 1
